@@ -99,5 +99,7 @@ ai/
 GEMINI.md
 
 # ─── Graphify generated cache (AST + semantic snapshots) ───
-graphify-out/cache/
-graphify-out/2*/
+graphify-out/
+
+# ─── Upload temp directory ─────────────────────────────────
+.tmp-uploads/
