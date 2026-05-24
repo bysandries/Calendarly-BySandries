@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: calendarly-backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - db-data:/data
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - DATABASE_PATH=/data/calendarly.db
+      - DB_ENCRYPTION_KEY=secure-palm-retrospective-encryption-key-phrase-2026
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: calendarly-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    environment:
+      - VITE_BACKEND_URL=http://backend:3000
+    restart: unless-stopped
+
+volumes:
+  db-data:
+    driver: local
