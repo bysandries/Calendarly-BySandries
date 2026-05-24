@@ -10,11 +10,10 @@ services:
       - "3000:3000"
     volumes:
       - db-data:/data
-    environment:
-      - PORT=3000
-      - NODE_ENV=production
-      - DATABASE_PATH=/data/calendarly.db
-      - DB_ENCRYPTION_KEY=secure-palm-retrospective-encryption-key-phrase-2026
+      - ./server/backups:/usr/src/app/backups
+      - ./.gitignore:/usr/src/.gitignore:ro
+    env_file:
+      - .env
     restart: unless-stopped
 
   frontend:
@@ -26,8 +25,8 @@ services:
       - "5173:5173"
     depends_on:
       - backend
-    environment:
-      - VITE_BACKEND_URL=http://backend:3000
+    env_file:
+      - .env
     restart: unless-stopped
 
 volumes:
