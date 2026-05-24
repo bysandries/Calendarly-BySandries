@@ -1,0 +1,17 @@
+{
+  "name": "calendarly",
+  "version": "1.0.0",
+  "description": "High-performance local-first scheduling and orchestration engine",
+  "scripts": {
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "npm start --prefix server",
+    "client": "npm run dev --prefix client",
+    "test": "node server/test-db.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
