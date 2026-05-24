@@ -489,7 +489,7 @@ export default function SettingsPage() {
           ) : (
             <p style={{ color: '#f87171' }}>
               Warning: Unprotected files detected! The following directories are vulnerable to commit: <br />
-              <strong>{gitStatus.missing.join(', ')}</strong>. Please review your `.gitignore` configuration immediately.
+              <strong>{(gitStatus.missing || []).join(', ') || gitStatus.error || 'Unknown'}</strong>. Please review your `.gitignore` configuration immediately.
             </p>
           )}
         </div>

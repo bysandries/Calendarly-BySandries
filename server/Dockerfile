@@ -1,19 +1,18 @@
-FROM node:20
+FROM node:20-bookworm
 
-# Create app directory
+RUN echo "deb http://deb.debian.org/debian bullseye main" >> /etc/apt/sources.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends libssl1.1 && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /usr/src/app
 
-# Copy package manifests
 COPY package*.json ./
 
-# Install packages including compilation dependencies
 RUN npm install
 
-# Bundle source code
 COPY . .
 
-# Expose server port
 EXPOSE 3000
 
-# Start server
 CMD ["npm", "start"]
