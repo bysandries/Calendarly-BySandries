@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 const express = require('express');
@@ -98,6 +99,34 @@ app.get('/api/health/integrity-check', async (req, res) => {
   }
 });
 
+
+// MCP spec endpoint — serves the latest OpenClaw MCP document dynamically
+// This allows OpenClaw and other agents to fetch the current API contract
+// without needing to read the filesystem or repository directly.
+app.get('/api/mcp', (req, res) => {
+  // Try project root first (native dev), then same dir (Docker where server/ is the app root)
+  const candidates = [
+    path.resolve(__dirname, '..', 'OPENCLAW_MCP.md'),
+    path.resolve(__dirname, 'OPENCLAW_MCP.md'),
+  ];
+  let content = null;
+  let lastErr = null;
+  for (const mcpPath of candidates) {
+    try {
+      content = fs.readFileSync(mcpPath, 'utf-8');
+      break;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  if (content) {
+    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    res.send(content);
+  } else {
+    console.error('[MCP] Failed to read OPENCLAW_MCP.md:', lastErr?.message);
+    res.status(500).json({ error: 'MCP specification unavailable. Ensure OPENCLAW_MCP.md exists in the project root.' });
+  }
+});
 
 // Global error handler
 app.use((err, req, res, next) => {

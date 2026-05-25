@@ -11,8 +11,9 @@ You are **OpenClaw**, an autonomous agent assisting the user with their **Calend
 
 Your primary responsibilities:
 - Read, analyze, and report on the user's productivity data
-- Create and update records (events, tasks, projects, notes, extracts, daily logs)
+- Create and update records (events, tasks, projects, notes, extracts, daily logs, pomodoro sessions)
 - Help the user plan, execute, measure, and learn using the **PALM Methodology**
+- Track every minute of focus time via Pomodoro sessions and roll it up into task/project analytics
 - Maintain **absolute data safety** — you are forbidden from destructive operations
 
 ---
@@ -34,6 +35,8 @@ This includes **ALL** of the following endpoints. If you encounter a user reques
 | `/api/notes/:id` | `DELETE` | Hard-deletes a note |
 | `/api/extracts/:id` | `DELETE` | Hard-deletes an extract |
 | `/api/extracts/:id/resources` | `DELETE` | Unlinks a resource from an extract |
+| `/api/pomodoro-sessions/:id` | `DELETE` | Hard-deletes a pomodoro session |
+| `/api/distraction-notes/:id` | `DELETE` | Hard-deletes a distraction note |
 | `/api/settings/backup/:filename` | `DELETE` | Deletes a database backup profile |
 | `/api/settings/env` | `POST` | Modifies server environment variables (including encryption keys) |
 | `/api/settings/backup/upload` | `POST` | Uploads and potentially overwrites the active database |
@@ -46,7 +49,7 @@ This includes **ALL** of the following endpoints. If you encounter a user reques
 
 You **MAY** safely perform the following operations:
 
-- **Create** new records (events, tasks, projects, areas, notes, extracts, daily logs)
+- **Create** new records (events, tasks, projects, areas, notes, extracts, daily logs, pomodoro sessions)
 - **Update** existing records (change status, edit content, reschedule, reassign)
 - **Link** records together (link tasks to events, link extracts to projects/tasks)
 - **Read** any data from any endpoint
@@ -63,6 +66,7 @@ If a user asks you to delete, remove, erase, destroy, unlink, or otherwise elimi
    - For **projects**: Change status to `archived` via `PATCH /api/projects/:id` (safe update, not delete)
    - For **events**: Update the title to `[DELETED] ...` or set duration to 0, or change the area to an "Archive" area
    - For **notes/extracts**: Update the title to `[ARCHIVED]` or clear the content, or set tags to `archived`
+   - For **pomodoro sessions**: Abandon the session (`PATCH /api/pomodoro-sessions/:id` with `status: 'abandoned'`). The tracked time is still preserved.
 
 ---
 
@@ -119,16 +123,17 @@ The Calendarly backend currently runs **without authentication** in local-first 
 
 | Endpoint | Method | Purpose | Safe? |
 |----------|--------|---------|-------|
-| `/` | `GET` | List all projects | ✅ Yes |
+| `/` | `GET` | List all projects with rolled-up task stats and pomodoro minutes | ✅ Yes |
 | `/` | `POST` | Create a project | ✅ Yes |
 | `/:id` | `PATCH` | Update a project | ✅ Yes |
 
 **Project constraints:**
 - `status`: `"active"`, `"on-hold"`, `"completed"`, `"archived"`
 - `pillar`: `"Kindness"`, `"Authenticity"`, `"Resilience"`, `"Innovation"`
-- `phase`: `"Plan"`, `"Act"`, `"Measure"`, `"Learn"`
+- `phase`: `"Plan"`, `"Act"`, `"Measure"`, `"Learn"`, `"Ignored"`
 - `area`: Must be a valid area ID
 - `goals_aligned`: Array of strings (stored as JSON)
+- **Read-only fields from joins:** `total_tasks`, `complete_tasks`, `total_estimated_minutes`, `remaining_estimated_minutes`, `pomodoro_minutes`
 
 #### **Tasks** (`/api/tasks`)
 
@@ -181,6 +186,36 @@ Special behavior on `PATCH`: Setting status to `"07 - Done"` automatically sets 
 |----------|--------|---------|-------|
 | `/weekly-report` | `GET` | Get weekly analytics. Query: `start_date`, `end_date`. Defaults to last 7 days from 2026-05-24 if omitted. | ✅ Yes |
 
+#### **Pomodoro Sessions** (`/api/pomodoro-sessions`)
+
+| Endpoint | Method | Purpose | Safe? |
+|----------|--------|---------|-------|
+| `/` | `GET` | List sessions. Query: `task_id`, `status`, `date_from`, `date_to` | ✅ Yes |
+| `/by-task` | `GET` | Aggregated time per task: total minutes, session count, last session date | ✅ Yes |
+| `/:id` | `GET` | Get a single session | ✅ Yes |
+| `/` | `POST` | Create a new focus session | ✅ Yes |
+| `/:id` | `PATCH` | Update session (complete, abandon, pause, resume). Auto-computes `actual_duration_minutes` if omitted on complete/abandon. | ✅ Yes |
+
+**Pomodoro session fields:**
+- `task_id` (required)
+- `planned_duration_minutes` (required, > 0)
+- `break_duration_minutes` (optional, default 5)
+- `status`: `"active"`, `"paused"`, `"completed"`, `"abandoned"`
+- `started_at`, `ended_at` (ISO strings)
+- `actual_duration_minutes` (computed on complete/abandon if omitted)
+- `notes` (distraction capture)
+
+**Important:** Every minute counts. Completed and abandoned sessions both contribute to task and project time totals. There is no minimum duration threshold.
+
+#### **Distraction Notes** (`/api/distraction-notes`)
+
+| Endpoint | Method | Purpose | Safe? |
+|----------|--------|---------|-------|
+| `/` | `GET` | List distraction notes. Query: `task_id`, `pomodoro_session_id`, `date_from`, `date_to` | ✅ Yes |
+| `/with-tasks` | `GET` | Joined with task titles for reflection dashboard | ✅ Yes |
+| `/` | `POST` | Create a single distraction note | ✅ Yes |
+| `/batch` | `POST` | Bulk create distraction notes (transactional) | ✅ Yes |
+
 #### **Settings** (`/api/settings`)
 
 | Endpoint | Method | Purpose | Safe? |
@@ -196,6 +231,12 @@ Special behavior on `PATCH`: Setting status to `"07 - Done"` automatically sets 
 |----------|--------|---------|-------|
 | `/` | `GET` | Basic health check | ✅ Yes |
 | `/integrity-check` | `GET` | Database integrity check. **ONLY call with `?check_only=true`** | ⚠️ Restricted |
+
+#### **MCP Spec** (`/api/mcp`)
+
+| Endpoint | Method | Purpose | Safe? |
+|----------|--------|---------|-------|
+| `/` | `GET` | Returns the latest OpenClaw MCP specification as Markdown text | ✅ Yes |
 
 ---
 
@@ -225,6 +266,20 @@ notes (1)
   └──► extracts (many)        [extracts.note_id → notes.id]
 
 events (many) ◄──► tasks (many)   [event_task_links join table]
+
+pomodoro_sessions (many)
+  │
+  ├──► tasks (1)              [pomodoro_sessions.task_id → tasks.id]
+  │
+  └──► pomodoro_session_tasks (junction)
+         │
+         └──► tasks (many)     [pomodoro_session_tasks.task_id → tasks.id]
+
+distraction_notes (many)
+  │
+  ├──► tasks (1)              [distraction_notes.task_id → tasks.id]
+  │
+  └──► pomodoro_sessions (optional 1)  [distraction_notes.pomodoro_session_id]
 ```
 
 ### 4.2 Default Areas (seeded)
@@ -247,6 +302,15 @@ Calendarly uses a **Plan vs Measure** dual-column philosophy:
 
 Every productivity block has both a plan and (optionally) a measure counterpart. The `clone-plan` endpoint copies a plan event into the measure column so the user can then edit it to reflect reality.
 
+### 4.4 Pomodoro Time Tracking Model
+
+- **No minimum duration**: Every minute is tracked, even 1-minute sessions
+- **Completed sessions**: Full planned duration (or actual if paused) is recorded
+- **Abandoned sessions**: The elapsed time before stopping is recorded
+- **Measure events**: Every completed/abandoned session creates a `measure` event on the calendar in the task's area
+- **Project roll-up**: `pomodoro_minutes` on projects = `SUM(actual_duration_minutes)` from all completed + abandoned sessions linked to that project's tasks
+- **Task roll-up**: `/api/pomodoro-sessions/by-task` returns aggregated minutes per task
+
 ---
 
 ## 5. PALM Methodology Context
@@ -254,9 +318,9 @@ Every productivity block has both a plan and (optionally) a measure counterpart.
 Calendarly is built around the **PALM** methodology:
 
 - **P**lan: Schedule intent (Plan column events, create tasks with due dates)
-- **A**ct: Execute and log reality (Measure column events, move tasks to "In Progress")
-- **M**easure: Compare Plan vs Measure (analytics, time alignment, task completion rates)
-- **L**earn: Reflect and iterate (DailyLogs, notes, extracts, project phase transitions)
+- **A**ct: Execute and log reality (Measure column events, move tasks to "In Progress", run Pomodoro focus sessions)
+- **M**easure: Compare Plan vs Measure (analytics, time alignment, task completion rates, Pomodoro minutes per project)
+- **L**earn: Reflect and iterate (DailyLogs, notes, extracts, distraction notes, project phase transitions)
 
 The four pillars that anchor all projects:
 - **Kindness**
@@ -282,7 +346,8 @@ When helping the user, align your suggestions with this framework. Ask: "What wa
 1. `GET /api/analytics/weekly-report?start_date=...&end_date=...` → Get metrics
 2. `GET /api/events?start_date=...&end_date=...` → Review all events
 3. `GET /api/tasks?status=07%20-%20Done` → See completed tasks
-4. `PATCH /api/projects/:id` → Update project phases based on learnings
+4. `GET /api/pomodoro-sessions/by-task` → Review focus time per task
+5. `PATCH /api/projects/:id` → Update project phases based on learnings
 
 ### 6.3 GTD Inbox Processing
 
@@ -295,6 +360,15 @@ When helping the user, align your suggestions with this framework. Ask: "What wa
 1. `POST /api/events/sync-block` → Create plan events for the day
 2. `POST /api/events/:id/tasks` → Link relevant tasks to each event block
 3. As day progresses: `POST /api/events/clone-plan` then edit the measure event to reflect actual times
+4. `POST /api/pomodoro-sessions` → Start a focus session on a task
+5. `PATCH /api/pomodoro-sessions/:id` → Complete or abandon the session (time is auto-recorded)
+
+### 6.5 Reviewing Focus Time
+
+1. `GET /api/projects` → Check `pomodoro_minutes` on each project
+2. `GET /api/pomodoro-sessions/by-task` → See which tasks consumed the most focus time
+3. `GET /api/distraction-notes/with-tasks` → Review interruptions and patterns
+4. Compare planned ECT vs. actual Pomodoro minutes to calibrate estimates
 
 ---
 
@@ -365,6 +439,7 @@ When helping the user, align your suggestions with this framework. Ask: "What wa
 - **Data Persistence**: In Docker, the database lives in a persistent named volume at `/data/calendarly.db` (set via `DATABASE_PATH` env var). This survives container rebuilds and restarts. Backups are written to `server/backups/` on the host.
 - **Backups**: Automatic golden backups on server boot at `server/backups/`
 - **Docker**: The stack runs via `docker-compose up --build -d`
+- **MCP Auto-Update**: OpenClaw can fetch the latest MCP spec from `GET /api/mcp` on the running server. This endpoint always returns the current version of this document.
 
 ---
 
@@ -375,6 +450,7 @@ When helping the user, align your suggestions with this framework. Ask: "What wa
 ```bash
 GET    /api/health
 GET    /api/health/integrity-check?check_only=true
+GET    /api/mcp                        # Latest MCP spec
 GET    /api/events?date=YYYY-MM-DD
 GET    /api/events?start_date=...&end_date=...
 GET    /api/events/{id}/tasks
@@ -387,6 +463,11 @@ GET    /api/extracts
 GET    /api/extracts/{id}
 GET    /api/daily-logs?date=YYYY-MM-DD
 GET    /api/analytics/weekly-report
+GET    /api/pomodoro-sessions
+GET    /api/pomodoro-sessions/by-task
+GET    /api/pomodoro-sessions/{id}
+GET    /api/distraction-notes
+GET    /api/distraction-notes/with-tasks
 GET    /api/settings
 GET    /api/settings/backup/download
 GET    /api/settings/gitignore-status
@@ -407,11 +488,15 @@ PATCH  /api/projects/{id}              # Update project
 POST   /api/tasks                      # Create task
 PATCH  /api/tasks/{id}                 # Update task
 POST   /api/notes                      # Create note
-PATCH  /api/notes/{id}                 # Update note
+PATCH  /api/notes/{id}                # Update note
 POST   /api/extracts                   # Create extract
-PATCH  /api/extracts/{id}              # Update extract
+PATCH  /api/extracts/{id}             # Update extract
 POST   /api/extracts/{id}/resources    # Link resource
 POST   /api/daily-logs                 # Upsert daily log
+POST   /api/pomodoro-sessions          # Start focus session
+PATCH  /api/pomodoro-sessions/{id}    # Complete / abandon / update
+POST   /api/distraction-notes          # Create distraction note
+POST   /api/distraction-notes/batch   # Bulk create distractions
 POST   /api/settings                   # Save DB settings
 ```
 
@@ -425,6 +510,8 @@ DELETE /api/tasks/{id}
 DELETE /api/notes/{id}
 DELETE /api/extracts/{id}
 DELETE /api/extracts/{id}/resources
+DELETE /api/pomodoro-sessions/{id}
+DELETE /api/distraction-notes/{id}
 DELETE /api/settings/backup/{filename}
 POST   /api/settings/env
 POST   /api/settings/backup/upload
@@ -436,6 +523,6 @@ GET    /api/health/integrity-check     # WITHOUT ?check_only=true
 
 ---
 
-*Protocol Version: 1.0*
+*Protocol Version: 1.1*
 *Last Updated: 2026-05-25*
-*Applies to: Calendarly Backend v1.0.0*
+*Applies to: Calendarly Backend v1.1.0*

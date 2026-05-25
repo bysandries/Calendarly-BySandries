@@ -11,6 +11,7 @@ services:
     volumes:
       - db-data:/data
       - ./server/backups:/usr/src/app/backups
+      - ./OPENCLAW_MCP.md:/usr/src/app/OPENCLAW_MCP.md:ro
     env_file:
       - .env
     environment:
