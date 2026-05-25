@@ -21,11 +21,11 @@ const TASK_STATS_JOIN = `
   ) t ON t.project_id = p.id
   LEFT JOIN (
     SELECT tk.project_id,
-      SUM(po.duration_minutes) AS pomodoro_minutes
-    FROM task_pomodoro_sessions tps
+      SUM(COALESCE(po.actual_duration_minutes, po.planned_duration_minutes, 0)) AS pomodoro_minutes
+    FROM pomodoro_session_tasks tps
     JOIN pomodoro_sessions po ON po.id = tps.session_id
     JOIN tasks tk ON tk.id = tps.task_id
-    WHERE tk.project_id IS NOT NULL AND po.completed = 1
+    WHERE tk.project_id IS NOT NULL AND po.status IN ('completed', 'abandoned')
     GROUP BY tk.project_id
   ) ps ON ps.project_id = p.id
 `;
