@@ -470,3 +470,175 @@
   font-size: 10px;
   color: var(--text-muted);
 }
+
+/* ── Task Focus Time Widget ── */
+
+.task-time-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 4px;
+}
+
+.task-time-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-md);
+  transition: background 0.15s ease;
+}
+
+.task-time-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.task-time-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  max-width: 220px;
+  flex-shrink: 0;
+}
+
+.task-time-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-time-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.task-time-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.task-time-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-primary), #5dade2);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.task-time-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 60px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Distraction Notes Reflection Widget ── */
+
+.distraction-reflection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 4px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.distraction-date-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.distraction-date-header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent-primary);
+}
+
+.distraction-date-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 8px;
+}
+
+.distraction-note-card {
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.distraction-note-card:hover {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.distraction-note-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.distraction-note-task {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.distraction-note-time {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.distraction-note-delete {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 5px;
+  padding: 0;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.distraction-note-delete:hover {
+  color: var(--accent-danger);
+  background: rgba(231, 76, 60, 0.1);
+}
+
+.distraction-note-content {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+  word-break: break-word;
+}

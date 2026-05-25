@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { DateTime } from 'luxon';
 import CalendarGrid from '../components/Calendar/CalendarGrid';
+import PomodoroPanel from '../components/PomodoroPanel';
 
 const CalendarPage = () => {
   const scrollAreaRef = useRef(null);
@@ -108,10 +109,13 @@ const CalendarPage = () => {
         </div>
       </div>
 
-      <div className="calendar-container glass-panel">
-        <div className="calendar-scroll-viewport" ref={scrollAreaRef}>
-          <CalendarGrid timezone={timezone} baseDate={baseDate} />
+      <div className="calendar-with-panel">
+        <div className="calendar-container glass-panel">
+          <div className="calendar-scroll-viewport" ref={scrollAreaRef}>
+            <CalendarGrid timezone={timezone} baseDate={baseDate} />
+          </div>
         </div>
+        <PomodoroPanel timezone={timezone} />
       </div>
     </div>
   );
