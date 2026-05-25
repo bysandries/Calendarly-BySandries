@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { createArea, updateAreaColor } from '../utils/api';
+import { createArea, updateArea } from '../utils/api';
 
 const PALETTE = [
   '#E74C3C', '#E67E22', '#F1C40F', '#2ECC71',
@@ -12,6 +12,7 @@ export default function AreaPicker({ value, areas, onSelect, onAreasChanged, pla
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [editingAreaId, setEditingAreaId] = useState(null);
+  const [editingAreaName, setEditingAreaName] = useState('');
   const [creatingName, setCreatingName] = useState(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [busy, setBusy] = useState(false);
@@ -26,7 +27,7 @@ export default function AreaPicker({ value, areas, onSelect, onAreasChanged, pla
   const [dropdownPos, setDropdownPos] = useState(null);
 
   const DROPDOWN_WIDTH = 280;
-  const DROPDOWN_MAX_HEIGHT = 360;
+  const DROPDOWN_MAX_HEIGHT = 380;
   const GAP = 6;
 
   const selectedArea = areas.find(a => a.id === value);
@@ -37,20 +38,18 @@ export default function AreaPicker({ value, areas, onSelect, onAreasChanged, pla
   const hasSearch = search.trim().length > 0;
   const noExactMatch = hasSearch && !areas.some(a => a.name.toLowerCase() === search.trim().toLowerCase());
 
-  // Focus search when opening list view
   useEffect(() => {
     if (open && !creatingName && inputRef.current) {
       inputRef.current.focus();
     }
   }, [open, creatingName]);
 
-  // Reset highlight when filtered changes
   useEffect(() => {
     setHighlightedIndex(filtered.length > 0 ? 0 : -1);
     setEditingAreaId(null);
+    setEditingAreaName('');
   }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Click-outside to close (accounting for the portaled dropdown)
   useEffect(() => {
     function handleClickOutside(e) {
       const inTrigger = containerRef.current && containerRef.current.contains(e.target);
@@ -65,7 +64,6 @@ export default function AreaPicker({ value, areas, onSelect, onAreasChanged, pla
     }
   }, [open]);
 
-  // Position dropdown relative to the trigger; flip up when no room below
   useLayoutEffect(() => {
     if (!open) {
       setDropdownPos(null);
@@ -96,7 +94,6 @@ export default function AreaPicker({ value, areas, onSelect, onAreasChanged, pla
     };
   }, [open]);
 
-  // Scroll highlighted item into view
   useEffect(() => {
     if (highlightedIndex >= 0 && highlightedIndex < filtered.length) {
       const el = itemRefs.current[highlightedIndex];
@@ -114,6 +111,7 @@ export default function AreaPicker({ value, areas, onSelect, onAreasChanged, pla
     setOpen(false);
     setSearch('');
     setEditingAreaId(null);
+    setEditingAreaName('');
     setCreatingName(null);
     setError('');
     setHighlightedIndex(-1);
@@ -124,13 +122,48 @@ export default function AreaPicker({ value, areas, onSelect, onAreasChanged, pla
     closePicker();
   }
 
+  function openEdit(area) {
+    setEditingAreaId(area.id);
+    setEditingAreaName(area.name);
+    setError('');
+  }
+
+  function closeEdit() {
+    setEditingAreaId(null);
+    setEditingAreaName('');
+    setError('');
+  }
+
+  async function handleSaveEdit(area) {
+    const newName = editingAreaName.trim();
+    if (!newName) {
+      setError('Name cannot be empty');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const payload = {};
+      if (newName !== area.name) payload.name = newName;
+      if (Object.keys(payload).length > 0) {
+        await updateArea(area.id, payload);
+        if (onAreasChanged) await onAreasChanged();
+      }
+      closeEdit();
+    } catch (e) {
+      setError(e.message || 'Could not update category');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleSetColorForExisting(areaId, color) {
     setBusy(true);
     setError('');
     try {
-      await updateAreaColor(areaId, color);
+      await updateArea(areaId, { color_hex: color });
       if (onAreasChanged) await onAreasChanged();
-      setEditingAreaId(null);
+      // keep edit panel open so user can also rename if they want
     } catch (e) {
       setError(e.message || 'Could not update color');
     } finally {
@@ -192,120 +225,153 @@ export default function AreaPicker({ value, areas, onSelect, onAreasChanged, pla
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-          {creatingName ? (
-            <div className="area-picker-create-view">
-              <div className="area-picker-create-header">
-                <button
-                  type="button"
-                  className="area-picker-back"
-                  onClick={() => setCreatingName(null)}
-                  aria-label="Back"
-                >
-                  ←
-                </button>
-                <span className="area-picker-create-label">
-                  New category: <strong>{creatingName}</strong>
-                </span>
-              </div>
-              <div className="area-picker-palette">
-                {PALETTE.map(color => (
-                  <button
-                    key={color}
-                    type="button"
-                    className="area-picker-swatch-btn"
-                    style={{ background: color }}
-                    title={color}
-                    disabled={busy}
-                    onClick={() => handleCreateWithColor(creatingName, color)}
-                  />
-                ))}
-              </div>
-              {error && <div className="area-picker-error">{error}</div>}
-            </div>
-          ) : (
-            <>
-              <input
-                ref={inputRef}
-                className="area-picker-search"
-                placeholder="Search categories..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={handleKeyDown}
+      {creatingName ? (
+        <div className="area-picker-create-view">
+          <div className="area-picker-create-header">
+            <button
+              type="button"
+              className="area-picker-back"
+              onClick={() => setCreatingName(null)}
+              aria-label="Back"
+            >
+              ←
+            </button>
+            <span className="area-picker-create-label">
+              New category: <strong>{creatingName}</strong>
+            </span>
+          </div>
+          <div className="area-picker-palette">
+            {PALETTE.map(color => (
+              <button
+                key={color}
+                type="button"
+                className="area-picker-swatch-btn"
+                style={{ background: color }}
+                title={color}
+                disabled={busy}
+                onClick={() => handleCreateWithColor(creatingName, color)}
               />
-              <div className="area-picker-list" ref={listRef}>
-                {filtered.length === 0 && !hasSearch && (
-                  <div className="area-picker-empty">No categories yet</div>
-                )}
-                {filtered.length === 0 && hasSearch && !noExactMatch && (
-                  <div className="area-picker-empty">No matches</div>
-                )}
-                {filtered.map((a, i) => {
-                  const isEditing = editingAreaId === a.id;
-                  return (
-                    <div
-                      key={a.id}
-                      ref={(el) => { itemRefs.current[i] = el; }}
-                      className={`area-picker-item ${highlightedIndex === i ? 'highlighted' : ''} ${isEditing ? 'editing' : ''}`}
+            ))}
+          </div>
+          {error && <div className="area-picker-error">{error}</div>}
+        </div>
+      ) : (
+        <>
+          <input
+            ref={inputRef}
+            className="area-picker-search"
+            placeholder="Search categories..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          <div className="area-picker-list" ref={listRef}>
+            {filtered.length === 0 && !hasSearch && (
+              <div className="area-picker-empty">No categories yet</div>
+            )}
+            {filtered.length === 0 && hasSearch && !noExactMatch && (
+              <div className="area-picker-empty">No matches</div>
+            )}
+            {filtered.map((a, i) => {
+              const isEditing = editingAreaId === a.id;
+              return (
+                <div
+                  key={a.id}
+                  ref={(el) => { itemRefs.current[i] = el; }}
+                  className={`area-picker-item ${highlightedIndex === i ? 'highlighted' : ''} ${isEditing ? 'editing' : ''}`}
+                >
+                  <div className="area-picker-item-row">
+                    <button
+                      type="button"
+                      className="area-picker-item-main"
+                      onClick={() => !isEditing && handleSelectExisting(a.id)}
+                      onMouseEnter={() => setHighlightedIndex(i)}
                     >
-                      <div className="area-picker-item-row">
+                      <span className="area-picker-swatch" style={{ background: a.color_hex }} />
+                      <span className="area-picker-item-name">{a.name}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="area-picker-pencil"
+                      title={isEditing ? 'Close editor' : 'Edit category'}
+                      aria-label="Edit category"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        isEditing ? closeEdit() : openEdit(a);
+                      }}
+                    >
+                      ✎
+                    </button>
+                  </div>
+
+                  {isEditing && (
+                    <div className="area-picker-edit-panel">
+                      <input
+                        className="area-picker-name-input"
+                        value={editingAreaName}
+                        onChange={(e) => setEditingAreaName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(a); }
+                          if (e.key === 'Escape') { e.preventDefault(); closeEdit(); }
+                        }}
+                        placeholder="Category name"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div className="area-picker-palette inline">
+                        {PALETTE.map(color => {
+                          const isCurrent = a.color_hex && a.color_hex.toLowerCase() === color.toLowerCase();
+                          return (
+                            <button
+                              key={color}
+                              type="button"
+                              className={`area-picker-swatch-btn ${isCurrent ? 'current' : ''}`}
+                              style={{ background: color }}
+                              title={color}
+                              disabled={busy}
+                              onClick={() => handleSetColorForExisting(a.id, color)}
+                            />
+                          );
+                        })}
+                      </div>
+                      <div className="area-picker-edit-actions">
                         <button
                           type="button"
-                          className="area-picker-item-main"
-                          onClick={() => handleSelectExisting(a.id)}
-                          onMouseEnter={() => setHighlightedIndex(i)}
+                          className="area-picker-edit-cancel"
+                          onClick={(e) => { e.stopPropagation(); closeEdit(); }}
+                          disabled={busy}
                         >
-                          <span className="area-picker-swatch" style={{ background: a.color_hex }} />
-                          <span className="area-picker-item-name">{a.name}</span>
+                          Cancel
                         </button>
                         <button
                           type="button"
-                          className="area-picker-pencil"
-                          title={isEditing ? 'Close color editor' : 'Edit color'}
-                          aria-label="Edit color"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingAreaId(isEditing ? null : a.id);
-                            setError('');
-                          }}
+                          className="area-picker-edit-save"
+                          onClick={(e) => { e.stopPropagation(); handleSaveEdit(a); }}
+                          disabled={busy}
                         >
-                          ✎
+                          Save name
                         </button>
                       </div>
-                      {isEditing && (
-                        <div className="area-picker-palette inline">
-                          {PALETTE.map(color => {
-                            const isCurrent = a.color_hex && a.color_hex.toLowerCase() === color.toLowerCase();
-                            return (
-                              <button
-                                key={color}
-                                type="button"
-                                className={`area-picker-swatch-btn ${isCurrent ? 'current' : ''}`}
-                                style={{ background: color }}
-                                title={color}
-                                disabled={busy}
-                                onClick={() => handleSetColorForExisting(a.id, color)}
-                              />
-                            );
-                          })}
-                        </div>
-                      )}
+                      {error && <div className="area-picker-error">{error}</div>}
                     </div>
-                  );
-                })}
-              </div>
-              {noExactMatch && (
-                <button
-                  type="button"
-                  className={`area-picker-create ${highlightedIndex === filtered.length ? 'highlighted' : ''}`}
-                  onClick={() => setCreatingName(search.trim())}
-                  onMouseEnter={() => setHighlightedIndex(filtered.length)}
-                >
-                  + Create category &quot;{search.trim()}&quot;
-                </button>
-              )}
-              {error && <div className="area-picker-error">{error}</div>}
-            </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {noExactMatch && (
+            <button
+              type="button"
+              className={`area-picker-create ${highlightedIndex === filtered.length ? 'highlighted' : ''}`}
+              onClick={() => setCreatingName(search.trim())}
+              onMouseEnter={() => setHighlightedIndex(filtered.length)}
+            >
+              + Create category &quot;{search.trim()}&quot;
+            </button>
           )}
+          {!editingAreaId && error && <div className="area-picker-error">{error}</div>}
+        </>
+      )}
     </div>
   ) : null;
 

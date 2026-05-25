@@ -61,13 +61,20 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/areas/:id
-// Body: { color_hex } — updates the area's color and cascades to all events using it.
+// Body: { name?, color_hex? } — at least one required.
+// color_hex update cascades to all events using this area.
 router.patch('/:id', async (req, res) => {
   const { id } = req.params;
-  const { color_hex } = req.body;
+  const { name, color_hex } = req.body;
 
-  if (!color_hex || !HEX_RE.test(color_hex)) {
+  if (!name && !color_hex) {
+    return res.status(400).json({ error: 'At least one of name or color_hex is required' });
+  }
+  if (color_hex && !HEX_RE.test(color_hex)) {
     return res.status(400).json({ error: 'color_hex must be a 6-digit hex like #RRGGBB' });
+  }
+  if (name !== undefined && !name.trim()) {
+    return res.status(400).json({ error: 'name cannot be empty' });
   }
 
   try {
@@ -77,11 +84,16 @@ router.patch('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Area not found' });
     }
 
-    await db.run('UPDATE areas SET color_hex = ? WHERE id = ?', [color_hex, id]);
-    const cascade = await db.run('UPDATE events SET color_hex = ? WHERE area = ?', [color_hex, id]);
+    if (name) {
+      await db.run('UPDATE areas SET name = ? WHERE id = ?', [name.trim(), id]);
+    }
+    if (color_hex) {
+      await db.run('UPDATE areas SET color_hex = ? WHERE id = ?', [color_hex, id]);
+      await db.run('UPDATE events SET color_hex = ? WHERE area = ?', [color_hex, id]);
+    }
 
     const area = await db.get('SELECT * FROM areas WHERE id = ?', [id]);
-    res.json({ area, events_updated: cascade.changes ?? 0 });
+    res.json({ area });
   } catch (error) {
     console.error('Error updating area:', error);
     res.status(500).json({ error: 'Internal server error' });

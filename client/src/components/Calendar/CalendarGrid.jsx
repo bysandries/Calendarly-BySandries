@@ -50,6 +50,8 @@ const CalendarGrid = ({ baseDate, timezone }) => {
   const [draggedEventId, setDraggedEventId] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
   const [dragOverLane, setDragOverLane] = useState(null);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
+  const [dragOverMins, setDragOverMins] = useState(null);
   
   // Resizing State
   const [resizingState, setResizingState] = useState(null); // { eventId, startY, originalDuration }
@@ -305,21 +307,59 @@ const CalendarGrid = ({ baseDate, timezone }) => {
   const handleDragStart = (e, block) => {
     setDraggedEventId(block.id);
     e.dataTransfer.effectAllowed = 'move';
-    // Visual feedback
-    e.currentTarget.style.opacity = '0.5';
+    
+    // Store drag offset relative to the block's top border
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offsetY = e.clientY - rect.top;
+    setDragOffsetY(offsetY);
+
+    // Use setTimeout so the browser takes the drag image snapshot of the element BEFORE it gets dimmed/scaled
+    setTimeout(() => {
+      e.target.classList.add('dragging');
+    }, 0);
   };
 
   const handleDragEnd = (e) => {
     setDraggedEventId(null);
-    e.currentTarget.style.opacity = '1';
+    e.currentTarget.classList.remove('dragging');
     setDragOverCol(null);
     setDragOverLane(null);
+    setDragOffsetY(0);
+    setDragOverMins(null);
   };
 
   const handleDragOver = (e, dateString, laneType) => {
     e.preventDefault();
     setDragOverCol(dateString);
     setDragOverLane(laneType);
+
+    if (draggedEventId) {
+      const block = events.find(ev => ev.id.toString() === draggedEventId.toString());
+      if (block) {
+        const laneEl = e.currentTarget;
+        const rect = laneEl.getBoundingClientRect();
+        const mouseRelY = e.clientY - rect.top;
+        const topY = mouseRelY - dragOffsetY;
+        const snappedStart = pxToSnappedMins(topY);
+        
+        // Bounded within 24h
+        const maxStartMins = 24 * 60 - block.duration_mins;
+        const boundedStart = Math.max(0, Math.min(maxStartMins, snappedStart));
+        
+        setDragOverMins(boundedStart);
+      }
+    } else {
+      // Bounded within 24h for Kanban task drag (assume 60 min duration, offsetY = 0)
+      const laneEl = e.currentTarget;
+      const rect = laneEl.getBoundingClientRect();
+      const mouseRelY = e.clientY - rect.top;
+      const snappedStart = pxToSnappedMins(mouseRelY);
+      
+      const maxStartMins = 24 * 60 - 60;
+      const boundedStart = Math.max(0, Math.min(maxStartMins, snappedStart));
+      
+      setDragOverMins(boundedStart);
+    }
   };
 
   const handleQuickClone = async (block) => {
@@ -338,6 +378,8 @@ const CalendarGrid = ({ baseDate, timezone }) => {
     e.preventDefault();
     setDragOverCol(null);
     setDragOverLane(null);
+    setDragOffsetY(0);
+    setDragOverMins(null);
 
     const taskId = e.dataTransfer.getData('task-id');
     const taskTitle = e.dataTransfer.getData('task-title');
@@ -346,19 +388,10 @@ const CalendarGrid = ({ baseDate, timezone }) => {
     if (taskId) {
       const rect = e.currentTarget.getBoundingClientRect();
       const clickY = e.clientY - rect.top;
-      const hourFraction = clickY / 80;
-      const hour = Math.floor(hourFraction);
-      const minutes = Math.floor((hourFraction - hour) * 60);
-      const snappedMinutes = Math.round(minutes / 15) * 15;
+      const snappedStart = pxToSnappedMins(clickY);
+      const boundedStart = Math.max(0, Math.min(24 * 60 - 60, snappedStart));
       
-      let finalHour = hour;
-      let finalMinutes = snappedMinutes;
-      if (snappedMinutes === 60) {
-        finalHour += 1;
-        finalMinutes = 0;
-      }
-      
-      const timeSlotStr = `${finalHour.toString().padStart(2, '0')}:${finalMinutes.toString().padStart(2, '0')}`;
+      const timeSlotStr = minsToHHMM(boundedStart);
 
       // Create new event from task
       await handleSaveNewEvent({
@@ -394,21 +427,14 @@ const CalendarGrid = ({ baseDate, timezone }) => {
 
     // 2b. Otherwise, snap start time
     const rect = e.currentTarget.getBoundingClientRect();
-    const clickY = e.clientY - rect.top;
+    const topY = (e.clientY - rect.top) - dragOffsetY;
+    const snappedStart = pxToSnappedMins(topY);
     
-    const hourFraction = clickY / 80;
-    const hour = Math.floor(hourFraction);
-    const minutes = Math.floor((hourFraction - hour) * 60);
-    const snappedMinutes = Math.round(minutes / 15) * 15;
+    // Bounded within 24h
+    const maxStartMins = 24 * 60 - block.duration_mins;
+    const boundedStart = Math.max(0, Math.min(maxStartMins, snappedStart));
     
-    let finalHour = hour;
-    let finalMinutes = snappedMinutes;
-    if (snappedMinutes === 60) {
-      finalHour += 1;
-      finalMinutes = 0;
-    }
-    
-    const timeSlotStr = `${finalHour.toString().padStart(2, '0')}:${finalMinutes.toString().padStart(2, '0')}`;
+    const timeSlotStr = minsToHHMM(boundedStart);
 
     // Update the event
     const updatedEvent = {
@@ -591,7 +617,7 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                       <div
                         id={`block-${block.id}`}
                         key={block.id}
-                        className={`calendar-block planned ${isCloning ? 'cloning' : ''}`}
+                        className={`calendar-block planned ${isCloning ? 'cloning' : ''} ${draggedEventId === block.id ? 'dragging' : ''}`}
                         style={styleProps}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -682,6 +708,42 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                     );
                   })()}
 
+                  {/* Drag & Drop Move Placeholder */}
+                  {(() => {
+                    if (dragOverCol !== dateStr || dragOverLane !== 'plan' || dragOverMins === null) return null;
+                    const draggedEvent = draggedEventId ? events.find(ev => ev.id.toString() === draggedEventId.toString()) : null;
+                    const duration = draggedEvent ? draggedEvent.duration_mins : 60; // 60 mins for Kanban tasks
+                    const blockColor = draggedEvent?.color_hex || '#3498DB';
+                    const title = draggedEvent ? draggedEvent.title : 'New Scheduled Task';
+                    
+                    const s = dragOverMins;
+                    const e = s + duration;
+                    return (
+                      <div className="drawing-placeholder planned dragging-placeholder" style={{
+                        top: (s / 60) * HOUR_PX,
+                        height: ((e - s) / 60) * HOUR_PX,
+                        left: '6px',
+                        right: '6px',
+                        border: `2px dashed ${blockColor}`,
+                        background: `color-mix(in srgb, ${blockColor} 15%, transparent)`,
+                        borderRadius: 'var(--radius-md)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px',
+                        padding: '8px'
+                      }}>
+                        <span className="drawing-placeholder-label" style={{ background: blockColor }}>
+                          {minsToHHMM(s)} – {minsToHHMM(e)} · {e - s} min
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: '#fff', fontWeight: 500, opacity: 0.8, textAlign: 'center' }}>
+                          Moving "{title}"
+                        </span>
+                      </div>
+                    );
+                  })()}
+
                   {/* Empty Slot Mouse Capture */}
                   {Array.from({ length: 24 }).map((_, i) => (
                     <div
@@ -719,7 +781,7 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                       <div
                         id={`block-${block.id}`}
                         key={block.id}
-                        className="calendar-block measured"
+                        className={`calendar-block measured ${draggedEventId === block.id ? 'dragging' : ''}`}
                         style={styleProps}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -782,6 +844,42 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                       }}>
                         <span className="drawing-placeholder-label">
                           {minsToHHMM(s)} – {minsToHHMM(e)} · {e - s} min
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Drag & Drop Move Placeholder */}
+                  {(() => {
+                    if (dragOverCol !== dateStr || dragOverLane !== 'measure' || dragOverMins === null) return null;
+                    const draggedEvent = draggedEventId ? events.find(ev => ev.id.toString() === draggedEventId.toString()) : null;
+                    const duration = draggedEvent ? draggedEvent.duration_mins : 60; // 60 mins for Kanban tasks
+                    const blockColor = draggedEvent?.color_hex || '#2ECC71';
+                    const title = draggedEvent ? draggedEvent.title : 'New Scheduled Task';
+                    
+                    const s = dragOverMins;
+                    const e = s + duration;
+                    return (
+                      <div className="drawing-placeholder measured dragging-placeholder" style={{
+                        top: (s / 60) * HOUR_PX,
+                        height: ((e - s) / 60) * HOUR_PX,
+                        left: '6px',
+                        right: '6px',
+                        border: `2px dashed ${blockColor}`,
+                        background: `color-mix(in srgb, ${blockColor} 15%, transparent)`,
+                        borderRadius: 'var(--radius-md)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px',
+                        padding: '8px'
+                      }}>
+                        <span className="drawing-placeholder-label" style={{ background: blockColor }}>
+                          {minsToHHMM(s)} – {minsToHHMM(e)} · {e - s} min
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: '#fff', fontWeight: 500, opacity: 0.8, textAlign: 'center' }}>
+                          Moving "{title}"
                         </span>
                       </div>
                     );
