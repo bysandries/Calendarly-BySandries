@@ -8,6 +8,116 @@ import { formatDuration, calcDaysLeft, formatDaysLeft, calcUrgency, formatIsoDat
 import ProjectStatusBadge from '../components/ProjectStatusBadge';
 import ProjectPicker from '../components/ProjectPicker';
 
+// Inline edit modal for tasks
+function TaskEditModal({ task, isOpen, onClose, onSave, areas }) {
+  const [form, setForm] = useState({});
+  useEffect(() => {
+    if (task) setForm({ ...task });
+  }, [task]);
+  if (!isOpen || !task) return null;
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    onSave(task.id, form);
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+        <div className="modal-header">
+          <h3>Edit Task</h3>
+          <button className="btn-icon" onClick={onClose} title="Close">✕</button>
+        </div>
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
+          <div className="form-group">
+            <label className="form-label">Title</label>
+            <input
+              className="form-input"
+              value={form.title || ''}
+              onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
+              required
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="form-group">
+              <label className="form-label">Status</label>
+              <select
+                className="form-select"
+                value={form.status || '01 - Inbox'}
+                onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
+              >
+                {GTD_STATUSES.map(s => (
+                  <option key={s} value={s}>{getStatusInfo(s).label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Priority (0-3)</label>
+              <input
+                type="number"
+                min="0"
+                max="3"
+                className="form-input"
+                value={form.priority ?? 0}
+                onChange={(e) => setForm(f => ({ ...f, priority: parseInt(e.target.value, 10) || 0 }))}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="form-group">
+              <label className="form-label">ECT (minutes)</label>
+              <input
+                type="number"
+                min="0"
+                step="5"
+                className="form-input"
+                value={form.estimated_minutes || ''}
+                onChange={(e) => setForm(f => ({ ...f, estimated_minutes: e.target.value ? parseInt(e.target.value, 10) : 0 }))}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Due Date</label>
+              <input
+                type="date"
+                className="form-input"
+                value={form.date_due || ''}
+                onChange={(e) => setForm(f => ({ ...f, date_due: e.target.value || null }))}
+              />
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Area</label>
+            <select
+              className="form-select"
+              value={form.area_id || ''}
+              onChange={(e) => setForm(f => ({ ...f, area_id: e.target.value || null }))}
+            >
+              <option value="">— None —</option>
+              {areas.map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Notes</label>
+            <textarea
+              className="form-input"
+              rows="3"
+              value={form.notes || ''}
+              onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 const PALM_PHASES = ['Plan', 'Act', 'Measure', 'Learn', 'Ignored'];
 
 export default function ProjectDetailPage() {
@@ -24,6 +134,8 @@ export default function ProjectDetailPage() {
   const [editingDueDate, setEditingDueDate] = useState(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [editingTask, setEditingTask] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const titleInputRef = useRef(null);
 
   // Find & Link modal state
@@ -77,6 +189,28 @@ export default function ProjectDetailPage() {
     if (next !== (task.date_due || null)) {
       await updateTask(task.id, { date_due: next });
     }
+  };
+
+  const openEditModal = (task) => {
+    setEditingTask(task);
+    setShowEditModal(true);
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingTask(null);
+  };
+
+  const handleSaveTask = async (taskId, form) => {
+    const updates = {};
+    if (form.title !== undefined) updates.title = form.title;
+    if (form.status !== undefined) updates.status = form.status;
+    if (form.priority !== undefined) updates.priority = form.priority;
+    if (form.estimated_minutes !== undefined) updates.estimated_minutes = form.estimated_minutes;
+    if (form.date_due !== undefined) updates.date_due = form.date_due;
+    if (form.area_id !== undefined) updates.area_id = form.area_id;
+    if (form.notes !== undefined) updates.notes = form.notes;
+    await updateTask(taskId, updates);
   };
 
   const handlePriorityCycle = async (task) => {
@@ -568,6 +702,7 @@ export default function ProjectDetailPage() {
                 <th className="sortable-header" style={{ width: '90px' }} onClick={() => handleSort('days_left')}>Days Left <SortIndicator columnKey="days_left" /></th>
                 <th style={{ width: '40px' }}></th>
                 <th style={{ width: '40px' }}></th>
+                <th style={{ width: '40px' }}></th>
               </tr>
             </thead>
             <tbody>
@@ -700,6 +835,16 @@ export default function ProjectDetailPage() {
                     </td>
                     <td>
                       {task.notes && <span className="notes-indicator" title={task.notes}>📝</span>}
+                    </td>
+                    <td>
+                      <button
+                        className="btn-icon"
+                        onClick={() => openEditModal(task)}
+                        title="Edit task"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        ✎
+                      </button>
                     </td>
                     <td>
                       <button
@@ -860,6 +1005,15 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Edit Task Modal */}
+      <TaskEditModal
+        task={editingTask}
+        isOpen={showEditModal}
+        onClose={closeEditModal}
+        onSave={handleSaveTask}
+        areas={areas}
+      />
 
       <button className="fab" onClick={() => setShowCreateForm(!showCreateForm)} title="Add task to project">
         +
