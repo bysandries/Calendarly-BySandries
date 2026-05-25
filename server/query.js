@@ -3,7 +3,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const { open } = require('sqlite');
 const sqlite3 = require('@journeyapps/sqlcipher').verbose();
 
-const dbPath = path.resolve(__dirname, 'calendarly.db');
+const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, 'calendarly.db');
 
 async function runQuery() {
   const query = process.argv.slice(2).join(' ');

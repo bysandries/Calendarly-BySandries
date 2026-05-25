@@ -483,7 +483,7 @@ router.get('/gitignore-status', (req, res) => {
   try {
     const gitignorePath = path.resolve(__dirname, '../../.gitignore');
     if (!fs.existsSync(gitignorePath)) {
-      return res.json({ success: true, secure: false, error: '.gitignore file not found in root directory' });
+      return res.json({ success: true, secure: false, error: '.gitignore file not found in root directory', missing: [] });
     }
 
     const content = fs.readFileSync(gitignorePath, 'utf8');

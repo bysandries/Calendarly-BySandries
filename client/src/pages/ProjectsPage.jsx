@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useProjects } from '../hooks/useProjects';
-import { useTasks } from '../hooks/useTasks';
 import { fetchAreas } from '../utils/api';
 import ProjectStatusBadge from '../components/ProjectStatusBadge';
+import {
+  formatDuration,
+  formatIsoDateShort,
+  calcProgression,
+  calcImportance,
+} from '../lib/taskMath';
 
 const PALM_PHASES = ['Plan', 'Act', 'Measure', 'Learn'];
 const PILLARS = ['Kindness', 'Authenticity', 'Resilience', 'Innovation'];
@@ -16,30 +21,37 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'archived', label: 'Archived' },
 ];
 
+const IMPORTANCE_COLORS = {
+  'importance-none':     'var(--text-dimmed)',
+  'importance-low':      '#3498DB',
+  'importance-medium':   '#E67E22',
+  'importance-high':     '#E74C3C',
+  'importance-critical': '#8E44AD',
+};
+
 export default function ProjectsPage() {
   const { projects, loading, error, createProject, updateProject, deleteProject } = useProjects();
-  const { tasks } = useTasks();
   const [areas, setAreas] = useState([]);
   const [statusFilter, setStatusFilter] = useState('active');
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [formData, setFormData] = useState({
     title: '', status: 'active', area: 'general', pillar: 'Innovation',
-    phase: 'Plan', goals_aligned: [], description: '', methodology: 'PALM'
+    phase: 'Plan', goals_aligned: [], description: '', methodology: 'PALM',
+    person_in_charge: '', due_date: '', start_date: '', end_date: '',
   });
   const [goalsInput, setGoalsInput] = useState('');
-  const [confirmDelete, setConfirmDelete] = useState(null); // { project, taskCount }
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   useEffect(() => {
     fetchAreas().then(setAreas).catch(() => {});
   }, []);
 
   const getAreaInfo = (areaId) => areas.find(a => a.id === areaId);
-  const getTaskCount = (projectId) => tasks.filter(t => t.project_id === projectId).length;
 
   const handleDeleteClick = (project) => {
     if (project.status === 'archived') {
-      setConfirmDelete({ project, taskCount: getTaskCount(project.id) });
+      setConfirmDelete({ project, taskCount: project.total_tasks });
     } else {
       deleteProject(project.id);
     }
@@ -55,7 +67,8 @@ export default function ProjectsPage() {
     setEditingProject(null);
     setFormData({
       title: '', status: 'active', area: 'general', pillar: 'Innovation',
-      phase: 'Plan', goals_aligned: [], description: '', methodology: 'PALM'
+      phase: 'Plan', goals_aligned: [], description: '', methodology: 'PALM',
+      person_in_charge: '', due_date: '', start_date: '', end_date: '',
     });
     setGoalsInput('');
     setShowForm(true);
@@ -72,6 +85,10 @@ export default function ProjectsPage() {
       goals_aligned: project.goals_aligned || [],
       description: project.description || '',
       methodology: project.methodology || 'PALM',
+      person_in_charge: project.person_in_charge || '',
+      due_date: project.due_date || '',
+      start_date: project.start_date || '',
+      end_date: project.end_date || '',
     });
     setGoalsInput((project.goals_aligned || []).join(', '));
     setShowForm(true);
@@ -81,7 +98,6 @@ export default function ProjectsPage() {
     e.preventDefault();
     const goals = goalsInput.split(',').map(s => s.trim()).filter(Boolean);
     const data = { ...formData, goals_aligned: goals };
-
     if (editingProject) {
       await updateProject(editingProject.id, data);
     } else {
@@ -139,7 +155,7 @@ export default function ProjectsPage() {
           </div>
         </div>
       ) : (
-        <div className="glass-panel">
+        <div className="glass-panel" style={{ overflowX: 'auto' }}>
           <table className="data-table">
             <thead>
               <tr>
@@ -148,7 +164,15 @@ export default function ProjectsPage() {
                 <th style={{ width: '100px' }}>Area</th>
                 <th style={{ width: '110px' }}>Pillar</th>
                 <th style={{ width: '220px' }}>PALM Phase</th>
-                <th style={{ width: '60px' }}>Tasks</th>
+                <th style={{ width: '120px' }}>Persons</th>
+                <th style={{ width: '95px' }}>Start Date</th>
+                <th style={{ width: '95px' }}>End Date</th>
+                <th style={{ width: '95px' }}>Due Date</th>
+                <th style={{ width: '52px' }}>Tasks</th>
+                <th style={{ width: '52px' }}>Done</th>
+                <th style={{ width: '130px' }}>Progression</th>
+                <th style={{ width: '80px' }}>Importance</th>
+                <th style={{ width: '75px' }}>Est. Time</th>
                 <th style={{ width: '40px' }}></th>
                 <th style={{ width: '40px' }}></th>
               </tr>
@@ -156,7 +180,12 @@ export default function ProjectsPage() {
             <tbody>
               {visibleProjects.map(project => {
                 const area = getAreaInfo(project.area);
-                const taskCount = getTaskCount(project.id);
+                const total = project.total_tasks ?? 0;
+                const done = project.complete_tasks ?? 0;
+                const pct = calcProgression(done, total);
+                const importance = calcImportance(total);
+                const remainingMins = project.remaining_estimated_minutes ?? 0;
+
                 return (
                   <tr key={project.id}>
                     <td>
@@ -209,12 +238,63 @@ export default function ProjectsPage() {
                       </div>
                     </td>
                     <td>
-                      <span style={{
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        color: taskCount > 0 ? 'var(--text-primary)' : 'var(--text-dimmed)'
-                      }}>
-                        {taskCount}
+                      <span style={{ fontSize: '0.8rem', color: project.person_in_charge ? 'var(--text-primary)' : 'var(--text-dimmed)' }}>
+                        {project.person_in_charge || '—'}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        {formatIsoDateShort(project.start_date)}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        {formatIsoDateShort(project.end_date)}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        {formatIsoDateShort(project.due_date)}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: total > 0 ? 'var(--text-primary)' : 'var(--text-dimmed)' }}>
+                        {total}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: done > 0 ? '#2ECC71' : 'var(--text-dimmed)' }}>
+                        {done}
+                      </span>
+                    </td>
+                    <td>
+                      {pct === null ? (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-dimmed)' }}>—</span>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ width: '60px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', flexShrink: 0 }}>
+                            <div style={{
+                              width: `${pct}%`,
+                              height: '100%',
+                              background: pct === 100 ? '#2ECC71' : 'var(--accent-primary)',
+                              borderRadius: '3px',
+                              transition: 'width 0.3s ease',
+                            }} />
+                          </div>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', minWidth: '30px' }}>
+                            {pct}%
+                          </span>
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: IMPORTANCE_COLORS[importance.cssClass] }}>
+                        {importance.label}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.75rem', color: remainingMins > 0 ? 'var(--text-secondary)' : 'var(--text-dimmed)' }}>
+                        {remainingMins > 0 ? formatDuration(remainingMins) : '—'}
                       </span>
                     </td>
                     <td>
@@ -319,6 +399,46 @@ export default function ProjectsPage() {
                       <option key={p} value={p}>{p}</option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Persons (responsible)</label>
+                <input
+                  className="form-input"
+                  value={formData.person_in_charge}
+                  onChange={(e) => setFormData(prev => ({ ...prev, person_in_charge: e.target.value }))}
+                  placeholder="Who is in charge?"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Start Date</label>
+                  <input
+                    className="form-input"
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">End Date</label>
+                  <input
+                    className="form-input"
+                    type="date"
+                    value={formData.end_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Due Date</label>
+                  <input
+                    className="form-input"
+                    type="date"
+                    value={formData.due_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
+                  />
                 </div>
               </div>
 
