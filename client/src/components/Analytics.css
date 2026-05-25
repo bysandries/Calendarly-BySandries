@@ -182,9 +182,9 @@
 
 .project-phases-summary {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  width: 130px;
+  width: 160px;
 }
 
 .phase-counter {
@@ -208,10 +208,11 @@
   color: var(--text-primary);
 }
 
-.phase-counter.plan-phase .phase-counter-num { color: #3498DB; }
+.phase-counter.plan-phase .phase-counter-num { color: #9B59B6; }
 .phase-counter.act-phase .phase-counter-num { color: #2ECC71; }
-.phase-counter.measure-phase .phase-counter-num { color: #E67E22; }
-.phase-counter.learn-phase .phase-counter-num { color: #9B59B6; }
+.phase-counter.measure-phase .phase-counter-num { color: #3498DB; }
+.phase-counter.learn-phase .phase-counter-num { color: #F1C40F; }
+.phase-counter.ignored-phase .phase-counter-num { color: #95A5A6; }
 
 /* ── Charts & Progression Dashboard Layout ── */
 .dashboard-grid {
@@ -430,10 +431,11 @@
   border-radius: 4px;
 }
 
-.proj-card-badge.plan-phase { background: rgba(52, 152, 219, 0.15); color: #3498DB; border: 1px solid rgba(52, 152, 219, 0.25); }
+.proj-card-badge.plan-phase { background: rgba(155, 89, 182, 0.15); color: #9B59B6; border: 1px solid rgba(155, 89, 182, 0.25); }
 .proj-card-badge.act-phase { background: rgba(46, 204, 113, 0.15); color: #2ECC71; border: 1px solid rgba(46, 204, 113, 0.25); }
-.proj-card-badge.measure-phase { background: rgba(230, 126, 34, 0.15); color: #E67E22; border: 1px solid rgba(230, 126, 34, 0.25); }
-.proj-card-badge.learn-phase { background: rgba(155, 89, 182, 0.15); color: #9B59B6; border: 1px solid rgba(155, 89, 182, 0.25); }
+.proj-card-badge.measure-phase { background: rgba(52, 152, 219, 0.15); color: #3498DB; border: 1px solid rgba(52, 152, 219, 0.25); }
+.proj-card-badge.learn-phase { background: rgba(241, 196, 15, 0.15); color: #F1C40F; border: 1px solid rgba(241, 196, 15, 0.25); }
+.proj-card-badge.ignored-phase { background: rgba(149, 165, 166, 0.15); color: #95A5A6; border: 1px solid rgba(149, 165, 166, 0.25); }
 
 .proj-progress-stats {
   display: flex;

@@ -8,7 +8,7 @@ import { formatDuration, calcDaysLeft, formatDaysLeft, calcUrgency, formatIsoDat
 import ProjectStatusBadge from '../components/ProjectStatusBadge';
 import ProjectPicker from '../components/ProjectPicker';
 
-const PALM_PHASES = ['Plan', 'Act', 'Measure', 'Learn'];
+const PALM_PHASES = ['Plan', 'Act', 'Measure', 'Learn', 'Ignored'];
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -370,7 +370,7 @@ export default function ProjectDetailPage() {
             {PALM_PHASES.map(phase => (
               <span
                 key={phase}
-                className={`palm-phase ${project.phase === phase ? 'active' : ''}`}
+                className={`palm-phase ${phase.toLowerCase()} ${project.phase === phase ? 'active' : ''}`}
                 onClick={() => updateProject(project.id, { phase })}
                 style={{ cursor: 'pointer' }}
               >

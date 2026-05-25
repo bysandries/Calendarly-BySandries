@@ -4,7 +4,7 @@ import AreaPicker from './AreaPicker';
 import ProjectStatusBadge from './ProjectStatusBadge';
 import { calcProgression, calcImportance, formatDuration } from '../lib/taskMath';
 
-const PALM_PHASES = ['Plan', 'Act', 'Measure', 'Learn'];
+const PALM_PHASES = ['Plan', 'Act', 'Measure', 'Learn', 'Ignored'];
 const PILLARS = ['Kindness', 'Authenticity', 'Resilience', 'Innovation'];
 
 const EMPTY_FORM = {
@@ -208,7 +208,7 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
                 <button
                   key={phase}
                   type="button"
-                  className={`palm-phase ${formData.phase === phase ? 'active' : ''}`}
+                  className={`palm-phase ${phase.toLowerCase()} ${formData.phase === phase ? 'active' : ''}`}
                   onClick={() => set('phase', phase)}
                 >
                   {phase}

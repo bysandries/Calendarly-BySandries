@@ -68,7 +68,7 @@ export default function Analytics() {
     const ph = p.phase || 'Plan';
     acc[ph] = (acc[ph] || 0) + 1;
     return acc;
-  }, { Plan: 0, Act: 0, Measure: 0, Learn: 0 });
+  }, { Plan: 0, Act: 0, Measure: 0, Learn: 0, Ignored: 0 });
 
   // Calculate task completion percentage
   const taskCompletionPercentage = tasks.planned_due_count > 0
@@ -191,6 +191,10 @@ export default function Analytics() {
             <div className="phase-counter learn-phase">
               <span className="phase-counter-num">{phaseCounts.Learn}</span>
               <span className="phase-counter-label">L</span>
+            </div>
+            <div className="phase-counter ignored-phase">
+              <span className="phase-counter-num">{phaseCounts.Ignored}</span>
+              <span className="phase-counter-label">I</span>
             </div>
           </div>
         </div>

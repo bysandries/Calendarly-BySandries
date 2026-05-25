@@ -1912,10 +1912,30 @@ body {
   transition: all var(--transition-fast);
 }
 
-.palm-phase.active {
+.palm-phase.plan.active {
+  background: rgba(155, 89, 182, 0.15);
+  color: #9B59B6;
+  border-color: rgba(155, 89, 182, 0.25);
+}
+.palm-phase.act.active {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ECC71;
+  border-color: rgba(46, 204, 113, 0.25);
+}
+.palm-phase.measure.active {
   background: rgba(52, 152, 219, 0.15);
-  color: var(--accent-primary);
+  color: #3498DB;
   border-color: rgba(52, 152, 219, 0.25);
+}
+.palm-phase.learn.active {
+  background: rgba(241, 196, 15, 0.15);
+  color: #F1C40F;
+  border-color: rgba(241, 196, 15, 0.25);
+}
+.palm-phase.ignored.active {
+  background: rgba(149, 165, 166, 0.15);
+  color: #95A5A6;
+  border-color: rgba(149, 165, 166, 0.25);
 }
 
 /* ── Inline Edit ── */

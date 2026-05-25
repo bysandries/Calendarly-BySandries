@@ -100,7 +100,7 @@ async function initDatabase(forceReset = false) {
       area TEXT NOT NULL,
       pillar TEXT NOT NULL CHECK(pillar IN ('Kindness', 'Authenticity', 'Resilience', 'Innovation')),
       methodology TEXT DEFAULT 'PALM',
-      phase TEXT NOT NULL CHECK(phase IN ('Plan', 'Act', 'Measure', 'Learn')),
+      phase TEXT NOT NULL CHECK(phase IN ('Plan', 'Act', 'Measure', 'Learn', 'Ignored')),
       goals_aligned TEXT,
       description TEXT,
       person_in_charge TEXT,
@@ -125,7 +125,7 @@ async function initDatabase(forceReset = false) {
         area TEXT NOT NULL,
         pillar TEXT NOT NULL CHECK(pillar IN ('Kindness', 'Authenticity', 'Resilience', 'Innovation')),
         methodology TEXT DEFAULT 'PALM',
-        phase TEXT NOT NULL CHECK(phase IN ('Plan', 'Act', 'Measure', 'Learn')),
+        phase TEXT NOT NULL CHECK(phase IN ('Plan', 'Act', 'Measure', 'Learn', 'Ignored')),
         goals_aligned TEXT,
         description TEXT
       );
@@ -135,6 +135,45 @@ async function initDatabase(forceReset = false) {
     await database.exec('ALTER TABLE projects_migrated RENAME TO projects');
     await database.run('PRAGMA foreign_keys = ON');
     console.log('Projects table migration complete.');
+  }
+
+  // Migration: add 'Ignored' to projects phase CHECK if not already present
+  const projectsSchemaAfterArchived = await database.get(
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name='projects'"
+  );
+  if (projectsSchemaAfterArchived && !projectsSchemaAfterArchived.sql.includes("'Ignored'")) {
+    console.log("Migrating projects table to add 'Ignored' phase...");
+    await database.run('PRAGMA foreign_keys = OFF');
+    await database.exec(`
+      CREATE TABLE projects_migrated (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('active', 'on-hold', 'completed', 'archived')),
+        area TEXT NOT NULL,
+        pillar TEXT NOT NULL CHECK(pillar IN ('Kindness', 'Authenticity', 'Resilience', 'Innovation')),
+        methodology TEXT DEFAULT 'PALM',
+        phase TEXT NOT NULL CHECK(phase IN ('Plan', 'Act', 'Measure', 'Learn', 'Ignored')),
+        goals_aligned TEXT,
+        description TEXT,
+        person_in_charge TEXT,
+        due_date TEXT,
+        start_date TEXT,
+        end_date TEXT
+      );
+    `);
+    await database.exec(`
+      INSERT INTO projects_migrated (
+        id, title, status, area, pillar, methodology, phase, goals_aligned, description,
+        person_in_charge, due_date, start_date, end_date
+      ) SELECT
+        id, title, status, area, pillar, methodology, phase, goals_aligned, description,
+        person_in_charge, due_date, start_date, end_date
+      FROM projects
+    `);
+    await database.exec('DROP TABLE projects');
+    await database.exec('ALTER TABLE projects_migrated RENAME TO projects');
+    await database.run('PRAGMA foreign_keys = ON');
+    console.log("Projects table migration to add 'Ignored' phase complete.");
   }
 
   // Deleted records tables (soft-delete archive)

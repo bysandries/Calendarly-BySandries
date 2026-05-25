@@ -26,6 +26,9 @@ router.get('/weekly-report', async (req, res) => {
   try {
     const db = await getDbConnection();
 
+    // Build the projects WHERE clause — hide Ignored phase from reflection dashboard
+    const projectWhere = "WHERE p.phase != 'Ignored'";
+
     // 1. Fetch Area Hours: Plan vs Measure for each area
     const areaHours = await db.all(`
       SELECT 
@@ -98,6 +101,7 @@ router.get('/weekly-report', async (req, res) => {
         COALESCE(SUM(CASE WHEN t.status = '07 - Done' THEN t.estimated_minutes ELSE 0 END), 0) / 60.0 AS completed_hours
       FROM projects p
       LEFT JOIN tasks t ON p.id = t.project_id
+      ${projectWhere}
       GROUP BY p.id, p.title, p.status, p.area, p.pillar, p.phase
       ORDER BY p.status ASC, p.title COLLATE NOCASE
     `);
