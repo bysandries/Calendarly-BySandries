@@ -36,6 +36,8 @@ const dailyLogsRouter = require('./routes/dailyLogs');
 const settingsRouter = require('./routes/settings');
 const analyticsRouter = require('./routes/analytics');
 const uploadRouter = require('./routes/upload');
+const pomodoroRouter = require('./routes/pomodoro');
+const distractionNotesRouter = require('./routes/distractionNotes');
 
 // Mount routes
 app.use('/api/events', eventsRouter);
@@ -48,6 +50,8 @@ app.use('/api/daily-logs', dailyLogsRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/upload', uploadRouter);
+app.use('/api/pomodoro-sessions', pomodoroRouter);
+app.use('/api/distraction-notes', distractionNotesRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

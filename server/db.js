@@ -323,6 +323,46 @@ async function initDatabase(forceReset = false) {
     );
   `);
 
+  // Create pomodoro_sessions table
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS pomodoro_sessions (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      ended_at TEXT,
+      planned_duration_minutes INTEGER NOT NULL,
+      actual_duration_minutes INTEGER,
+      break_duration_minutes INTEGER,
+      status TEXT NOT NULL CHECK(status IN ('active', 'paused', 'completed', 'abandoned')),
+      notes TEXT,
+      FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Create pomodoro_session_tasks junction table
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS pomodoro_session_tasks (
+      session_id TEXT NOT NULL,
+      task_id TEXT NOT NULL,
+      PRIMARY KEY (session_id, task_id),
+      FOREIGN KEY(session_id) REFERENCES pomodoro_sessions(id) ON DELETE CASCADE,
+      FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Create distraction_notes table
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS distraction_notes (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      pomodoro_session_id TEXT,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+      FOREIGN KEY(pomodoro_session_id) REFERENCES pomodoro_sessions(id) ON DELETE SET NULL
+    );
+  `);
+
   // Create settings table
   await database.exec(`
     CREATE TABLE IF NOT EXISTS settings (
