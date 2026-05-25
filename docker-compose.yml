@@ -13,6 +13,8 @@ services:
       - ./server/backups:/usr/src/app/backups
     env_file:
       - .env
+    environment:
+      - DATABASE_PATH=/data/calendarly.db
     restart: unless-stopped
 
   frontend:
@@ -26,6 +28,8 @@ services:
       - backend
     env_file:
       - .env
+    environment:
+      - VITE_BACKEND_URL=http://backend:3000
     restart: unless-stopped
 
 volumes:

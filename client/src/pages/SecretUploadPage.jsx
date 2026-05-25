@@ -2,6 +2,11 @@ import { useState, useRef, useCallback } from 'react';
 
 const API_BASE = '/api';
 
+function isValidArchive(filename) {
+  const f = filename.toLowerCase();
+  return f.endsWith('.zip') || f.endsWith('.tar') || f.endsWith('.tar.gz') || f.endsWith('.tgz');
+}
+
 async function uploadFile(file, password) {
   const formData = new FormData();
   formData.append('archive', file);
@@ -139,11 +144,6 @@ export default function SecretUploadPage() {
       </div>
     );
   }
-
-  const isValidArchive = (filename) => {
-    const f = filename.toLowerCase();
-    return f.endsWith('.zip') || f.endsWith('.tar') || f.endsWith('.tar.gz') || f.endsWith('.tgz');
-  };
 
   return (
     <div className="secret-upload-page">
