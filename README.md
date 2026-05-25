@@ -18,6 +18,7 @@ Open `.env` and configure a high-entropy transparent encryption passphrase:
 ```env
 DB_ENCRYPTION_KEY="your-secure-high-entropy-passphrase-here"
 ```
+The template already sets `DATABASE_PATH=/data/calendarly.db` so your database lives in a persistent Docker named volume (`db-data`) and **survives container rebuilds**. Do not change this path unless you are running the server natively without Docker.
 
 ### 2. Launch the Application Stack
 Execute the standard compose launcher command:
