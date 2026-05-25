@@ -1,7 +1,6 @@
-FROM node:20-bookworm
+FROM node:20-bullseye
 
-RUN echo "deb http://deb.debian.org/debian bullseye main" >> /etc/apt/sources.list && \
-    apt-get update && \
+RUN apt-get update && \
     apt-get install -y --no-install-recommends libssl1.1 && \
     rm -rf /var/lib/apt/lists/*
 

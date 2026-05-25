@@ -27,7 +27,7 @@ const upload = multer({
   limits: { fileSize: 500 * 1024 * 1024 }, // 500MB max
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExts = ['.zip', '.tar', '.gz', '.tgz'];
+    const allowedExts = ['.zip', '.tar', '.tgz'];
     // Handle .tar.gz by checking if originalname ends with .tar.gz
     if (
       allowedExts.includes(ext) ||
@@ -76,6 +76,15 @@ router.post(
 
       // Extract archive
       const files = await decompress(archivePath, GRAPHIFY_OUT);
+
+      // Prevent zip-slip path traversal: ensure no extracted entry escapes GRAPHIFY_OUT
+      const OUT_PREFIX = path.resolve(GRAPHIFY_OUT) + path.sep;
+      for (const f of files) {
+        if (!path.resolve(GRAPHIFY_OUT, f.path).startsWith(OUT_PREFIX)) {
+          fs.rmSync(GRAPHIFY_OUT, { recursive: true, force: true });
+          throw new Error(`Path traversal attempt blocked: ${f.path}`);
+        }
+      }
 
       // Clean up temp archive
       fs.unlinkSync(archivePath);
