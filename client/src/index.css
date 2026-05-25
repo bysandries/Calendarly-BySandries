@@ -1120,7 +1120,8 @@ body {
 }
 
 .area-picker-edit-cancel,
-.area-picker-edit-save {
+.area-picker-edit-save,
+.area-picker-edit-delete {
   padding: 3px 10px;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
@@ -1128,6 +1129,17 @@ body {
   cursor: pointer;
   border: 1px solid var(--border-default);
   transition: all var(--transition-fast);
+}
+
+.area-picker-edit-delete {
+  background: rgba(231, 76, 60, 0.12);
+  color: #e74c3c;
+  border-color: rgba(231, 76, 60, 0.3);
+  margin-right: auto;
+}
+
+.area-picker-edit-delete:hover:not(:disabled) {
+  background: rgba(231, 76, 60, 0.2);
 }
 
 .area-picker-edit-cancel {
@@ -1151,7 +1163,8 @@ body {
 }
 
 .area-picker-edit-cancel:disabled,
-.area-picker-edit-save:disabled {
+.area-picker-edit-save:disabled,
+.area-picker-edit-delete:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -3257,46 +3270,6 @@ body {
 }
 
 /* ── Quick-Clone Action ── */
-.btn-clone-trigger {
-  position: absolute;
-  bottom: 4px;
-  right: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-dimmed);
-  border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  font-size: 0.65rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  opacity: 0;
-  z-index: 10;
-}
-
-.calendar-block.planned:hover .btn-clone-trigger {
-  opacity: 1;
-}
-
-.btn-clone-trigger:hover {
-  background: var(--accent-success);
-  border-color: var(--accent-success);
-  color: #fff;
-  transform: scale(1.15);
-}
-
-.checkmark-badge {
-  position: absolute;
-  bottom: 4px;
-  right: 6px;
-  color: var(--accent-success);
-  font-size: 0.75rem;
-  font-weight: 800;
-  pointer-events: none;
-}
 
 /* Flash micro-animation on cloning */
 @keyframes flash-green {
@@ -3313,6 +3286,13 @@ body {
 .calendar-block.dragging {
   opacity: 0.4;
   transform: scale(0.96);
+}
+
+.calendar-block.selected {
+  outline: 2px dashed rgba(255, 255, 255, 0.55);
+  outline-offset: 2px;
+  z-index: 5;
+  filter: brightness(1.15);
 }
 
 /* ── Calendar Navigation Styles ── */
