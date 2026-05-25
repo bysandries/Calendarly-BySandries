@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors({
   origin: '*', // Allows development tools and various frontends to connect
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-upload-password']
 }));
 
 // Body parser middleware
@@ -35,6 +35,7 @@ const extractsRouter = require('./routes/extracts');
 const dailyLogsRouter = require('./routes/dailyLogs');
 const settingsRouter = require('./routes/settings');
 const analyticsRouter = require('./routes/analytics');
+const uploadRouter = require('./routes/upload');
 
 // Mount routes
 app.use('/api/events', eventsRouter);
@@ -46,6 +47,7 @@ app.use('/api/extracts', extractsRouter);
 app.use('/api/daily-logs', dailyLogsRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/upload', uploadRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

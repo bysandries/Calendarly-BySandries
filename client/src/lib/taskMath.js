@@ -51,3 +51,16 @@ export function formatIsoDateShort(iso) {
   if (isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+export function calcProgression(completeTasks, totalTasks) {
+  if (!totalTasks) return null;
+  return Math.round((completeTasks / totalTasks) * 100);
+}
+
+export function calcImportance(totalTasks) {
+  if (!totalTasks) return { label: '—', cssClass: 'importance-none' };
+  if (totalTasks <= 3)  return { label: 'Low',      cssClass: 'importance-low' };
+  if (totalTasks <= 7)  return { label: 'Medium',   cssClass: 'importance-medium' };
+  if (totalTasks <= 15) return { label: 'High',     cssClass: 'importance-high' };
+  return                       { label: 'Critical', cssClass: 'importance-critical' };
+}

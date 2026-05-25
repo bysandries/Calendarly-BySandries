@@ -1,19 +1,17 @@
-FROM node:20
+FROM node:20-bullseye
 
-# Create app directory
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libssl1.1 && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /usr/src/app
 
-# Copy package manifests
 COPY package*.json ./
 
-# Install packages including compilation dependencies
 RUN npm install
 
-# Bundle source code
 COPY . .
 
-# Expose server port
 EXPOSE 3000
 
-# Start server
 CMD ["npm", "start"]

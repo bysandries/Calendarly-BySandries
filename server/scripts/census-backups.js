@@ -9,7 +9,7 @@ const sqlite3 = require('@journeyapps/sqlcipher').verbose();
 
 const SERVER_DIR = path.resolve(__dirname, '..');
 const BACKUP_DIR = path.join(SERVER_DIR, 'backups');
-const ACTIVE_DB = path.join(SERVER_DIR, 'calendarly.db');
+const ACTIVE_DB = process.env.DATABASE_PATH || path.join(SERVER_DIR, 'calendarly.db');
 const KEY = process.env.DB_ENCRYPTION_KEY;
 
 const TABLES = ['tasks', 'projects', 'events', 'notes', 'areas', 'DailyLogs', 'CalendarDays', 'deleted_tasks', 'deleted_projects'];

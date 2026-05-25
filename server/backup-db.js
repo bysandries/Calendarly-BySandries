@@ -49,8 +49,8 @@ function runBackup() {
   console.log('Starting Database Backup...');
 
   if (!fs.existsSync(SOURCE_DB_PATH)) {
-    console.error(`Source database not found at ${SOURCE_DB_PATH}. Exiting.`);
-    process.exit(1);
+    console.log(`Source database not found at ${SOURCE_DB_PATH}. Skipping backup.`);
+    return;
   }
 
   // Create timestamp string: YYYY-MM-DD_HH-MM-SS
