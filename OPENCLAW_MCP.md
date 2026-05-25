@@ -232,6 +232,16 @@ Special behavior on `PATCH`: Setting status to `"07 - Done"` automatically sets 
 | `/` | `GET` | Basic health check | ✅ Yes |
 | `/integrity-check` | `GET` | Database integrity check. **ONLY call with `?check_only=true`** | ⚠️ Restricted |
 
+#### **OpenCode Sync** (`/api/opencode`)
+
+| Endpoint | Method | Purpose | Safe? |
+|----------|--------|---------|-------|
+| `/sessions` | `GET` | Returns cached OpenCode session list (title, created, updated, directory) | ✅ Yes |
+| `/stats` | `GET` | Returns parsed OpenCode stats: total cost, tokens, model breakdown | ✅ Yes |
+| `/sync` | `GET` | Triggers live sync from the OpenCode CLI (only works if CLI is accessible) | ✅ Yes |
+
+**Data flow:** OpenCode CLI runs on the host → writes cache files to `server/opencode-cache/` → backend serves cached data via these endpoints. If the CLI is not in the container, run `./scripts/sync-opencode.sh` on the host.
+
 #### **MCP Spec** (`/api/mcp`)
 
 | Endpoint | Method | Purpose | Safe? |
@@ -468,6 +478,9 @@ GET    /api/pomodoro-sessions/by-task
 GET    /api/pomodoro-sessions/{id}
 GET    /api/distraction-notes
 GET    /api/distraction-notes/with-tasks
+GET    /api/opencode/sessions
+GET    /api/opencode/stats
+GET    /api/opencode/sync
 GET    /api/settings
 GET    /api/settings/backup/download
 GET    /api/settings/gitignore-status
@@ -523,6 +536,6 @@ GET    /api/health/integrity-check     # WITHOUT ?check_only=true
 
 ---
 
-*Protocol Version: 1.1*
+*Protocol Version: 1.2*
 *Last Updated: 2026-05-25*
-*Applies to: Calendarly Backend v1.1.0*
+*Applies to: Calendarly Backend v1.2.0*

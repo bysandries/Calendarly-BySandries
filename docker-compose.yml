@@ -11,6 +11,7 @@ services:
     volumes:
       - db-data:/data
       - ./server/backups:/usr/src/app/backups
+      - ./server/opencode-cache:/usr/src/app/opencode-cache:ro
       - ./OPENCLAW_MCP.md:/usr/src/app/OPENCLAW_MCP.md:ro
     env_file:
       - .env
