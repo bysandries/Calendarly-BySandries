@@ -1,6 +1,14 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
+// Use a dedicated test database — never touch the production DB
+const TEST_DB_PATH = path.resolve(__dirname, 'test.db');
+const _origDbPath = process.env.DATABASE_PATH;
+const _origDbKey  = process.env.DB_ENCRYPTION_KEY;
+process.env.DATABASE_PATH    = TEST_DB_PATH;
+process.env.DB_ENCRYPTION_KEY = '';
+
+const fs = require('fs');
 const { initDatabase, getDbConnection } = require('./db');
 
 async function runTests() {
@@ -186,6 +194,11 @@ async function runTests() {
   } catch (error) {
     console.error('❌ Integration test failed:', error.stack || error);
     process.exit(1);
+  } finally {
+    // Restore original env vars and remove the ephemeral test database
+    process.env.DATABASE_PATH    = _origDbPath || '';
+    process.env.DB_ENCRYPTION_KEY = _origDbKey  || '';
+    if (fs.existsSync(TEST_DB_PATH)) fs.unlinkSync(TEST_DB_PATH);
   }
 }
 
