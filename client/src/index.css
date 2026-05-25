@@ -1085,6 +1085,142 @@ body {
   font-size: 0.75rem;
 }
 
+/* ── AreaPicker: inline name+color edit panel ── */
+.area-picker-edit-panel {
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.area-picker-name-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.area-picker-name-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15);
+}
+
+.area-picker-edit-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.area-picker-edit-cancel,
+.area-picker-edit-save {
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border-default);
+  transition: all var(--transition-fast);
+}
+
+.area-picker-edit-cancel {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.area-picker-edit-cancel:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.area-picker-edit-save {
+  background: rgba(52, 152, 219, 0.12);
+  color: var(--accent-primary);
+  border-color: rgba(52, 152, 219, 0.3);
+}
+
+.area-picker-edit-save:hover:not(:disabled) {
+  background: rgba(52, 152, 219, 0.2);
+}
+
+.area-picker-edit-cancel:disabled,
+.area-picker-edit-save:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Project Drawer ── */
+.project-drawer-section {
+  margin-bottom: 20px;
+}
+
+.drawer-section-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.project-drawer-date-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.palm-pill-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.palm-pill-grid .palm-phase {
+  cursor: pointer;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.palm-pill-grid .palm-phase:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.project-drawer-stats {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.project-drawer-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+
+.project-drawer-stat-label {
+  color: var(--text-muted);
+}
+
+.project-drawer-stat-value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
 /* ── Extract Cards ── */
 .extract-card {
   padding: 16px;

@@ -79,7 +79,8 @@ export const unlinkExtractResource = (id, data) => api.delete(`/extracts/${id}/r
 
 export const fetchAreas = () => api.get('/areas');
 export const createArea = (data) => api.post('/areas', data);
-export const updateAreaColor = (id, color_hex) => api.patch(`/areas/${id}`, { color_hex });
+export const updateArea = (id, data) => api.patch(`/areas/${id}`, data);
+export const updateAreaColor = (id, color_hex) => updateArea(id, { color_hex });
 
 // ── Events ──
 
