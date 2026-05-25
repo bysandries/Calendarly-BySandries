@@ -81,6 +81,7 @@ export const fetchAreas = () => api.get('/areas');
 export const createArea = (data) => api.post('/areas', data);
 export const updateArea = (id, data) => api.patch(`/areas/${id}`, data);
 export const updateAreaColor = (id, color_hex) => updateArea(id, { color_hex });
+export const deleteArea = (id) => api.delete(`/areas/${id}`);
 
 // ── Events ──
 

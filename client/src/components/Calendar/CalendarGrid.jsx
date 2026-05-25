@@ -62,6 +62,9 @@ const CalendarGrid = ({ baseDate, timezone }) => {
   // Micro-animations state
   const [cloningEventId, setCloningEventId] = useState(null);
 
+  // Multi-select state
+  const [selectedEventIds, setSelectedEventIds] = useState(new Set());
+
   // Update current time every minute
   useEffect(() => {
     const timer = setInterval(() => {
@@ -69,6 +72,52 @@ const CalendarGrid = ({ baseDate, timezone }) => {
     }, 60000);
     return () => clearInterval(timer);
   }, [timezone]);
+
+  // Keyboard delete / escape for multi-selected events
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedEventIds.size > 0 && !isDrawerOpen) {
+          e.preventDefault();
+          handleDeleteSelected();
+        }
+      }
+      if (e.key === 'Escape') {
+        if (selectedEventIds.size > 0) {
+          setSelectedEventIds(new Set());
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedEventIds, isDrawerOpen]);
+
+  const handleDeleteSelected = async () => {
+    if (selectedEventIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedEventIds.size} selected event(s)?`)) return;
+    const ids = Array.from(selectedEventIds);
+    setSelectedEventIds(new Set());
+    await Promise.all(ids.map(id => deleteEvent(id).catch(() => null)));
+    loadData();
+  };
+
+  const toggleSelectEvent = (block, e) => {
+    if (e.shiftKey) {
+      e.stopPropagation();
+      e.preventDefault();
+      setSelectedEventIds(prev => {
+        const next = new Set(prev);
+        if (next.has(block.id)) {
+          next.delete(block.id);
+        } else {
+          next.add(block.id);
+        }
+        return next;
+      });
+      return true; // indicates selection handled
+    }
+    return false;
+  };
 
   // Time boundaries (Sunday to Saturday around active baseDate)
   const weekStart = useMemo(() => {
@@ -617,15 +666,30 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                       <div
                         id={`block-${block.id}`}
                         key={block.id}
-                        className={`calendar-block planned ${isCloning ? 'cloning' : ''} ${draggedEventId === block.id ? 'dragging' : ''}`}
+                        className={`calendar-block planned ${isCloning ? 'cloning' : ''} ${draggedEventId === block.id ? 'dragging' : ''} ${selectedEventIds.has(block.id) ? 'selected' : ''}`}
                         style={styleProps}
+                        onMouseDown={(e) => {
+                          if (e.shiftKey) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleSelectEvent(block, e);
+                          }
+                        }}
                         onClick={(e) => {
+                          if (e.shiftKey) return; // handled by onMouseDown
                           e.stopPropagation();
                           setActiveDrawerEvent(block);
                           setIsDrawerOpen(true);
+                          setSelectedEventIds(new Set());
                         }}
                         draggable
-                        onDragStart={(e) => handleDragStart(e, block)}
+                        onDragStart={(e) => {
+                          if (selectedEventIds.has(block.id)) {
+                            e.preventDefault();
+                            return;
+                          }
+                          handleDragStart(e, block);
+                        }}
                         onDragEnd={handleDragEnd}
                       >
                         <span className="block-title">{block.title}</span>
@@ -647,34 +711,6 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                             </span>
                           )}
                         </div>
-
-                        {/* Clone Trigger Checkmark button */}
-                        {block.is_cloned_checked === 1 ? (
-                          <span className="checkmark-badge">✓</span>
-                        ) : (
-                          <button 
-                            className="btn-clone-checkmark"
-                            onClick={(e) => { e.stopPropagation(); handleQuickClone(block); }}
-                            title="Done - copy to measure"
-                            style={{ 
-                              position: 'absolute', 
-                              bottom: '6px', 
-                              right: '6px', 
-                              background: 'rgba(255,255,255,0.1)', 
-                              border: 'none', 
-                              color: '#fff', 
-                              width: '20px', 
-                              height: '20px', 
-                              borderRadius: '4px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            ✓
-                          </button>
-                        )}
 
                         <div 
                           className="resize-handle" 
@@ -781,15 +817,30 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                       <div
                         id={`block-${block.id}`}
                         key={block.id}
-                        className={`calendar-block measured ${draggedEventId === block.id ? 'dragging' : ''}`}
+                        className={`calendar-block measured ${draggedEventId === block.id ? 'dragging' : ''} ${selectedEventIds.has(block.id) ? 'selected' : ''}`}
                         style={styleProps}
+                        onMouseDown={(e) => {
+                          if (e.shiftKey) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleSelectEvent(block, e);
+                          }
+                        }}
                         onClick={(e) => {
+                          if (e.shiftKey) return;
                           e.stopPropagation();
                           setActiveDrawerEvent(block);
                           setIsDrawerOpen(true);
+                          setSelectedEventIds(new Set());
                         }}
                         draggable
-                        onDragStart={(e) => handleDragStart(e, block)}
+                        onDragStart={(e) => {
+                          if (selectedEventIds.has(block.id)) {
+                            e.preventDefault();
+                            return;
+                          }
+                          handleDragStart(e, block);
+                        }}
                         onDragEnd={handleDragEnd}
                       >
                         <span className="block-title">{block.title}</span>
@@ -811,11 +862,6 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                             </span>
                           )}
                         </div>
-
-                        {/* Success cloning matching checkmark */}
-                        {block.is_cloned_checked === 1 && (
-                          <span className="checkmark-badge" style={{ color: blockColor }}>✓</span>
-                        )}
 
                         <div 
                           className="resize-handle" 

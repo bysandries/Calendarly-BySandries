@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { createArea, updateArea } from '../utils/api';
+import { createArea, updateArea, deleteArea } from '../utils/api';
 
 const PALETTE = [
   '#E74C3C', '#E67E22', '#F1C40F', '#2ECC71',
@@ -152,6 +152,26 @@ export default function AreaPicker({ value, areas, onSelect, onAreasChanged, pla
       closeEdit();
     } catch (e) {
       setError(e.message || 'Could not update category');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete(area) {
+    if (!window.confirm(`Delete category "${area.name}"? Events linked to it will become uncategorized.`)) {
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      await deleteArea(area.id);
+      if (onAreasChanged) await onAreasChanged();
+      if (value === area.id) {
+        onSelect('');
+      }
+      closeEdit();
+    } catch (e) {
+      setError(e.message || 'Could not delete category');
     } finally {
       setBusy(false);
     }
@@ -335,6 +355,14 @@ export default function AreaPicker({ value, areas, onSelect, onAreasChanged, pla
                         })}
                       </div>
                       <div className="area-picker-edit-actions">
+                        <button
+                          type="button"
+                          className="area-picker-edit-delete"
+                          onClick={(e) => { e.stopPropagation(); handleDelete(a); }}
+                          disabled={busy}
+                        >
+                          Delete
+                        </button>
                         <button
                           type="button"
                           className="area-picker-edit-cancel"
