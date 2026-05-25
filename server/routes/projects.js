@@ -25,7 +25,7 @@ const TASK_STATS_JOIN = `
     FROM pomodoro_session_tasks tps
     JOIN pomodoro_sessions po ON po.id = tps.session_id
     JOIN tasks tk ON tk.id = tps.task_id
-    WHERE tk.project_id IS NOT NULL AND po.status = 'completed'
+    WHERE tk.project_id IS NOT NULL AND po.status IN ('completed', 'abandoned')
     GROUP BY tk.project_id
   ) ps ON ps.project_id = p.id
 `;
