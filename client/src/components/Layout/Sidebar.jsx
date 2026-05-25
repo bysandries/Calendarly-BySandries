@@ -88,6 +88,14 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          to="/agents"
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          <span className="nav-icon">◎</span>
+          <span className="nav-label">Code Agents</span>
+        </NavLink>
+
+        <NavLink
           to="/settings"
           className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
         >

@@ -323,7 +323,6 @@ async function initDatabase(forceReset = false) {
     );
   `);
 
-<<<<<<< HEAD
   // Create pomodoro_sessions table
   await database.exec(`
     CREATE TABLE IF NOT EXISTS pomodoro_sessions (
@@ -361,26 +360,28 @@ async function initDatabase(forceReset = false) {
       created_at TEXT NOT NULL,
       FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
       FOREIGN KEY(pomodoro_session_id) REFERENCES pomodoro_sessions(id) ON DELETE SET NULL
-=======
-  // Create pomodoro sessions table
-  await database.exec(`
-    CREATE TABLE IF NOT EXISTS pomodoro_sessions (
-      id TEXT PRIMARY KEY,
-      started_at TEXT NOT NULL,
-      duration_minutes INTEGER NOT NULL DEFAULT 25,
-      completed INTEGER NOT NULL DEFAULT 1
     );
   `);
 
-  // Create task-pomodoro join table (middle table connecting sessions and tasks)
+  // Create code_agent_sessions table
   await database.exec(`
-    CREATE TABLE IF NOT EXISTS task_pomodoro_sessions (
-      session_id TEXT NOT NULL,
-      task_id TEXT NOT NULL,
-      PRIMARY KEY (session_id, task_id),
-      FOREIGN KEY (session_id) REFERENCES pomodoro_sessions(id) ON DELETE CASCADE,
-      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
->>>>>>> 6e64c6b (feat: add task assignment, pomodoro tracking, and project detail redesign)
+    CREATE TABLE IF NOT EXISTS code_agent_sessions (
+      id TEXT PRIMARY KEY,
+      agent TEXT NOT NULL CHECK(agent IN ('Claude', 'OpenCode', 'Gemini', 'Antigravity')),
+      session_date TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      ended_at TEXT,
+      duration_minutes REAL DEFAULT 0,
+      input_tokens INTEGER DEFAULT 0,
+      output_tokens INTEGER DEFAULT 0,
+      cache_read_tokens INTEGER DEFAULT 0,
+      cache_write_tokens INTEGER DEFAULT 0,
+      total_cost_usd REAL DEFAULT 0,
+      model TEXT,
+      project_context TEXT,
+      notes TEXT,
+      source TEXT DEFAULT 'manual',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
