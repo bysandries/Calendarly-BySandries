@@ -1120,7 +1120,8 @@ body {
 }
 
 .area-picker-edit-cancel,
-.area-picker-edit-save {
+.area-picker-edit-save,
+.area-picker-edit-delete {
   padding: 3px 10px;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
@@ -1128,6 +1129,17 @@ body {
   cursor: pointer;
   border: 1px solid var(--border-default);
   transition: all var(--transition-fast);
+}
+
+.area-picker-edit-delete {
+  background: rgba(231, 76, 60, 0.12);
+  color: #e74c3c;
+  border-color: rgba(231, 76, 60, 0.3);
+  margin-right: auto;
+}
+
+.area-picker-edit-delete:hover:not(:disabled) {
+  background: rgba(231, 76, 60, 0.2);
 }
 
 .area-picker-edit-cancel {
@@ -1151,7 +1163,8 @@ body {
 }
 
 .area-picker-edit-cancel:disabled,
-.area-picker-edit-save:disabled {
+.area-picker-edit-save:disabled,
+.area-picker-edit-delete:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
