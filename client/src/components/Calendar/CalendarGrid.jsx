@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { DateTime } from 'luxon';
 import { 
   fetchEventsRange, 
@@ -73,6 +73,9 @@ const CalendarGrid = ({ baseDate, timezone }) => {
   // Multi-select state
   const [selectedEventIds, setSelectedEventIds] = useState(new Set());
 
+  // Ref to prevent click handler from opening drawer after shift+click mouseDown
+  const shiftClickHandledRef = useRef(false);
+
   // Update current time every minute
   useEffect(() => {
     const timer = setInterval(() => {
@@ -81,12 +84,36 @@ const CalendarGrid = ({ baseDate, timezone }) => {
     return () => clearInterval(timer);
   }, [timezone]);
 
-  // Keyboard delete / escape for multi-selected events.
+  // Keyboard delete / escape for selected events.
   // Skip when the user is typing in any editable field (drawer, daily-log textarea,
   // creation popover inputs, etc.) so Backspace still works as a normal text edit.
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Drawer open: delete the active event
+        if (
+          isDrawerOpen &&
+          activeDrawerEvent &&
+          !isEditableTarget(document.activeElement) &&
+          !isEditableTarget(e.target)
+        ) {
+          e.preventDefault();
+          if (window.confirm(`Delete the event "${activeDrawerEvent.title}"?`)) {
+            (async () => {
+              try {
+                await deleteEvent(activeDrawerEvent.id);
+                setIsDrawerOpen(false);
+                setActiveDrawerEvent(null);
+                setSelectedEventIds(new Set());
+                loadData();
+              } catch (error) {
+                console.error('Error deleting event:', error);
+              }
+            })();
+          }
+          return;
+        }
+        // Multi-select: delete selected events
         if (
           selectedEventIds.size > 0 &&
           !isDrawerOpen &&
@@ -98,6 +125,12 @@ const CalendarGrid = ({ baseDate, timezone }) => {
         }
       }
       if (e.key === 'Escape') {
+        if (isDrawerOpen) {
+          setIsDrawerOpen(false);
+          setActiveDrawerEvent(null);
+          setSelectedEventIds(new Set());
+          return;
+        }
         if (selectedEventIds.size > 0) {
           setSelectedEventIds(new Set());
         }
@@ -105,7 +138,7 @@ const CalendarGrid = ({ baseDate, timezone }) => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedEventIds, isDrawerOpen]);
+  }, [selectedEventIds, isDrawerOpen, activeDrawerEvent]);
 
   const handleDeleteSelected = async () => {
     if (selectedEventIds.size === 0) return;
@@ -120,6 +153,7 @@ const CalendarGrid = ({ baseDate, timezone }) => {
     if (e.shiftKey) {
       e.stopPropagation();
       e.preventDefault();
+      shiftClickHandledRef.current = true;
       setSelectedEventIds(prev => {
         const next = new Set(prev);
         if (next.has(block.id)) {
@@ -727,15 +761,32 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                           if (e.shiftKey) {
                             e.preventDefault();
                             e.stopPropagation();
+                            shiftClickHandledRef.current = true;
                             toggleSelectEvent(block, e);
                           }
                         }}
                         onClick={(e) => {
-                          if (e.shiftKey) return; // handled by onMouseDown
+                          if (shiftClickHandledRef.current) {
+                            shiftClickHandledRef.current = false;
+                            return;
+                          }
                           e.stopPropagation();
+                          // If multi-selection active, toggle this event into the selection
+                          if (selectedEventIds.size > 0) {
+                            setSelectedEventIds(prev => {
+                              const next = new Set(prev);
+                              if (next.has(block.id)) {
+                                next.delete(block.id);
+                              } else {
+                                next.add(block.id);
+                              }
+                              return next;
+                            });
+                            return;
+                          }
                           setActiveDrawerEvent(block);
                           setIsDrawerOpen(true);
-                          setSelectedEventIds(new Set());
+                          setSelectedEventIds(new Set([block.id]));
                         }}
                         draggable
                         onDragStart={(e) => {
@@ -878,15 +929,32 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                           if (e.shiftKey) {
                             e.preventDefault();
                             e.stopPropagation();
+                            shiftClickHandledRef.current = true;
                             toggleSelectEvent(block, e);
                           }
                         }}
                         onClick={(e) => {
-                          if (e.shiftKey) return;
+                          if (shiftClickHandledRef.current) {
+                            shiftClickHandledRef.current = false;
+                            return;
+                          }
                           e.stopPropagation();
+                          // If multi-selection active, toggle this event into the selection
+                          if (selectedEventIds.size > 0) {
+                            setSelectedEventIds(prev => {
+                              const next = new Set(prev);
+                              if (next.has(block.id)) {
+                                next.delete(block.id);
+                              } else {
+                                next.add(block.id);
+                              }
+                              return next;
+                            });
+                            return;
+                          }
                           setActiveDrawerEvent(block);
                           setIsDrawerOpen(true);
-                          setSelectedEventIds(new Set());
+                          setSelectedEventIds(new Set([block.id]));
                         }}
                         draggable
                         onDragStart={(e) => {
@@ -1026,6 +1094,7 @@ const CalendarGrid = ({ baseDate, timezone }) => {
         onClose={() => {
           setIsDrawerOpen(false);
           setActiveDrawerEvent(null);
+          setSelectedEventIds(new Set());
         }}
         event={activeDrawerEvent}
         onSave={handleSaveEvent}

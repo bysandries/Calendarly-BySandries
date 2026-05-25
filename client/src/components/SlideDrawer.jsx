@@ -22,6 +22,17 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
   // Get actionable statuses from TASK_TABS
   const actionableStatuses = TASK_TABS.find(tab => tab.key === 'actionable')?.statuses || [];
 
+  const timeToMinutes = (timeStr) => {
+    const [h, m] = timeStr.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  const minutesToTime = (mins) => {
+    const h = Math.floor(mins / 60) % 24;
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
   useEffect(() => {
     fetchAreas().then(setAreas).catch(console.error);
     fetchTasks().then(setAvailableTasks).catch(console.error);
@@ -29,10 +40,13 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
 
   useEffect(() => {
     if (event) {
+      const startMins = timeToMinutes(event.time_slot || '00:00');
+      const endMins = startMins + (event.duration_mins || 0);
       setFormData({
         title: event.title || '',
         time_slot: event.time_slot || '',
         duration_mins: event.duration_mins || 0,
+        end_time: minutesToTime(endMins),
         area: event.area || 'general',
         notes: event.notes || ''
       });
@@ -69,10 +83,24 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'duration_mins' ? parseInt(value, 10) : value
-    }));
+    setFormData(prev => {
+      let next = {
+        ...prev,
+        [name]: name === 'duration_mins' ? parseInt(value, 10) : value
+      };
+      if (name === 'time_slot' || name === 'duration_mins') {
+        const startMins = timeToMinutes(next.time_slot || '00:00');
+        next.end_time = minutesToTime(startMins + (next.duration_mins || 0));
+      }
+      if (name === 'end_time') {
+        const startMins = timeToMinutes(prev.time_slot || '00:00');
+        const endMins = timeToMinutes(value);
+        let diff = endMins - startMins;
+        if (diff < 0) diff += 24 * 60;
+        next.duration_mins = diff;
+      }
+      return next;
+    });
   };
 
   const handleLinkTask = async (taskId) => {
@@ -159,11 +187,23 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
 
             <div className="detail-row">
               <span className="detail-label">Time Slot:</span>
-              <input 
-                type="time" 
-                className="form-input" 
-                name="time_slot" 
-                value={formData.time_slot} 
+              <input
+                type="time"
+                className="form-input"
+                name="time_slot"
+                value={formData.time_slot}
+                onChange={handleChange}
+                style={{ width: 'auto', height: 'auto', padding: '2px 8px', fontSize: '0.8rem' }}
+              />
+            </div>
+
+            <div className="detail-row">
+              <span className="detail-label">End Time:</span>
+              <input
+                type="time"
+                className="form-input"
+                name="end_time"
+                value={formData.end_time || ''}
                 onChange={handleChange}
                 style={{ width: 'auto', height: 'auto', padding: '2px 8px', fontSize: '0.8rem' }}
               />
