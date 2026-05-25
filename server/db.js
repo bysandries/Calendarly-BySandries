@@ -323,6 +323,7 @@ async function initDatabase(forceReset = false) {
     );
   `);
 
+<<<<<<< HEAD
   // Create pomodoro_sessions table
   await database.exec(`
     CREATE TABLE IF NOT EXISTS pomodoro_sessions (
@@ -360,6 +361,26 @@ async function initDatabase(forceReset = false) {
       created_at TEXT NOT NULL,
       FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
       FOREIGN KEY(pomodoro_session_id) REFERENCES pomodoro_sessions(id) ON DELETE SET NULL
+=======
+  // Create pomodoro sessions table
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS pomodoro_sessions (
+      id TEXT PRIMARY KEY,
+      started_at TEXT NOT NULL,
+      duration_minutes INTEGER NOT NULL DEFAULT 25,
+      completed INTEGER NOT NULL DEFAULT 1
+    );
+  `);
+
+  // Create task-pomodoro join table (middle table connecting sessions and tasks)
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS task_pomodoro_sessions (
+      session_id TEXT NOT NULL,
+      task_id TEXT NOT NULL,
+      PRIMARY KEY (session_id, task_id),
+      FOREIGN KEY (session_id) REFERENCES pomodoro_sessions(id) ON DELETE CASCADE,
+      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+>>>>>>> 6e64c6b (feat: add task assignment, pomodoro tracking, and project detail redesign)
     );
   `);
 

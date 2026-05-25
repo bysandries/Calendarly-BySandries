@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProjects } from '../hooks/useProjects';
 import { useTasks } from '../hooks/useTasks';
-import { fetchAreas, fetchTasks } from '../utils/api';
+import { fetchAreas, fetchTasks, updateTask } from '../utils/api';
 import { getStatusInfo, GTD_STATUSES, TASK_TABS, PRIORITY_COLORS, getNextPriority } from '../utils/statusMap';
 import { formatDuration, calcDaysLeft, formatDaysLeft, calcUrgency, formatIsoDateShort } from '../lib/taskMath';
 import ProjectStatusBadge from '../components/ProjectStatusBadge';
@@ -314,58 +314,129 @@ export default function ProjectDetailPage() {
       </button>
 
       {/* Project Header */}
-      <div className="page-header" style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div className="glass-panel" style={{ marginBottom: '20px', padding: '20px 24px' }}>
+        {/* Title row */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
           {area && (
-            <div
-              style={{
-                width: '4px',
-                height: '36px',
-                borderRadius: '2px',
-                background: area.color_hex,
-                flexShrink: 0,
-              }}
-            />
+            <div style={{ width: '4px', minHeight: '40px', borderRadius: '2px', background: area.color_hex, flexShrink: 0, marginTop: '4px' }} />
           )}
-          <div>
-            <h2 style={{ marginBottom: '4px' }}>{project.title}</h2>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ marginBottom: '4px', fontSize: '1.3rem' }}>{project.title}</h2>
             {project.description && (
-              <p className="page-description" style={{ marginBottom: 0 }}>
-                {project.description}
-              </p>
+              <p className="page-description" style={{ marginBottom: 0 }}>{project.description}</p>
             )}
           </div>
-        </div>
-
-        {/* Project meta pills */}
-        <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
           <ProjectStatusBadge
             status={project.status}
             onChange={(newStatus) => updateProject(project.id, { status: newStatus })}
           />
-          
-          <select
-            className="form-select"
-            style={{ padding: '3px 10px', height: 'auto', borderRadius: '12px', fontSize: '0.75rem' }}
-            value={project.area}
-            onChange={(e) => updateProject(project.id, { area: e.target.value })}
-          >
-            {areas.map(a => (
-              <option key={a.id} value={a.id}>{a.name}</option>
-            ))}
-          </select>
+        </div>
 
-          <select
-            className="form-select"
-            style={{ padding: '3px 10px', height: 'auto', borderRadius: '12px', fontSize: '0.75rem' }}
-            value={project.pillar}
-            onChange={(e) => updateProject(project.id, { pillar: e.target.value })}
-          >
-            {['Kindness', 'Authenticity', 'Resilience', 'Innovation'].map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
+        {/* Meta grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+          {/* Area */}
+          <div>
+            <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Area</div>
+            <select
+              className="form-select"
+              style={{ padding: '3px 10px', height: 'auto', fontSize: '0.82rem', width: '100%' }}
+              value={project.area}
+              onChange={(e) => updateProject(project.id, { area: e.target.value })}
+            >
+              {areas.map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
 
+          {/* Pillar */}
+          <div>
+            <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Pillar</div>
+            <select
+              className="form-select"
+              style={{ padding: '3px 10px', height: 'auto', fontSize: '0.82rem', width: '100%' }}
+              value={project.pillar}
+              onChange={(e) => updateProject(project.id, { pillar: e.target.value })}
+            >
+              {['Kindness', 'Authenticity', 'Resilience', 'Innovation'].map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Person in charge */}
+          {project.person_in_charge && (
+            <div>
+              <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Person</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{project.person_in_charge}</div>
+            </div>
+          )}
+
+          {/* Due date */}
+          {project.due_date && (
+            <div>
+              <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Due</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatIsoDateShort(project.due_date)}</div>
+            </div>
+          )}
+
+          {/* Start date */}
+          {project.start_date && (
+            <div>
+              <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Start</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatIsoDateShort(project.start_date)}</div>
+            </div>
+          )}
+
+          {/* End date */}
+          {project.end_date && (
+            <div>
+              <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>End</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatIsoDateShort(project.end_date)}</div>
+            </div>
+          )}
+
+          {/* Time Invested */}
+          <div>
+            <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Time Invested</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: (project.pomodoro_minutes ?? 0) > 0 ? 'var(--accent-primary)' : 'var(--text-dimmed)' }}>
+              {formatDuration(project.pomodoro_minutes ?? 0)}
+            </div>
+          </div>
+
+          {/* Task progress */}
+          <div>
+            <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Progress</div>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              {project.complete_tasks ?? 0} / {project.total_tasks ?? 0} tasks
+            </div>
+          </div>
+        </div>
+
+        {/* Goals aligned */}
+        {project.goals_aligned && project.goals_aligned.length > 0 && (
+          <div style={{ marginBottom: '14px' }}>
+            <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>Goals Aligned</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {project.goals_aligned.map((g, i) => (
+                <span key={i} style={{
+                  fontSize: '0.75rem',
+                  padding: '2px 10px',
+                  borderRadius: '10px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--glass-border)',
+                  color: 'var(--text-secondary)',
+                }}>
+                  {g}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* PALM Phase selector */}
+        <div>
+          <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>PALM Phase</div>
           <div className="palm-phases" style={{ margin: 0 }}>
             {PALM_PHASES.map(phase => (
               <span

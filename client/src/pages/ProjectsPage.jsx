@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useProjects } from '../hooks/useProjects';
-import { fetchAreas } from '../utils/api';
+import { fetchAreas, fetchTasks, updateTask } from '../utils/api';
 import ProjectStatusBadge from '../components/ProjectStatusBadge';
 import ProjectDrawer from '../components/ProjectDrawer';
-import { formatIsoDateShort, calcProgression, calcImportance } from '../lib/taskMath';
+import { formatIsoDateShort, calcProgression, calcImportance, formatDuration } from '../lib/taskMath';
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: 'All' },
@@ -29,9 +29,47 @@ export default function ProjectsPage() {
   const [drawerProject, setDrawerProject] = useState(null); // null=closed, {}=create, project=edit
   const [confirmDelete, setConfirmDelete] = useState(null);
 
+  // Unassigned tasks panel
+  const [showUnassigned, setShowUnassigned] = useState(false);
+  const [unassignedSearch, setUnassignedSearch] = useState('');
+  const [unassignedTasks, setUnassignedTasks] = useState([]);
+  const [unassignedLoading, setUnassignedLoading] = useState(false);
+  const [unassignedCount, setUnassignedCount] = useState(0);
+
   useEffect(() => {
     fetchAreas().then(setAreas).catch(() => {});
   }, []);
+
+  // Fetch unassigned count on mount
+  useEffect(() => {
+    fetchTasks({ unassigned: 'true' })
+      .then(data => setUnassignedCount(data.length))
+      .catch(() => {});
+  }, []);
+
+  const fetchUnassigned = useCallback(async (q = '') => {
+    setUnassignedLoading(true);
+    try {
+      const data = await fetchTasks({ unassigned: 'true', q: q || undefined });
+      setUnassignedTasks(data);
+      setUnassignedCount(data.length);
+    } catch {
+      setUnassignedTasks([]);
+    } finally {
+      setUnassignedLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showUnassigned) fetchUnassigned(unassignedSearch);
+  }, [showUnassigned]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAssignTask = async (taskId, projectId) => {
+    if (!projectId) return;
+    await updateTask(taskId, { project_id: projectId });
+    fetchUnassigned(unassignedSearch);
+    refetch();
+  };
 
   const getAreaInfo = (areaId) => areas.find(a => a.id === areaId);
 
@@ -75,7 +113,7 @@ export default function ProjectsPage() {
         <p className="page-description">Manage your projects — track PALM phases, pillars, and aligned goals</p>
       </div>
 
-      {/* Filter pills */}
+      {/* Filter pills + Unassigned Tasks toggle */}
       <div className="filter-bar">
         <div className="filter-pills">
           {STATUS_FILTER_OPTIONS.map(opt => (
@@ -93,7 +131,85 @@ export default function ProjectsPage() {
             </button>
           ))}
         </div>
+        <button
+          className={`filter-pill ${showUnassigned ? 'active' : ''}`}
+          onClick={() => setShowUnassigned(v => !v)}
+          style={{ marginLeft: 'auto' }}
+        >
+          Unassigned Tasks
+          {unassignedCount > 0 && (
+            <span style={{ marginLeft: '5px', opacity: 0.7, fontSize: '0.7rem' }}>
+              {unassignedCount}
+            </span>
+          )}
+        </button>
       </div>
+
+      {/* Unassigned Tasks Panel */}
+      {showUnassigned && (
+        <div className="glass-panel" style={{ marginBottom: '20px', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>
+            <input
+              className="form-input"
+              placeholder="Search unassigned tasks…"
+              value={unassignedSearch}
+              onChange={(e) => setUnassignedSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && fetchUnassigned(unassignedSearch)}
+              style={{ flex: 1, padding: '6px 12px', fontSize: '0.85rem' }}
+            />
+            <button
+              className="btn btn-ghost"
+              style={{ fontSize: '0.8rem' }}
+              onClick={() => fetchUnassigned(unassignedSearch)}
+            >
+              Search
+            </button>
+          </div>
+
+          {unassignedLoading ? (
+            <div style={{ color: 'var(--text-dimmed)', fontSize: '0.85rem', padding: '8px 0' }}>Loading…</div>
+          ) : unassignedTasks.length === 0 ? (
+            <div style={{ color: 'var(--text-dimmed)', fontSize: '0.85rem', padding: '8px 0' }}>
+              No unassigned tasks{unassignedSearch ? ' matching your search' : ''}.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '240px', overflowY: 'auto' }}>
+              {unassignedTasks.map(task => (
+                <div
+                  key={task.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '7px 10px',
+                    borderRadius: 'var(--radius-xs)',
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--glass-border)',
+                  }}
+                >
+                  <span style={{ flex: 1, fontSize: '0.85rem', color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {task.title}
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+                    {task.status?.replace(/^\d+ - /, '') || ''}
+                  </span>
+                  <select
+                    className="form-select"
+                    defaultValue=""
+                    style={{ padding: '2px 8px', fontSize: '0.75rem', minWidth: '120px', height: 'auto' }}
+                    onChange={(e) => handleAssignTask(task.id, e.target.value)}
+                  >
+                    <option value="" disabled>Assign to…</option>
+                    {projects.filter(p => p.status === 'active').map(p => (
+                      <option key={p.id} value={p.id}>{p.title}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (
@@ -121,11 +237,13 @@ export default function ProjectsPage() {
               <tr>
                 <th style={{ width: '110px' }}>Status</th>
                 <th>Title</th>
-                <th style={{ width: '100px' }}>Area</th>
-                <th style={{ width: '115px' }}>Persons</th>
-                <th style={{ width: '95px' }}>Due</th>
-                <th style={{ width: '130px' }}>Progression</th>
-                <th style={{ width: '80px' }}>Importance</th>
+                <th style={{ width: '80px' }}>Phase</th>
+                <th style={{ width: '90px' }}>Area</th>
+                <th style={{ width: '100px' }}>Persons</th>
+                <th style={{ width: '90px' }}>Due</th>
+                <th style={{ width: '120px' }}>Progression</th>
+                <th style={{ width: '80px' }}>Time Invested</th>
+                <th style={{ width: '70px' }}>Importance</th>
                 <th style={{ width: '40px' }}></th>
                 <th style={{ width: '40px' }}></th>
               </tr>
@@ -175,6 +293,21 @@ export default function ProjectsPage() {
                       </div>
                     </td>
 
+                    {/* PALM Phase */}
+                    <td>
+                      <span style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        background: 'rgba(255,255,255,0.06)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--glass-border)',
+                      }}>
+                        {project.phase || '—'}
+                      </span>
+                    </td>
+
                     {/* Area */}
                     <td>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -217,6 +350,17 @@ export default function ProjectsPage() {
                           </span>
                         </div>
                       )}
+                    </td>
+
+                    {/* Time Invested */}
+                    <td>
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: (project.pomodoro_minutes ?? 0) > 0 ? 'var(--accent-primary)' : 'var(--text-dimmed)',
+                      }}>
+                        {formatDuration(project.pomodoro_minutes ?? 0)}
+                      </span>
                     </td>
 
                     {/* Importance */}

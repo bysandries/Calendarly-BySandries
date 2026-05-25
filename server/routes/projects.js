@@ -7,7 +7,8 @@ const TASK_STATS_JOIN = `
     COALESCE(t.total_tasks, 0)                AS total_tasks,
     COALESCE(t.complete_tasks, 0)             AS complete_tasks,
     COALESCE(t.total_estimated_minutes, 0)    AS total_estimated_minutes,
-    COALESCE(t.remaining_estimated_minutes, 0) AS remaining_estimated_minutes
+    COALESCE(t.remaining_estimated_minutes, 0) AS remaining_estimated_minutes,
+    COALESCE(ps.pomodoro_minutes, 0)          AS pomodoro_minutes
   FROM projects p
   LEFT JOIN (
     SELECT project_id,
@@ -18,6 +19,15 @@ const TASK_STATS_JOIN = `
     FROM tasks
     GROUP BY project_id
   ) t ON t.project_id = p.id
+  LEFT JOIN (
+    SELECT tk.project_id,
+      SUM(po.duration_minutes) AS pomodoro_minutes
+    FROM task_pomodoro_sessions tps
+    JOIN pomodoro_sessions po ON po.id = tps.session_id
+    JOIN tasks tk ON tk.id = tps.task_id
+    WHERE tk.project_id IS NOT NULL AND po.completed = 1
+    GROUP BY tk.project_id
+  ) ps ON ps.project_id = p.id
 `;
 
 // GET /api/projects
