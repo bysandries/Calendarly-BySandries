@@ -156,7 +156,7 @@ export function usePomodoro(timezone) {
 
   const createMeasureEvent = useCallback(async (task, durationMinutes, isBreak = false, notes = '') => {
     if (!task) return;
-    if (durationMinutes < (isBreak ? 1 : 10)) return;
+    if (durationMinutes < 1) return; // Track every minute; only skip zero-duration glitches
 
     const now = DateTime.now().setZone(timezone || 'America/Los_Angeles');
     const dateStr = now.toFormat('yyyy-MM-dd');
@@ -300,8 +300,8 @@ export function usePomodoro(timezone) {
       notes: distractionNotes,
     });
 
-    // Create measure event if >= 10 minutes
-    if (actualMinutes >= 10) {
+    // Create measure event for any real work time (even 1 minute counts)
+    if (actualMinutes > 0) {
       await createMeasureEvent(selectedTask, actualMinutes, false, distractionNotes);
     }
 
