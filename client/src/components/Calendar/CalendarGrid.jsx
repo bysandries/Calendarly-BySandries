@@ -27,6 +27,14 @@ const pxToSnappedMins = (y) => {
 const minsToHHMM = (m) =>
   `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
+const isEditableTarget = (el) => {
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (el.isContentEditable) return true;
+  return false;
+};
+
 const CalendarGrid = ({ baseDate, timezone }) => {
   const [events, setEvents] = useState([]);
   const [areas, setAreas] = useState([]);
@@ -73,11 +81,18 @@ const CalendarGrid = ({ baseDate, timezone }) => {
     return () => clearInterval(timer);
   }, [timezone]);
 
-  // Keyboard delete / escape for multi-selected events
+  // Keyboard delete / escape for multi-selected events.
+  // Skip when the user is typing in any editable field (drawer, daily-log textarea,
+  // creation popover inputs, etc.) so Backspace still works as a normal text edit.
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedEventIds.size > 0 && !isDrawerOpen) {
+        if (
+          selectedEventIds.size > 0 &&
+          !isDrawerOpen &&
+          !isEditableTarget(document.activeElement) &&
+          !isEditableTarget(e.target)
+        ) {
           e.preventDefault();
           handleDeleteSelected();
         }
@@ -468,24 +483,64 @@ const CalendarGrid = ({ baseDate, timezone }) => {
     const block = events.find(ev => ev.id.toString() === draggedEventId.toString());
     if (!block) return;
 
-    // 2a. If dragging Planned block to Measure lane, trigger cloning operation
+    // Snap start time of the anchor (dragged) block
+    const rect = e.currentTarget.getBoundingClientRect();
+    const topY = (e.clientY - rect.top) - dragOffsetY;
+    const snappedStart = pxToSnappedMins(topY);
+    const maxStartMins = 24 * 60 - block.duration_mins;
+    const boundedStart = Math.max(0, Math.min(maxStartMins, snappedStart));
+
+    const isMultiDrag = selectedEventIds.has(block.id) && selectedEventIds.size > 1;
+
+    // 2a. Multi-drag: shift every selected event by the same date + time delta.
+    // Skip the plan→measure auto-clone behavior here — it would be ambiguous for a group.
+    if (isMultiDrag) {
+      const [bH, bM] = (block.time_slot || '00:00').split(':').map(Number);
+      const anchorOrigMins = bH * 60 + bM;
+      const minsDelta = boundedStart - anchorOrigMins;
+
+      const anchorOrigDate = DateTime.fromISO(block.date_string);
+      const newAnchorDate = DateTime.fromISO(dateString);
+      const daysDelta = Math.round(newAnchorDate.diff(anchorOrigDate, 'days').days);
+
+      const ids = Array.from(selectedEventIds);
+      try {
+        await Promise.all(ids.map(id => {
+          const ev = events.find(x => x.id.toString() === id.toString());
+          if (!ev) return null;
+
+          const evDate = DateTime.fromISO(ev.date_string);
+          const newEvDate = evDate.plus({ days: daysDelta }).toISODate();
+
+          const [h, m] = (ev.time_slot || '00:00').split(':').map(Number);
+          const shifted = h * 60 + m + minsDelta;
+          const evMax = 24 * 60 - ev.duration_mins;
+          const boundedMins = Math.max(0, Math.min(evMax, shifted));
+
+          return syncEventBlock({
+            ...ev,
+            date_string: newEvDate,
+            time_slot: minsToHHMM(boundedMins),
+            // Only the anchor event changes lane; the others keep their original lane
+            column_type: ev.id === block.id ? laneType : ev.column_type,
+            timezone: timezone
+          });
+        }));
+        loadData();
+      } catch (error) {
+        console.error('Error shifting multi-selected blocks:', error);
+      }
+      return;
+    }
+
+    // 2b. Single-event: if dragging Planned block to Measure lane, trigger cloning operation
     if (block.column_type === 'plan' && laneType === 'measure') {
       await handleQuickClone(block);
       return;
     }
 
-    // 2b. Otherwise, snap start time
-    const rect = e.currentTarget.getBoundingClientRect();
-    const topY = (e.clientY - rect.top) - dragOffsetY;
-    const snappedStart = pxToSnappedMins(topY);
-    
-    // Bounded within 24h
-    const maxStartMins = 24 * 60 - block.duration_mins;
-    const boundedStart = Math.max(0, Math.min(maxStartMins, snappedStart));
-    
+    // 2c. Single-event move
     const timeSlotStr = minsToHHMM(boundedStart);
-
-    // Update the event
     const updatedEvent = {
       ...block,
       date_string: dateString,
@@ -684,9 +739,9 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                         }}
                         draggable
                         onDragStart={(e) => {
-                          if (selectedEventIds.has(block.id)) {
-                            e.preventDefault();
-                            return;
+                          // If dragging an unselected event, clear any prior multi-selection
+                          if (!selectedEventIds.has(block.id) && selectedEventIds.size > 0) {
+                            setSelectedEventIds(new Set());
                           }
                           handleDragStart(e, block);
                         }}
@@ -694,7 +749,7 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                       >
                         <span className="block-title">{block.title}</span>
                         <span className="block-time">{block.displayTimeSlot || block.time_slot}</span>
-                        
+
                         {/* Indicators Container */}
                         <div className="block-indicators">
                           {/* Notes neon flashing indicator */}
@@ -835,9 +890,8 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                         }}
                         draggable
                         onDragStart={(e) => {
-                          if (selectedEventIds.has(block.id)) {
-                            e.preventDefault();
-                            return;
+                          if (!selectedEventIds.has(block.id) && selectedEventIds.size > 0) {
+                            setSelectedEventIds(new Set());
                           }
                           handleDragStart(e, block);
                         }}
