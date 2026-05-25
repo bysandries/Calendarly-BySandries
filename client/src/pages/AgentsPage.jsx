@@ -4,6 +4,9 @@ import {
   fetchCodeAgentStats,
   createCodeAgentSession,
   deleteCodeAgentSession,
+  fetchOpenCodeSessions,
+  fetchOpenCodeStats,
+  syncOpenCode,
 } from '../utils/api';
 import './AgentsPage.css';
 
@@ -193,6 +196,13 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
 
+  // OpenCode sync state
+  const [ocSessions, setOcSessions] = useState([]);
+  const [ocStats, setOcStats] = useState(null);
+  const [ocLastSync, setOcLastSync] = useState(null);
+  const [ocSyncing, setOcSyncing] = useState(false);
+  const [ocError, setOcError] = useState('');
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -209,7 +219,36 @@ export default function AgentsPage() {
     }
   }, [activeAgent]);
 
+  const loadOpenCode = useCallback(async () => {
+    setOcError('');
+    try {
+      const [sessRes, statsRes] = await Promise.all([
+        fetchOpenCodeSessions(),
+        fetchOpenCodeStats(),
+      ]);
+      setOcSessions(sessRes.sessions || []);
+      setOcStats(statsRes.stats);
+      setOcLastSync(statsRes.lastSync || sessRes.lastSync);
+    } catch (err) {
+      setOcError(err.message || 'Failed to load OpenCode data');
+    }
+  }, []);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadOpenCode(); }, [loadOpenCode]);
+
+  async function handleOpenCodeSync() {
+    setOcSyncing(true);
+    setOcError('');
+    try {
+      await syncOpenCode();
+      await loadOpenCode();
+    } catch (err) {
+      setOcError(err.message || 'Sync failed');
+    } finally {
+      setOcSyncing(false);
+    }
+  }
 
   async function handleDelete(id) {
     if (!confirm('Delete this session?')) return;
@@ -366,6 +405,136 @@ export default function AgentsPage() {
           onSaved={load}
         />
       )}
+
+      {/* OpenCode Sync Section */}
+      <div className="glass-panel" style={{ marginTop: '32px', padding: '20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: '#3498DB' }}>⬡</span> OpenCode GO
+            </h3>
+            <p className="page-description" style={{ margin: '4px 0 0', fontSize: '0.82rem' }}>
+              Real session & cost data synced from your OpenCode CLI.
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {ocLastSync && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Last sync: {new Date(ocLastSync).toLocaleString()}
+              </span>
+            )}
+            <button
+              className="btn btn-primary"
+              onClick={handleOpenCodeSync}
+              disabled={ocSyncing}
+              style={{ fontSize: '0.82rem', padding: '6px 14px' }}
+            >
+              {ocSyncing ? 'Syncing…' : 'Sync from OpenCode'}
+            </button>
+          </div>
+        </div>
+
+        {ocError && (
+          <div style={{ background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', fontSize: '0.85rem', color: '#e74c3c' }}>
+            <strong>Sync note:</strong> {ocError}
+            <div style={{ marginTop: '6px', fontSize: '0.78rem', opacity: 0.8 }}>
+              Run <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: '4px' }}>./scripts/sync-opencode.sh</code> on the host machine,
+              then refresh this page.
+            </div>
+          </div>
+        )}
+
+        {ocStats && (
+          <div className="agents-global-stats" style={{ marginBottom: '20px' }}>
+            <StatCard label="OpenCode Sessions" value={fmt(ocStats.sessions)} />
+            <StatCard label="Messages" value={fmt(ocStats.messages)} />
+            <StatCard label="Total Cost" value={fmtCost(ocStats.total_cost_usd)} />
+            <StatCard label="Input Tokens" value={fmt(ocStats.input_tokens)} sub={`Cache read: ${fmt(ocStats.cache_read_tokens)}`} />
+            <StatCard label="Output Tokens" value={fmt(ocStats.output_tokens)} sub={`Cache write: ${fmt(ocStats.cache_write_tokens)}`} />
+            <StatCard label="Days Tracked" value={fmt(ocStats.days)} />
+          </div>
+        )}
+
+        {ocStats && ocStats.models && ocStats.models.length > 0 && (
+          <div style={{ marginBottom: '20px' }}>
+            <h4 style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Model Breakdown
+            </h4>
+            <div className="agents-table-wrap">
+              <table className="agents-table">
+                <thead>
+                  <tr>
+                    <th>Model</th>
+                    <th>Messages</th>
+                    <th>Input Tokens</th>
+                    <th>Output Tokens</th>
+                    <th>Cache Read</th>
+                    <th>Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ocStats.models.map((m, i) => (
+                    <tr key={i}>
+                      <td className="agents-td-context" style={{ fontWeight: 500 }}>{m.name}</td>
+                      <td>{fmt(m.messages)}</td>
+                      <td>{fmt(m.input_tokens)}</td>
+                      <td>{fmt(m.output_tokens)}</td>
+                      <td className="agents-td-muted">{fmt(m.cache_read_tokens)}</td>
+                      <td>{fmtCost(m.cost_usd)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {ocSessions.length > 0 && (
+          <div>
+            <h4 style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Recent Sessions
+            </h4>
+            <div className="agents-table-wrap">
+              <table className="agents-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Created</th>
+                    <th>Updated</th>
+                    <th>Project</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ocSessions.slice(0, 20).map(s => (
+                    <tr key={s.id}>
+                      <td className="agents-td-context" style={{ fontWeight: 500 }}>{s.title}</td>
+                      <td className="agents-td-date">
+                        <div>{new Date(s.created).toLocaleDateString()}</div>
+                        <div className="agents-td-sub">{new Date(s.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      </td>
+                      <td className="agents-td-date">
+                        <div>{new Date(s.updated).toLocaleDateString()}</div>
+                        <div className="agents-td-sub">{new Date(s.updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      </td>
+                      <td className="agents-td-muted">{s.directory || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!ocStats && !ocError && (
+          <div className="agents-empty" style={{ padding: '24px' }}>
+            No OpenCode data cached yet.
+            <div style={{ marginTop: '8px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              Click <strong>Sync from OpenCode</strong> above, or run{' '}
+              <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px' }}>./scripts/sync-opencode.sh</code> on the host.
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

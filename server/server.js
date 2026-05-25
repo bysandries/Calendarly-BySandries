@@ -39,6 +39,7 @@ const analyticsRouter = require('./routes/analytics');
 const uploadRouter = require('./routes/upload');
 const pomodoroRouter = require('./routes/pomodoro');
 const distractionNotesRouter = require('./routes/distractionNotes');
+const opencodeRouter = require('./routes/opencode');
 const codeAgentsRouter = require('./routes/codeAgents');
 
 // Mount routes
@@ -54,6 +55,7 @@ app.use('/api/analytics', analyticsRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/pomodoro-sessions', pomodoroRouter);
 app.use('/api/distraction-notes', distractionNotesRouter);
+app.use('/api/opencode', opencodeRouter);
 app.use('/api/code-agents', codeAgentsRouter);
 
 // Health check endpoint
