@@ -4,11 +4,11 @@ const { getDbConnection } = require('../db');
 
 const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
 
-function slugify(input) {
+function idFromName(input) {
   return String(input)
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/\s+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
 
@@ -36,7 +36,7 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'color_hex must be a 6-digit hex like #RRGGBB' });
   }
 
-  const finalId = (id ? slugify(id) : slugify(name));
+  const finalId = (id ? idFromName(id) : idFromName(name));
   if (!finalId) {
     return res.status(400).json({ error: 'Could not derive a valid id from name' });
   }
@@ -63,6 +63,8 @@ router.post('/', async (req, res) => {
 // PATCH /api/areas/:id
 // Body: { name?, color_hex? } — at least one required.
 // color_hex update cascades to all events using this area.
+// If name changes, the area id is updated to match (spaces removed) and
+// references in events/projects are migrated.
 router.patch('/:id', async (req, res) => {
   const { id } = req.params;
   const { name, color_hex } = req.body;
@@ -84,18 +86,67 @@ router.patch('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Area not found' });
     }
 
+    let finalId = id;
+
     if (name) {
-      await db.run('UPDATE areas SET name = ? WHERE id = ?', [name.trim(), id]);
-    }
-    if (color_hex) {
-      await db.run('UPDATE areas SET color_hex = ? WHERE id = ?', [color_hex, id]);
-      await db.run('UPDATE events SET color_hex = ? WHERE area = ?', [color_hex, id]);
+      const trimmedName = name.trim();
+      const newId = idFromName(trimmedName);
+
+      if (newId !== id) {
+        const collision = await db.get('SELECT id FROM areas WHERE id = ?', [newId]);
+        if (collision) {
+          return res.status(409).json({ error: `Area with id "${newId}" already exists` });
+        }
+
+        // Migrate references and swap the row id
+        await db.run(
+          'INSERT INTO areas (id, name, color_hex, description) VALUES (?, ?, ?, ?)',
+          [newId, trimmedName, existing.color_hex, existing.description || '']
+        );
+        await db.run('UPDATE events SET area = ? WHERE area = ?', [newId, id]);
+        await db.run('UPDATE projects SET area = ? WHERE area = ?', [newId, id]);
+        await db.run('DELETE FROM areas WHERE id = ?', [id]);
+        finalId = newId;
+      } else {
+        await db.run('UPDATE areas SET name = ? WHERE id = ?', [trimmedName, id]);
+      }
     }
 
-    const area = await db.get('SELECT * FROM areas WHERE id = ?', [id]);
+    if (color_hex) {
+      await db.run('UPDATE areas SET color_hex = ? WHERE id = ?', [color_hex, finalId]);
+      await db.run('UPDATE events SET color_hex = ? WHERE area = ?', [color_hex, finalId]);
+    }
+
+    const area = await db.get('SELECT * FROM areas WHERE id = ?', [finalId]);
     res.json({ area });
   } catch (error) {
     console.error('Error updating area:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/areas/:id
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const db = await getDbConnection();
+    const existing = await db.get('SELECT * FROM areas WHERE id = ?', [id]);
+    if (!existing) {
+      return res.status(404).json({ error: 'Area not found' });
+    }
+
+    const projectCount = await db.get('SELECT COUNT(*) as count FROM projects WHERE area = ?', [id]);
+    if (projectCount.count > 0) {
+      return res.status(400).json({
+        error: `Cannot delete area: ${projectCount.count} project(s) still use this area. Reassign them first.`
+      });
+    }
+
+    await db.run('DELETE FROM areas WHERE id = ?', [id]);
+    res.json({ message: 'Area deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting area:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
