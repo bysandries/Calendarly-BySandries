@@ -3,7 +3,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const { open } = require('sqlite');
 const sqlite3 = require('@journeyapps/sqlcipher').verbose();
 
-const DB_PATH = process.env.DATABASE_PATH || '/data/calendarly.db';
+const DB_PATH = process.env.DATABASE_PATH || path.resolve(__dirname, '../calendarly.db');
 const ENCRYPTION_KEY = process.env.DB_ENCRYPTION_KEY;
 
 function normalizeName(name) {
