@@ -131,3 +131,9 @@ export const fetchCodeAgentStats = () => api.get('/code-agents/stats');
 export const createCodeAgentSession = (data) => api.post('/code-agents', data);
 export const updateCodeAgentSession = (id, data) => api.patch(`/code-agents/${id}`, data);
 export const deleteCodeAgentSession = (id) => api.delete(`/code-agents/${id}`);
+
+// ── OpenCode Sync ──
+
+export const fetchOpenCodeSessions = () => api.get('/opencode/sessions');
+export const fetchOpenCodeStats = () => api.get('/opencode/stats');
+export const syncOpenCode = () => api.get('/opencode/sync');

@@ -4,6 +4,9 @@ import {
   fetchCodeAgentStats,
   createCodeAgentSession,
   deleteCodeAgentSession,
+  fetchOpenCodeSessions,
+  fetchOpenCodeStats,
+  syncOpenCode,
 } from '../utils/api';
 import './AgentsPage.css';
 
@@ -193,6 +196,13 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
 
+  // OpenCode sync state
+  const [ocSessions, setOcSessions] = useState([]);
+  const [ocStats, setOcStats] = useState(null);
+  const [ocLastSync, setOcLastSync] = useState(null);
+  const [ocSyncing, setOcSyncing] = useState(false);
+  const [ocError, setOcError] = useState('');
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -209,7 +219,36 @@ export default function AgentsPage() {
     }
   }, [activeAgent]);
 
+  const loadOpenCode = useCallback(async () => {
+    setOcError('');
+    try {
+      const [sessRes, statsRes] = await Promise.all([
+        fetchOpenCodeSessions(),
+        fetchOpenCodeStats(),
+      ]);
+      setOcSessions(sessRes.sessions || []);
+      setOcStats(statsRes.stats);
+      setOcLastSync(statsRes.lastSync || sessRes.lastSync);
+    } catch (err) {
+      setOcError(err.message || 'Failed to load OpenCode data');
+    }
+  }, []);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadOpenCode(); }, [loadOpenCode]);
+
+  async function handleOpenCodeSync() {
+    setOcSyncing(true);
+    setOcError('');
+    try {
+      await syncOpenCode();
+      await loadOpenCode();
+    } catch (err) {
+      setOcError(err.message || 'Sync failed');
+    } finally {
+      setOcSyncing(false);
+    }
+  }
 
   async function handleDelete(id) {
     if (!confirm('Delete this session?')) return;
@@ -220,11 +259,20 @@ export default function AgentsPage() {
   const agentStats = stats[activeAgent] || {};
   const totalTokens = (agentStats.total_input_tokens || 0) + (agentStats.total_output_tokens || 0);
 
-  // Global totals across all agents
-  const globalSessions = Object.values(stats).reduce((s, r) => s + (r.session_count || 0), 0);
-  const globalMinutes  = Object.values(stats).reduce((s, r) => s + (r.total_minutes   || 0), 0);
-  const globalTokens   = Object.values(stats).reduce((s, r) => s + (r.total_input_tokens || 0) + (r.total_output_tokens || 0), 0);
-  const globalCost     = Object.values(stats).reduce((s, r) => s + (r.total_cost_usd  || 0), 0);
+  // Global totals across all agents (manual + OpenCode)
+  const manualSessions = Object.values(stats).reduce((s, r) => s + (r.session_count || 0), 0);
+  const manualMinutes  = Object.values(stats).reduce((s, r) => s + (r.total_minutes   || 0), 0);
+  const manualTokens   = Object.values(stats).reduce((s, r) => s + (r.total_input_tokens || 0) + (r.total_output_tokens || 0), 0);
+  const manualCost     = Object.values(stats).reduce((s, r) => s + (r.total_cost_usd  || 0), 0);
+
+  const ocSessionCount = ocStats?.sessions || 0;
+  const ocTokenCount   = (ocStats?.input_tokens || 0) + (ocStats?.output_tokens || 0);
+  const ocCost         = ocStats?.total_cost_usd || 0;
+
+  const globalSessions = manualSessions + ocSessionCount;
+  const globalMinutes  = manualMinutes; // OpenCode doesn't track minutes directly
+  const globalTokens   = manualTokens + ocTokenCount;
+  const globalCost     = manualCost + ocCost;
 
   const { color: agentColor, glow: agentGlow } = AGENT_META[activeAgent];
 
@@ -235,9 +283,11 @@ export default function AgentsPage() {
           <h2>Code Agents</h2>
           <p className="page-description">Track time, sessions, and token usage across your AI coding agents.</p>
         </div>
-        <button className="agents-btn-primary" onClick={() => setShowModal(true)}>
-          + Log Session
-        </button>
+        {activeAgent !== 'OpenCode' && (
+          <button className="agents-btn-primary" onClick={() => setShowModal(true)}>
+            + Log Session
+          </button>
+        )}
       </div>
 
       {/* Global overview */}
@@ -253,6 +303,8 @@ export default function AgentsPage() {
         {AGENTS.map(agent => {
           const meta = AGENT_META[agent];
           const s = stats[agent];
+          const ocCount = ocStats?.sessions || 0;
+          const badgeCount = agent === 'OpenCode' ? ocCount : (s?.session_count || 0);
           return (
             <button
               key={agent}
@@ -262,9 +314,9 @@ export default function AgentsPage() {
             >
               <span className="agents-tab-icon" style={{ color: meta.color }}>{meta.icon}</span>
               <span className="agents-tab-name">{agent}</span>
-              {s && (
+              {badgeCount > 0 && (
                 <span className="agents-tab-badge" style={{ background: meta.color + '22', color: meta.color }}>
-                  {s.session_count}
+                  {badgeCount}
                 </span>
               )}
             </button>
@@ -272,99 +324,236 @@ export default function AgentsPage() {
         })}
       </div>
 
-      {/* Per-agent stats */}
-      <div className="agents-agent-stats" style={{ '--agent-color': agentColor }}>
-        <StatCard
-          label="Sessions"
-          value={fmt(agentStats.session_count)}
-        />
-        <StatCard
-          label="Total Time"
-          value={fmtTime(agentStats.total_minutes)}
-        />
-        <StatCard
-          label="Input Tokens"
-          value={fmt(agentStats.total_input_tokens)}
-          sub={`Cache read: ${fmt(agentStats.total_cache_read_tokens)}`}
-        />
-        <StatCard
-          label="Output Tokens"
-          value={fmt(agentStats.total_output_tokens)}
-          sub={`Cache write: ${fmt(agentStats.total_cache_write_tokens)}`}
-        />
-        <StatCard
-          label="Total Tokens"
-          value={fmt(totalTokens)}
-        />
-        <StatCard
-          label="Estimated Cost"
-          value={fmtCost(agentStats.total_cost_usd)}
-          sub={activeAgent !== 'Claude' ? 'N/A' : 'Anthropic pricing'}
-        />
-      </div>
+      {/* Per-agent stats — OpenCode view */}
+      {activeAgent === 'OpenCode' ? (
+        <>
+          <div className="agents-agent-stats" style={{ '--agent-color': agentColor }}>
+            <StatCard label="Sessions" value={fmt(ocStats?.sessions || 0)} />
+            <StatCard label="Messages" value={fmt(ocStats?.messages || 0)} />
+            <StatCard label="Input Tokens" value={fmt(ocStats?.input_tokens || 0)} sub={`Cache read: ${fmt(ocStats?.cache_read_tokens || 0)}`} />
+            <StatCard label="Output Tokens" value={fmt(ocStats?.output_tokens || 0)} sub={`Cache write: ${fmt(ocStats?.cache_write_tokens || 0)}`} />
+            <StatCard label="Total Tokens" value={fmt((ocStats?.input_tokens || 0) + (ocStats?.output_tokens || 0))} />
+            <StatCard label="Total Cost" value={fmtCost(ocStats?.total_cost_usd || 0)} sub="From OpenCode CLI" />
+          </div>
 
-      {/* Session list */}
-      <div className="agents-table-wrap">
-        {loading ? (
-          <div className="agents-empty">Loading…</div>
-        ) : sessions.length === 0 ? (
-          <div className="agents-empty">
-            No {activeAgent} sessions yet.
-            {activeAgent === 'Claude' && (
-              <span> Sessions are auto-captured via Claude Code hooks, or log one manually.</span>
+          {/* OpenCode Sync Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {ocLastSync && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Last sync: {new Date(ocLastSync).toLocaleString()}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <a
+                href="https://opencode.ai/workspace/wrk_01KQRYAV6MR8BAW53RTNDXKDVE/usage"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-ghost"
+                style={{ fontSize: '0.82rem', padding: '6px 14px' }}
+              >
+                OpenCode Usage Dashboard ↗
+              </a>
+              <button
+                className="btn btn-primary"
+                onClick={handleOpenCodeSync}
+                disabled={ocSyncing}
+                style={{ fontSize: '0.82rem', padding: '6px 14px' }}
+              >
+                {ocSyncing ? 'Syncing…' : 'Sync from OpenCode CLI'}
+              </button>
+            </div>
+          </div>
+
+          {ocError && (
+            <div style={{ background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', fontSize: '0.85rem', color: '#e74c3c' }}>
+              <strong>Sync note:</strong> {ocError}
+              <div style={{ marginTop: '6px', fontSize: '0.78rem', opacity: 0.8 }}>
+                Run <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: '4px' }}>./scripts/sync-opencode.sh</code> on the host machine, then switch tabs to refresh.
+              </div>
+            </div>
+          )}
+
+          {/* Model Breakdown — this is the "per-agent" view for OpenCode */}
+          {ocStats && ocStats.models && ocStats.models.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Models Used (per "agent" model)
+              </h4>
+              <div className="agents-table-wrap">
+                <table className="agents-table">
+                  <thead>
+                    <tr>
+                      <th>Model / Provider</th>
+                      <th>Messages</th>
+                      <th>Input Tokens</th>
+                      <th>Output Tokens</th>
+                      <th>Cache Read</th>
+                      <th>Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ocStats.models.map((m, i) => (
+                      <tr key={i}>
+                        <td className="agents-td-context" style={{ fontWeight: 500 }}>{m.name}</td>
+                        <td>{fmt(m.messages)}</td>
+                        <td>{fmt(m.input_tokens)}</td>
+                        <td>{fmt(m.output_tokens)}</td>
+                        <td className="agents-td-muted">{fmt(m.cache_read_tokens)}</td>
+                        <td>{fmtCost(m.cost_usd)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Recent OpenCode Sessions */}
+          {ocSessions.length > 0 && (
+            <div>
+              <h4 style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Recent OpenCode Sessions
+              </h4>
+              <div className="agents-table-wrap">
+                <table className="agents-table">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Created</th>
+                      <th>Updated</th>
+                      <th>Project Directory</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ocSessions.map(s => (
+                      <tr key={s.id}>
+                        <td className="agents-td-context" style={{ fontWeight: 500 }}>{s.title}</td>
+                        <td className="agents-td-date">
+                          <div>{new Date(s.created).toLocaleDateString()}</div>
+                          <div className="agents-td-sub">{new Date(s.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        </td>
+                        <td className="agents-td-date">
+                          <div>{new Date(s.updated).toLocaleDateString()}</div>
+                          <div className="agents-td-sub">{new Date(s.updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        </td>
+                        <td className="agents-td-muted">{s.directory || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {!ocStats && !ocError && (
+            <div className="agents-empty" style={{ padding: '24px' }}>
+              No OpenCode data cached yet.
+              <div style={{ marginTop: '8px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                Click <strong>Sync from OpenCode CLI</strong> above, or run{' '}
+                <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px' }}>./scripts/sync-opencode.sh</code> on the host.
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Per-agent stats — manual agents */}
+          <div className="agents-agent-stats" style={{ '--agent-color': agentColor }}>
+            <StatCard
+              label="Sessions"
+              value={fmt(agentStats.session_count)}
+            />
+            <StatCard
+              label="Total Time"
+              value={fmtTime(agentStats.total_minutes)}
+            />
+            <StatCard
+              label="Input Tokens"
+              value={fmt(agentStats.total_input_tokens)}
+              sub={`Cache read: ${fmt(agentStats.total_cache_read_tokens)}`}
+            />
+            <StatCard
+              label="Output Tokens"
+              value={fmt(agentStats.total_output_tokens)}
+              sub={`Cache write: ${fmt(agentStats.total_cache_write_tokens)}`}
+            />
+            <StatCard
+              label="Total Tokens"
+              value={fmt(totalTokens)}
+            />
+            <StatCard
+              label="Estimated Cost"
+              value={fmtCost(agentStats.total_cost_usd)}
+              sub={activeAgent !== 'Claude' ? 'N/A' : 'Anthropic pricing'}
+            />
+          </div>
+
+          {/* Session list */}
+          <div className="agents-table-wrap">
+            {loading ? (
+              <div className="agents-empty">Loading…</div>
+            ) : sessions.length === 0 ? (
+              <div className="agents-empty">
+                No {activeAgent} sessions yet.
+                {activeAgent === 'Claude' && (
+                  <span> Sessions are auto-captured via Claude Code hooks, or log one manually.</span>
+                )}
+              </div>
+            ) : (
+              <table className="agents-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Duration</th>
+                    <th>Input</th>
+                    <th>Output</th>
+                    <th>Cache R/W</th>
+                    <th>Cost</th>
+                    <th>Model</th>
+                    <th>Context</th>
+                    <th>Source</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sessions.map(s => (
+                    <tr key={s.id}>
+                      <td className="agents-td-date">
+                        <div>{s.session_date}</div>
+                        <div className="agents-td-sub">{s.started_at ? new Date(s.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</div>
+                      </td>
+                      <td>{fmtTime(s.duration_minutes)}</td>
+                      <td>{fmt(s.input_tokens)}</td>
+                      <td>{fmt(s.output_tokens)}</td>
+                      <td className="agents-td-muted">{fmt(s.cache_read_tokens)} / {fmt(s.cache_write_tokens)}</td>
+                      <td>{fmtCost(s.total_cost_usd)}</td>
+                      <td className="agents-td-muted">{s.model || '—'}</td>
+                      <td className="agents-td-context">{s.project_context || s.notes || '—'}</td>
+                      <td>
+                        <span className={`agents-source-badge agents-source-${s.source}`}>
+                          {s.source === 'hook' ? 'auto' : 'manual'}
+                        </span>
+                      </td>
+                      <td>
+                        <button className="agents-delete-btn" onClick={() => handleDelete(s.id)} title="Delete">✕</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
-        ) : (
-          <table className="agents-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Duration</th>
-                <th>Input</th>
-                <th>Output</th>
-                <th>Cache R/W</th>
-                <th>Cost</th>
-                <th>Model</th>
-                <th>Context</th>
-                <th>Source</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {sessions.map(s => (
-                <tr key={s.id}>
-                  <td className="agents-td-date">
-                    <div>{s.session_date}</div>
-                    <div className="agents-td-sub">{s.started_at ? new Date(s.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</div>
-                  </td>
-                  <td>{fmtTime(s.duration_minutes)}</td>
-                  <td>{fmt(s.input_tokens)}</td>
-                  <td>{fmt(s.output_tokens)}</td>
-                  <td className="agents-td-muted">{fmt(s.cache_read_tokens)} / {fmt(s.cache_write_tokens)}</td>
-                  <td>{fmtCost(s.total_cost_usd)}</td>
-                  <td className="agents-td-muted">{s.model || '—'}</td>
-                  <td className="agents-td-context">{s.project_context || s.notes || '—'}</td>
-                  <td>
-                    <span className={`agents-source-badge agents-source-${s.source}`}>
-                      {s.source === 'hook' ? 'auto' : 'manual'}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="agents-delete-btn" onClick={() => handleDelete(s.id)} title="Delete">✕</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
 
-      {showModal && (
-        <LogModal
-          defaultAgent={activeAgent}
-          onClose={() => setShowModal(false)}
-          onSaved={load}
-        />
+          {showModal && (
+            <LogModal
+              defaultAgent={activeAgent}
+              onClose={() => setShowModal(false)}
+              onSaved={load}
+            />
+          )}
+        </>
       )}
     </div>
   );
