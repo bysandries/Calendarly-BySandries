@@ -10,6 +10,7 @@ import CalendarPage from './pages/CalendarPage';
 import SettingsPage from './pages/SettingsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SecretUploadPage from './pages/SecretUploadPage';
+import AgentsPage from './pages/AgentsPage';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/agents" element={<AgentsPage />} />
             <Route path="/secret-upload" element={<SecretUploadPage />} />
             <Route path="*" element={<Navigate to="/gtd" replace />} />
           </Routes>
