@@ -94,10 +94,11 @@ router.post('/', async (req, res) => {
     }
 
     const cost = estimateCost(agent, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens);
-    const id = `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    // Allow caller to supply a stable id (e.g. import scripts) for deduplication
+    const id = req.body.id || `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
-    await db.run(
-      `INSERT INTO code_agent_sessions
+    const result = await db.run(
+      `INSERT OR IGNORE INTO code_agent_sessions
         (id, agent, session_date, started_at, ended_at, duration_minutes,
          input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
          total_cost_usd, model, project_context, notes, source)
@@ -106,6 +107,11 @@ router.post('/', async (req, res) => {
        duration_minutes, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
        cost, model || null, project_context || null, notes || null, source]
     );
+
+    // changes === 0 means the id already existed (duplicate) — return 409
+    if (result.changes === 0) {
+      return res.status(409).json({ error: 'Session already imported', id });
+    }
 
     const created = await db.get('SELECT * FROM code_agent_sessions WHERE id = ?', [id]);
     res.status(201).json(created);
