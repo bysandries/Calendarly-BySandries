@@ -427,7 +427,7 @@ export default function AgentsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ocSessions.slice(0, 20).map(s => (
+                    {ocSessions.map(s => (
                       <tr key={s.id}>
                         <td className="agents-td-context" style={{ fontWeight: 500 }}>{s.title}</td>
                         <td className="agents-td-date">

@@ -29,7 +29,7 @@ else
   exit 1
 fi
 
-"$OPENCODE_BIN" session list --format json --max-count 500 > "$CACHE_DIR/sessions.json" 2>/dev/null || {
+"$OPENCODE_BIN" session list --format json > "$CACHE_DIR/sessions.json" 2>/dev/null || {
   echo "[sync-opencode] WARN: session list failed"
   echo '[]' > "$CACHE_DIR/sessions.json"
 }

@@ -241,7 +241,7 @@ router.get('/sync', async (req, res) => {
   }
 
   try {
-    await execAsync(`"${opencodePath}" session list --format json --max-count 500 > ${CACHE_DIR}/sessions.json`, { timeout: 30000 });
+    await execAsync(`"${opencodePath}" session list --format json > ${CACHE_DIR}/sessions.json`, { timeout: 60000 });
     await execAsync(`"${opencodePath}" stats --days 30 --models > ${CACHE_DIR}/stats.raw.txt`, { timeout: 30000 });
     await execAsync(`date -u +"%Y-%m-%dT%H:%M:%SZ" > ${CACHE_DIR}/last-sync.txt`);
     res.json({ success: true, message: 'OpenCode data synced successfully' });
