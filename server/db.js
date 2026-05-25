@@ -102,7 +102,11 @@ async function initDatabase(forceReset = false) {
       methodology TEXT DEFAULT 'PALM',
       phase TEXT NOT NULL CHECK(phase IN ('Plan', 'Act', 'Measure', 'Learn')),
       goals_aligned TEXT,
-      description TEXT
+      description TEXT,
+      person_in_charge TEXT,
+      due_date TEXT,
+      start_date TEXT,
+      end_date TEXT
     );
   `);
 
@@ -145,6 +149,10 @@ async function initDatabase(forceReset = false) {
       phase TEXT NOT NULL,
       goals_aligned TEXT,
       description TEXT,
+      person_in_charge TEXT,
+      due_date TEXT,
+      start_date TEXT,
+      end_date TEXT,
       deleted_at TEXT NOT NULL
     );
   `);
@@ -190,6 +198,14 @@ async function initDatabase(forceReset = false) {
   await addColumnIfMissing(database, 'deleted_tasks', 'estimated_minutes', 'INTEGER NOT NULL DEFAULT 0');
   await addColumnIfMissing(database, 'deleted_tasks', 'received_date', 'TEXT');
   await addColumnIfMissing(database, 'deleted_tasks', 'finished_date', 'TEXT');
+  await addColumnIfMissing(database, 'projects', 'person_in_charge', 'TEXT');
+  await addColumnIfMissing(database, 'projects', 'due_date', 'TEXT');
+  await addColumnIfMissing(database, 'projects', 'start_date', 'TEXT');
+  await addColumnIfMissing(database, 'projects', 'end_date', 'TEXT');
+  await addColumnIfMissing(database, 'deleted_projects', 'person_in_charge', 'TEXT');
+  await addColumnIfMissing(database, 'deleted_projects', 'due_date', 'TEXT');
+  await addColumnIfMissing(database, 'deleted_projects', 'start_date', 'TEXT');
+  await addColumnIfMissing(database, 'deleted_projects', 'end_date', 'TEXT');
 
   // Create events table (category -> area)
   await database.exec(`
