@@ -45,7 +45,8 @@ export default function ProjectCard({
           </td>
         );
 
-      case 'title':
+      case 'title': {
+        const assignedPerson = people.find(p => p.id === project.person_id);
         return (
           <td key={col} className={cellClass}>
             <div style={{ position: 'relative', paddingLeft: '12px' }}>
@@ -59,12 +60,14 @@ export default function ProjectCard({
                 {project.title}
               </Link>
               {project.description && (
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                <div className="desktop-only-cell" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                   {project.description.substring(0, 70)}{project.description.length > 70 ? '…' : ''}
                 </div>
               )}
               <div className="mobile-only-subtext">
-                {project.phase && <span className="mobile-project-tag">{project.phase}</span>}
+                {assignedPerson && (
+                  <span className="mobile-project-tag">{assignedPerson.name}</span>
+                )}
                 {project.due_date && (
                   <span className="mobile-date-tag">{formatIsoDateShort(project.due_date)}</span>
                 )}
@@ -72,6 +75,7 @@ export default function ProjectCard({
             </div>
           </td>
         );
+      }
 
       case 'phase':
         return (
