@@ -215,7 +215,9 @@ router.post('/sync-block', async (req, res) => {
     notes,
     is_cloned_checked,
     timezone,
-    rrule
+    rrule,
+    creator,
+    participants
   } = req.body;
 
   if (!title || !date_string || !time_slot || !duration_mins || !column_type) {
@@ -245,7 +247,7 @@ router.post('/sync-block', async (req, res) => {
       const eventId = existingEvent.id;
       await db.run(
         `UPDATE events
-         SET title = ?, area = ?, color_hex = ?, date_string = ?, time_slot = ?, duration_mins = ?, column_type = ?, notes = ?, is_cloned_checked = ?, timezone = ?, rrule = ?
+         SET title = ?, area = ?, color_hex = ?, date_string = ?, time_slot = ?, duration_mins = ?, column_type = ?, notes = ?, is_cloned_checked = ?, timezone = ?, rrule = ?, creator = ?, participants = ?
          WHERE id = ?`,
         [
           title,
@@ -259,6 +261,8 @@ router.post('/sync-block', async (req, res) => {
           is_cloned_checked !== undefined ? is_cloned_checked : existingEvent.is_cloned_checked,
           timezone || existingEvent.timezone || 'America/Los_Angeles',
           rrule !== undefined ? rrule : existingEvent.rrule,
+          creator || existingEvent.creator || 'Manual',
+          participants !== undefined ? participants : existingEvent.participants,
           eventId
         ]
       );
@@ -285,8 +289,8 @@ router.post('/sync-block', async (req, res) => {
         const occBlockSig = `${dates[i]}_${time_slot}_${finalColumnType}_${Date.now()}_${i}`;
         await db.run(
           `INSERT INTO events
-           (id, block_signature, title, area, color_hex, date_string, time_slot, duration_mins, column_type, notes, is_cloned_checked, timezone, rrule, series_id, is_series_master, series_index, series_count)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, block_signature, title, area, color_hex, date_string, time_slot, duration_mins, column_type, notes, is_cloned_checked, timezone, rrule, series_id, is_series_master, series_index, series_count, creator, participants)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             occId,
             occBlockSig,
@@ -304,7 +308,9 @@ router.post('/sync-block', async (req, res) => {
             seriesId,
             i === 0 ? 1 : 0,
             i,
-            count
+            count,
+            creator || 'Manual',
+            participants || null
           ]
         );
       }
@@ -317,8 +323,8 @@ router.post('/sync-block', async (req, res) => {
     const newId = id || generateId();
     const finalBlockSignature = block_signature || `${date_string}_${time_slot}_${finalColumnType}`;
     await db.run(
-      `INSERT INTO events (id, block_signature, title, area, color_hex, date_string, time_slot, duration_mins, column_type, notes, is_cloned_checked, timezone, rrule)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO events (id, block_signature, title, area, color_hex, date_string, time_slot, duration_mins, column_type, notes, is_cloned_checked, timezone, rrule, creator, participants)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newId,
         finalBlockSignature,
@@ -332,7 +338,9 @@ router.post('/sync-block', async (req, res) => {
         notes || '',
         is_cloned_checked || 0,
         timezone || 'America/Los_Angeles',
-        rrule || null
+        rrule || null,
+        creator || 'Manual',
+        participants || null
       ]
     );
     const inserted = await db.get('SELECT * FROM events WHERE id = ?', [newId]);
@@ -346,7 +354,7 @@ router.post('/sync-block', async (req, res) => {
 // 3. PATCH /api/events/:id — update with scope
 router.patch('/:id', async (req, res) => {
   const { id } = req.params;
-  const { scope = 'single', title, area, color_hex, time_slot, duration_mins, notes, date_string } = req.body;
+  const { scope = 'single', title, area, color_hex, time_slot, duration_mins, notes, date_string, creator, participants } = req.body;
 
   try {
     const db = await getDbConnection();
@@ -366,6 +374,8 @@ router.patch('/:id', async (req, res) => {
       if (duration_mins !== undefined) { updates.push('duration_mins = ?'); params.push(duration_mins); }
       if (notes !== undefined) { updates.push('notes = ?'); params.push(notes); }
       if (date_string !== undefined) { updates.push('date_string = ?'); params.push(date_string); }
+      if (creator !== undefined) { updates.push('creator = ?'); params.push(creator); }
+      if (participants !== undefined) { updates.push('participants = ?'); params.push(participants); }
 
       if (event.series_id) {
         // Break away from series
@@ -395,6 +405,8 @@ router.patch('/:id', async (req, res) => {
     if (time_slot !== undefined) { updates.push('time_slot = ?'); params.push(time_slot); }
     if (duration_mins !== undefined) { updates.push('duration_mins = ?'); params.push(duration_mins); }
     if (notes !== undefined) { updates.push('notes = ?'); params.push(notes); }
+    if (creator !== undefined) { updates.push('creator = ?'); params.push(creator); }
+    if (participants !== undefined) { updates.push('participants = ?'); params.push(participants); }
 
     if (updates.length === 0 && date_string === undefined) {
       return res.status(400).json({ error: 'No fields to update' });
@@ -464,7 +476,7 @@ router.patch('/:id', async (req, res) => {
 
 // 4. POST /api/events/log-measure
 router.post('/log-measure', async (req, res) => {
-  const { date_string, time_slot, duration_mins, title, area, notes, timezone } = req.body;
+  const { date_string, time_slot, duration_mins, title, area, notes, timezone, creator, participants } = req.body;
   if (!date_string || !time_slot || !duration_mins || !title) {
     return res.status(400).json({ error: 'Missing date_string, time_slot, duration_mins, or title' });
   }
@@ -476,9 +488,9 @@ router.post('/log-measure', async (req, res) => {
     const newId = generateId();
     const blockSignature = `${date_string}_${time_slot}_measure`;
     await db.run(
-      `INSERT INTO events (id, block_signature, title, area, color_hex, date_string, time_slot, duration_mins, column_type, notes, is_cloned_checked, timezone)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'measure', ?, 0, ?)`,
-      [newId, blockSignature, title, finalArea, colorHex, date_string, time_slot, duration_mins, notes || '', timezone || 'America/Los_Angeles']
+      `INSERT INTO events (id, block_signature, title, area, color_hex, date_string, time_slot, duration_mins, column_type, notes, is_cloned_checked, timezone, creator, participants)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'measure', ?, 0, ?, ?, ?)`,
+      [newId, blockSignature, title, finalArea, colorHex, date_string, time_slot, duration_mins, notes || '', timezone || 'America/Los_Angeles', creator || 'Manual', participants || null]
     );
     const inserted = await db.get('SELECT * FROM events WHERE id = ?', [newId]);
     res.status(201).json({ message: 'Measure logged successfully', event: inserted });
@@ -504,8 +516,8 @@ router.post('/clone-plan', async (req, res) => {
     const newId = generateId();
     const newBlockSignature = `${planEvent.date_string}_${planEvent.time_slot}_measure`;
     await db.run(
-      `INSERT INTO events (id, block_signature, title, area, color_hex, date_string, time_slot, duration_mins, column_type, notes, is_cloned_checked, timezone)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'measure', ?, 1, ?)`,
+      `INSERT INTO events (id, block_signature, title, area, color_hex, date_string, time_slot, duration_mins, column_type, notes, is_cloned_checked, timezone, creator, participants)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'measure', ?, 1, ?, ?, ?)`,
       [
         newId,
         newBlockSignature,
@@ -516,7 +528,9 @@ router.post('/clone-plan', async (req, res) => {
         planEvent.time_slot,
         planEvent.duration_mins,
         planEvent.notes,
-        planEvent.timezone || 'America/Los_Angeles'
+        planEvent.timezone || 'America/Los_Angeles',
+        planEvent.creator || 'Manual',
+        planEvent.participants || null
       ]
     );
     const clonedEvent = await db.get('SELECT * FROM events WHERE id = ?', [newId]);

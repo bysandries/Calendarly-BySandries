@@ -262,12 +262,16 @@ async function initDatabase(forceReset = false) {
       is_cloned_checked INTEGER DEFAULT 0,
       timezone TEXT DEFAULT 'America/Los_Angeles',
       rrule TEXT, -- RFC 5545 recurrence rule string
+      creator TEXT DEFAULT 'Manual',
+      participants TEXT,
       FOREIGN KEY(area) REFERENCES areas(id) ON DELETE SET NULL
     );
   `);
 
   await addColumnIfMissing(database, 'events', 'timezone', 'TEXT DEFAULT \'America/Los_Angeles\'');
   await addColumnIfMissing(database, 'events', 'rrule', 'TEXT');
+  await addColumnIfMissing(database, 'events', 'creator', "TEXT DEFAULT 'Manual'");
+  await addColumnIfMissing(database, 'events', 'participants', 'TEXT');
   await addColumnIfMissing(database, 'events', 'series_id', 'TEXT');
   await addColumnIfMissing(database, 'events', 'is_series_master', 'INTEGER DEFAULT 0');
   await addColumnIfMissing(database, 'events', 'series_index', 'INTEGER DEFAULT 0');
@@ -402,9 +406,22 @@ async function initDatabase(forceReset = false) {
       color_hex TEXT,
       icon TEXT,
       sort_order INTEGER DEFAULT 0,
+      goal_type TEXT NOT NULL DEFAULT 'build',
+      min_per_day INTEGER DEFAULT 1,
+      max_per_day INTEGER,
       is_archived INTEGER DEFAULT 0,
       created_at TEXT NOT NULL,
       FOREIGN KEY(area) REFERENCES areas(id) ON DELETE SET NULL
+    );
+  `);
+
+  // Create habit_reminders table — multiple daily reminders for a habit
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS habit_reminders (
+      id TEXT PRIMARY KEY,
+      habit_id TEXT NOT NULL,
+      time_of_day TEXT NOT NULL, -- Format: "HH:MM"
+      FOREIGN KEY(habit_id) REFERENCES habits(id) ON DELETE CASCADE
     );
   `);
 
@@ -424,6 +441,7 @@ async function initDatabase(forceReset = false) {
 
   await database.exec(`CREATE INDEX IF NOT EXISTS idx_habit_logs_habit_date ON habit_logs(habit_id, date_id);`);
   await database.exec(`CREATE INDEX IF NOT EXISTS idx_habit_logs_date ON habit_logs(date_id);`);
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_habit_reminders_habit ON habit_reminders(habit_id);`);
 
   // Create settings table
   await database.exec(`
@@ -455,6 +473,11 @@ async function initDatabase(forceReset = false) {
       await database.run('INSERT INTO settings (key, value) VALUES (?, ?)', [s.key, s.value]);
     }
   }
+
+  // Idempotent migrations for habits
+  await addColumnIfMissing(database, 'habits', 'goal_type', "TEXT NOT NULL DEFAULT 'build'");
+  await addColumnIfMissing(database, 'habits', 'min_per_day', 'INTEGER DEFAULT 1');
+  await addColumnIfMissing(database, 'habits', 'max_per_day', 'INTEGER');
 
   await seedDatabase(database);
   console.log('Database initialization completed.');
