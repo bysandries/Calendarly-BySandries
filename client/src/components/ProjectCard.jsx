@@ -35,6 +35,18 @@ export default function ProjectCard({
     const cellClass = desktopOnly ? 'desktop-only-cell' : '';
 
     switch (col) {
+      case 'starred':
+        return (
+          <td key={col} className={cellClass} onClick={(e) => {
+            stopPropagation(e);
+            updateProject(project.id, { is_starred: project.is_starred ? 0 : 1 });
+          }}>
+            <span style={{ fontSize: '1.2rem', cursor: 'pointer', color: project.is_starred ? '#F1C40F' : 'var(--text-muted)' }}>
+              {project.is_starred ? '★' : '☆'}
+            </span>
+          </td>
+        );
+
       case 'status':
         return (
           <td key={col} className={cellClass} onClick={stopPropagation}>
