@@ -16,6 +16,8 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
   const [customDays, setCustomDays] = useState([true, true, true, true, true, false, false]); // M T W T F S S
   const [area, setArea] = useState('general');
   const [notes, setNotes] = useState('');
+  const [creator, setCreator] = useState('Manual');
+  const [participants, setParticipants] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Helper: Convert 24h "HH:MM" to 12h "h:mma"
@@ -51,6 +53,8 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
       setRepeatOption('does-not-repeat');
       setArea('general');
       setNotes('');
+      setCreator('Manual');
+      setParticipants('');
       setIsExpanded(false);
 
       // Extract and format initial times
@@ -137,6 +141,8 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
       notes: `${mode === 'appointment' ? 'Appointment schedule (New)\n' : ''}${notes}`,
       timezone: timezone || 'America/Los_Angeles',
       rrule,
+      creator,
+      participants,
     });
     onClose();
   };
@@ -361,6 +367,34 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
               onAreasChanged={onAreasChanged}
             />
           </div>
+        )}
+
+        {/* Creator & Participants (Metadata) */}
+        {isExpanded && (
+          <>
+            <div className="gpop-row">
+              <input
+                type="text"
+                className="gpop-pill gpop-pill-input"
+                style={{ width: 'auto', flex: 1 }}
+                value={creator}
+                onChange={(e) => setCreator(e.target.value)}
+                placeholder="Creator (Manual / OpenClaw)"
+                aria-label="Creator"
+              />
+            </div>
+            <div className="gpop-row">
+              <input
+                type="text"
+                className="gpop-pill gpop-pill-input"
+                style={{ width: 'auto', flex: 1 }}
+                value={participants}
+                onChange={(e) => setParticipants(e.target.value)}
+                placeholder="Add participants..."
+                aria-label="Participants"
+              />
+            </div>
+          </>
         )}
 
         {/* Notes */}
