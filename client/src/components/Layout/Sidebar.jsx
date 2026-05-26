@@ -7,11 +7,13 @@ import {
   IconKanban,
   IconProjects,
   IconExtracts,
-  IconHabits,
   IconCalendar,
   IconAnalytics,
+  IconUsers,
   IconAgents,
+  IconHabits,
   IconSettings,
+
   IconChevronLeft,
   IconChevronRight,
   IconX,
@@ -21,6 +23,7 @@ import {
 const NAV_ITEMS = [
   { to: '/tasks', icon: IconDatabase, label: 'Tasks' },
   { to: '/projects', icon: IconProjects, label: 'Projects' },
+  { to: '/team', icon: IconUsers, label: 'Team' },
   { to: '/gtd', icon: IconInbox, label: 'GTD Inbox' },
   { to: '/kanban', icon: IconKanban, label: 'Kanban Board' },
   { to: '/notes', icon: IconExtracts, label: 'Extracts' },
