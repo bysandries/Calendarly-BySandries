@@ -11,7 +11,9 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
     time_slot: '',
     duration_mins: 0,
     area: '',
-    notes: ''
+    notes: '',
+    creator: 'Manual',
+    participants: ''
   });
   const [areas, setAreas] = useState([]);
   const [linkedTasks, setLinkedTasks] = useState([]);
@@ -49,9 +51,11 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
         title: event.title || '',
         time_slot: event.time_slot || '',
         duration_mins: event.duration_mins || 0,
-        end_time: minutesToTime(endMins),
+        end_time: minutesToTime(startMins + (event.duration_mins || 0)),
         area: event.area || 'general',
-        notes: event.notes || ''
+        notes: event.notes || '',
+        creator: event.creator || 'Manual',
+        participants: event.participants || ''
       });
       // If there are no notes yet, start in editing mode by default
       setIsEditing(!(event.notes && event.notes.trim().length > 0));
@@ -207,6 +211,32 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
                   if (onAreasChanged) await onAreasChanged();
                 }}
               />
+            </div>
+
+            <div className="detail-row meta-row">
+              <div className="meta-field">
+                <span className="detail-label">Creator</span>
+                <input
+                  type="text"
+                  className="inline-edit"
+                  style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}
+                  name="creator"
+                  value={formData.creator}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="meta-field">
+                <span className="detail-label">Participants</span>
+                <input
+                  type="text"
+                  className="inline-edit"
+                  style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}
+                  name="participants"
+                  value={formData.participants}
+                  onChange={handleChange}
+                  placeholder="Add people..."
+                />
+              </div>
             </div>
 
             <div className="detail-row time-row">

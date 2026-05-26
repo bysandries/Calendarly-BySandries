@@ -28,6 +28,13 @@ router.get('/', async (req, res) => {
     query += ' ORDER BY sort_order ASC, name COLLATE NOCASE';
 
     const habits = await db.all(query, params);
+    
+    // Fetch reminders for each habit
+    for (const h of habits) {
+      const reminders = await db.all('SELECT time_of_day FROM habit_reminders WHERE habit_id = ? ORDER BY time_of_day ASC', [h.id]);
+      h.reminders = reminders.map(r => r.time_of_day);
+    }
+
     res.json(habits);
   } catch (error) {
     console.error('Error fetching habits:', error);
@@ -41,6 +48,10 @@ router.get('/:id', async (req, res) => {
     const db = await getDbConnection();
     const habit = await db.get('SELECT * FROM habits WHERE id = ?', [req.params.id]);
     if (!habit) return res.status(404).json({ error: 'Habit not found' });
+    
+    const reminders = await db.all('SELECT time_of_day FROM habit_reminders WHERE habit_id = ? ORDER BY time_of_day ASC', [habit.id]);
+    habit.reminders = reminders.map(r => r.time_of_day);
+    
     res.json(habit);
   } catch (error) {
     console.error('Error fetching habit:', error);
@@ -48,15 +59,33 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+async function syncReminders(db, habitId, reminders) {
+  if (!Array.isArray(reminders)) return;
+  
+  await db.run('DELETE FROM habit_reminders WHERE habit_id = ?', [habitId]);
+  
+  for (const time of reminders) {
+    if (typeof time !== 'string' || !/^([01]\d|2[0-3]):([0-5]\d)$/.test(time)) continue;
+    const rid = `rem-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    await db.run(
+      'INSERT INTO habit_reminders (id, habit_id, time_of_day) VALUES (?, ?, ?)',
+      [rid, habitId, time]
+    );
+  }
+}
+
 // POST /api/habits
 router.post('/', async (req, res) => {
-  const { name, area, description, color_hex, icon, sort_order } = req.body;
+  const { name, area, description, color_hex, icon, sort_order, goal_type, min_per_day, max_per_day, reminders } = req.body;
 
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'name is required' });
   }
   if (color_hex && !HEX_RE.test(color_hex)) {
     return res.status(400).json({ error: 'color_hex must be a 6-digit hex like #RRGGBB' });
+  }
+  if (goal_type && !['build', 'quit'].includes(goal_type)) {
+    return res.status(400).json({ error: 'goal_type must be either "build" or "quit"' });
   }
 
   const id = newId();
@@ -65,8 +94,8 @@ router.post('/', async (req, res) => {
   try {
     const db = await getDbConnection();
     await db.run(
-      `INSERT INTO habits (id, name, area, description, color_hex, icon, sort_order, is_archived, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      `INSERT INTO habits (id, name, area, description, color_hex, icon, sort_order, goal_type, min_per_day, max_per_day, is_archived, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
       [
         id,
         name.trim(),
@@ -75,10 +104,21 @@ router.post('/', async (req, res) => {
         color_hex || null,
         icon || null,
         Number.isFinite(Number(sort_order)) ? Number(sort_order) : 0,
+        goal_type || 'build',
+        Number.isFinite(Number(min_per_day)) ? Number(min_per_day) : 1,
+        Number.isFinite(Number(max_per_day)) ? Number(max_per_day) : null,
         createdAt,
       ]
     );
+    
+    if (reminders) {
+      await syncReminders(db, id, reminders);
+    }
+    
     const habit = await db.get('SELECT * FROM habits WHERE id = ?', [id]);
+    const savedReminders = await db.all('SELECT time_of_day FROM habit_reminders WHERE habit_id = ? ORDER BY time_of_day ASC', [id]);
+    habit.reminders = savedReminders.map(r => r.time_of_day);
+    
     res.status(201).json(habit);
   } catch (error) {
     console.error('Error creating habit:', error);
@@ -97,6 +137,9 @@ router.patch('/:id', async (req, res) => {
   if (updates.name !== undefined && !String(updates.name).trim()) {
     return res.status(400).json({ error: 'name cannot be empty' });
   }
+  if (updates.goal_type && !['build', 'quit'].includes(updates.goal_type)) {
+    return res.status(400).json({ error: 'goal_type must be either "build" or "quit"' });
+  }
 
   try {
     const db = await getDbConnection();
@@ -106,7 +149,7 @@ router.patch('/:id', async (req, res) => {
     const merged = { ...existing, ...updates };
     await db.run(
       `UPDATE habits
-       SET name = ?, area = ?, description = ?, color_hex = ?, icon = ?, sort_order = ?, is_archived = ?
+       SET name = ?, area = ?, description = ?, color_hex = ?, icon = ?, sort_order = ?, goal_type = ?, min_per_day = ?, max_per_day = ?, is_archived = ?
        WHERE id = ?`,
       [
         String(merged.name).trim(),
@@ -115,11 +158,22 @@ router.patch('/:id', async (req, res) => {
         merged.color_hex || null,
         merged.icon || null,
         Number(merged.sort_order) || 0,
+        merged.goal_type || 'build',
+        Number.isFinite(Number(merged.min_per_day)) ? Number(merged.min_per_day) : 1,
+        merged.max_per_day !== undefined && merged.max_per_day !== null ? Number(merged.max_per_day) : null,
         merged.is_archived ? 1 : 0,
         id,
       ]
     );
+    
+    if (updates.reminders) {
+      await syncReminders(db, id, updates.reminders);
+    }
+    
     const habit = await db.get('SELECT * FROM habits WHERE id = ?', [id]);
+    const savedReminders = await db.all('SELECT time_of_day FROM habit_reminders WHERE habit_id = ? ORDER BY time_of_day ASC', [id]);
+    habit.reminders = savedReminders.map(r => r.time_of_day);
+    
     res.json(habit);
   } catch (error) {
     console.error('Error updating habit:', error);

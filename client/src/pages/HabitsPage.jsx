@@ -1,27 +1,33 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  fetchHabitsTodaySummary,
-  fetchHabitLogs,
-  logHabit,
-  deleteHabitLog,
-} from '../utils/api';
-import HabitCard from '../components/HabitCard';
+import { fetchHabitsWeeklySummary, fetchHabitLogs, logHabit, deleteHabitLog } from '../utils/api';
 import HabitEditDrawer from '../components/HabitEditDrawer';
+import HabitLogDrawer from '../components/HabitLogDrawer';
+import HabitDayDrawer from '../components/HabitDayDrawer';
 import './HabitsPage.css';
+
+function getDayName(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short' });
+}
+
+function getDayNum(dateStr) {
+  return dateStr.split('-')[2];
+}
 
 export default function HabitsPage() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [busyHabitId, setBusyHabitId] = useState(null);
   const [drawerHabit, setDrawerHabit] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [logDrawerHabit, setLogDrawerHabit] = useState(null);
+  const [dayDrawer, setDayDrawer] = useState(null); // { habit, date_id }
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await fetchHabitsTodaySummary();
+      const data = await fetchHabitsWeeklySummary();
       setSummary(data);
     } catch (err) {
       setError(err.message || 'Failed to load habits');
@@ -31,40 +37,6 @@ export default function HabitsPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
-
-  async function handleLog(habit) {
-    setBusyHabitId(habit.habit_id);
-    try {
-      await logHabit(habit.habit_id, { count: 1, source: 'manual' });
-      await load();
-    } catch (err) {
-      setError(err.message || 'Failed to log habit');
-    } finally {
-      setBusyHabitId(null);
-    }
-  }
-
-  async function handleUndo(habit) {
-    if (!habit || habit.total_count === 0) return;
-    setBusyHabitId(habit.habit_id);
-    try {
-      const todays = await fetchHabitLogs({
-        habit_id: habit.habit_id,
-        date: summary?.date_id,
-      });
-      if (!todays.length) {
-        await load();
-        return;
-      }
-      const mostRecent = todays[0]; // already sorted by logged_at DESC
-      await deleteHabitLog(mostRecent.id);
-      await load();
-    } catch (err) {
-      setError(err.message || 'Failed to undo');
-    } finally {
-      setBusyHabitId(null);
-    }
-  }
 
   function openCreate() {
     setDrawerHabit(null);
@@ -79,6 +51,8 @@ export default function HabitsPage() {
       color_hex: habit.color_hex,
       icon: habit.icon,
       sort_order: habit.sort_order,
+      goal_type: habit.goal_type,
+      reminders: habit.reminders,
       is_archived: 0,
     });
     setDrawerOpen(true);
@@ -89,18 +63,120 @@ export default function HabitsPage() {
     setDrawerHabit(null);
   }
 
+  function openLogDrawer(habit) {
+    setLogDrawerHabit(habit);
+  }
+
+  function closeLogDrawer() {
+    setLogDrawerHabit(null);
+  }
+
+  function openDayDrawer(habit, dateId) {
+    setDayDrawer({ habit, date_id: dateId });
+  }
+
+  function closeDayDrawer() {
+    setDayDrawer(null);
+  }
+
   const habits = summary?.habits || [];
-  const totalToday = habits.reduce((s, h) => s + (h.total_count || 0), 0);
-  const distinctToday = habits.filter(h => h.total_count > 0).length;
+  const weekDates = summary?.week_dates || [];
+  const buildHabits = habits.filter(h => h.goal_type !== 'quit');
+  const quitHabits = habits.filter(h => h.goal_type === 'quit');
+
+  const distinctActiveThisWeek = habits.filter(h => Object.values(h.logs_by_date).some(v => v > 0)).length;
+
+  function renderHabitTable(list, title, isQuit = false) {
+    if (list.length === 0) return null;
+
+    return (
+      <div className="habit-section">
+        <h3 className={`habit-section-title ${isQuit ? 'quit' : ''}`}>{title}</h3>
+        <div className="habit-table-wrapper">
+          <table className="habit-table">
+            <thead>
+              <tr>
+                <th className="col-habit">Habit</th>
+                {weekDates.map(d => (
+                  <th key={d} className={`col-day ${d === summary?.date_id ? 'today' : ''}`}>
+                    <span className="day-name">{getDayName(d)}</span>
+                    <span className="day-num">{getDayNum(d)}</span>
+                  </th>
+                ))}
+                <th className="col-streak">Streak</th>
+                <th className="col-action">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map(h => (
+                <tr 
+                  key={h.habit_id} 
+                  className={`goal-${h.goal_type || 'build'}`}
+                >
+                  <td className="cell-habit" onClick={() => openEdit(h)}>
+                    <div className="habit-info">
+                      <div className="habit-name-row">
+                        <span className="habit-name">{h.name}</span>
+                        <span className="habit-target-inline">
+                          {h.min_per_day}{h.max_per_day ? `–${h.max_per_day}` : '+'}
+                        </span>
+                      </div>
+                      {h.reminders?.length > 0 && (
+                        <div className="habit-reminders-mini">
+                          {h.reminders.map((t, idx) => <span key={idx}>{t}</span>)}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  {weekDates.map(d => {
+                    const count = h.logs_by_date[d] || 0;
+                    return (
+                      <td 
+                        key={d} 
+                        className={`cell-day ${d === summary?.date_id ? 'today' : ''}`}
+                        onClick={() => openDayDrawer(h, d)}
+                      >
+                        {count > 0 ? (
+                          <span className="log-marker" title={`${count} logs`}>
+                            {count}
+                          </span>
+                        ) : (
+                          <span className="log-empty">—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="cell-streak">
+                    <span className={`streak-badge ${h.streak > 0 ? 'active' : ''}`}>
+                      {h.streak > 0 ? `🔥 ${h.streak}` : '0'}
+                    </span>
+                  </td>
+                  <td className="cell-action">
+                    <button
+                      type="button"
+                      className="habit-btn-log-plus"
+                      onClick={() => openLogDrawer(h)}
+                      title="Log action"
+                    >
+                      +
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-container habits-page">
       <div className="page-header">
         <div>
-          <h2>Habits</h2>
+          <h2>Habit Tracker</h2>
           <p className="page-description">
-            Tap to log small daily actions. Available via API at{' '}
-            <code>/api/habit-logs/quick/&lt;habit_id&gt;</code> so OpenClaw and other agents can log on your behalf.
+            Visualize your consistency. Use the <strong>+</strong> button to log actions with notes.
           </p>
         </div>
         <button type="button" className="habit-btn-primary" onClick={openCreate}>
@@ -114,16 +190,16 @@ export default function HabitsPage() {
           <div className="habit-stat-label">Tracked habits</div>
         </div>
         <div className="habit-stat-card">
-          <div className="habit-stat-value">{distinctToday}</div>
-          <div className="habit-stat-label">Active today</div>
-        </div>
-        <div className="habit-stat-card">
-          <div className="habit-stat-value">{totalToday}</div>
-          <div className="habit-stat-label">Total logs today</div>
+          <div className="habit-stat-value">{distinctActiveThisWeek}</div>
+          <div className="habit-stat-label">Active this week</div>
         </div>
         <div className="habit-stat-card">
           <div className="habit-stat-value">{summary?.date_id || '—'}</div>
-          <div className="habit-stat-label">Date ({summary?.timezone || 'tz'})</div>
+          <div className="habit-stat-label">Today</div>
+        </div>
+        <div className="habit-stat-card">
+          <div className="habit-stat-value">{summary?.timezone || '—'}</div>
+          <div className="habit-stat-label">Timezone</div>
         </div>
       </div>
 
@@ -133,21 +209,12 @@ export default function HabitsPage() {
         <div className="habits-empty">Loading…</div>
       ) : habits.length === 0 ? (
         <div className="habits-empty">
-          No habits yet. Click <strong>+ New Habit</strong> to track your first one
-          (e.g. <em>Morning coffee</em>, <em>Brush teeth — morning</em>, <em>Glass of water</em>).
+          No habits yet. Click <strong>+ New Habit</strong> to track your first one.
         </div>
       ) : (
-        <div className="habit-grid">
-          {habits.map(h => (
-            <HabitCard
-              key={h.habit_id}
-              habit={h}
-              onLog={handleLog}
-              onUndo={handleUndo}
-              onEdit={openEdit}
-              busy={busyHabitId === h.habit_id}
-            />
-          ))}
+        <div className="habit-sections">
+          {renderHabitTable(buildHabits, 'Habits to Build')}
+          {renderHabitTable(quitHabits, 'Habits to Quit', true)}
         </div>
       )}
 
@@ -157,6 +224,21 @@ export default function HabitsPage() {
         onClose={closeDrawer}
         onSaved={() => load()}
         onDeleted={() => load()}
+      />
+
+      <HabitLogDrawer
+        isOpen={!!logDrawerHabit}
+        habit={logDrawerHabit}
+        onClose={closeLogDrawer}
+        onLogged={() => load()}
+      />
+
+      <HabitDayDrawer
+        isOpen={!!dayDrawer}
+        habit={dayDrawer?.habit}
+        dateId={dayDrawer?.date_id}
+        onClose={closeDayDrawer}
+        onUpdated={() => load()}
       />
     </div>
   );

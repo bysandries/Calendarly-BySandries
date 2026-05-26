@@ -9,7 +9,7 @@ function timeSince(iso) {
   return new Date(iso).toLocaleDateString();
 }
 
-export default function HabitCard({ habit, onLog, onUndo, onEdit, busy }) {
+export default function HabitCard({ habit, onLog, onUndo, onEdit, onOpenLog, busy }) {
   const count = habit.total_count || 0;
   const accent = habit.color_hex || '#95A5A6';
   const lastLabel = timeSince(habit.last_logged_at);
@@ -34,6 +34,16 @@ export default function HabitCard({ habit, onLog, onUndo, onEdit, busy }) {
         </div>
       </div>
 
+      <div className="habit-card-reminders">
+        {habit.reminders?.length > 0 && (
+          <div className="habit-reminders-chips">
+            {habit.reminders.map((time, i) => (
+              <span key={i} className="habit-reminder-chip">⏰ {time}</span>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="habit-card-count" aria-live="polite">
         <span className="habit-card-count-value">{count}</span>
         <span className="habit-card-count-label">today</span>
@@ -49,6 +59,15 @@ export default function HabitCard({ habit, onLog, onUndo, onEdit, busy }) {
           title={count === 0 ? 'Nothing to undo' : 'Undo most recent log'}
         >
           −
+        </button>
+        <button
+          type="button"
+          className="habit-card-log-detail"
+          onClick={() => onOpenLog()}
+          disabled={busy}
+          title="Log with details (notes, time)"
+        >
+          📝
         </button>
         <button
           type="button"

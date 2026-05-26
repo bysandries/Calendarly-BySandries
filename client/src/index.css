@@ -3657,6 +3657,20 @@ body {
   box-shadow: 0 0 6px currentColor;
 }
 
+/* Metadata row: Creator / Participants */
+.detail-row.meta-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  justify-content: initial;
+}
+
+.meta-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* Time row: start / end / duration in one line */
 .detail-row.time-row {
   display: grid;
