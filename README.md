@@ -6,6 +6,27 @@
 
 ---
 
+## Table of Contents
+
+1. [What is Calendarly?](#what-is-calendarly)
+2. [Core Philosophy](#core-philosophy)
+3. [Feature Overview](#feature-overview)
+4. [Architecture](#architecture)
+5. [Quick Start](#quick-start)
+   - [Option A: Docker Compose](#option-a-docker-compose-recommended)
+   - [Option B: Native Local Development](#option-b-native-local-development)
+   - [Option C: Home Server / VPS](#option-c-home-server--vps-deployment)
+   - [Option D: DietPI Chromebook](#option-d-dietpi-chromebook-server-low-power-appliance)
+6. [Remote Access (Tailscale)](#remote-access-without-port-forwarding-tailscale)
+7. [API Reference](#api-reference)
+8. [Database Management](#database-management)
+9. [Security Checklist](#security-checklist)
+10. [Development Guide](#development-guide)
+11. [Mobile App Porting Guide](#mobile-app-porting-guide)
+12. [Roadmap](#roadmap--contributing)
+
+---
+
 ## What is Calendarly?
 
 Calendarly is a **local-first**, self-hosted productivity operating system. It combines a time-blocking calendar, GTD/Kanban task management, project tracking, knowledge extraction, and deep analytics into a single cohesive workspace. Your data lives on your own hardware, encrypted at rest, with no cloud dependencies or subscription fees.
@@ -95,11 +116,24 @@ All projects align to one of four pillars that guide prioritization:
 - **Distraction Reflection** — Review captured distractions alongside task context
 - **Time Alignment Scoring** — Quantify how well your execution matched your intention
 
+### Habit Tracking
+- **Habit Dashboard** — Per-habit day grid with streak indicators and goal tracking
+- **Build / Quit Intents** — Track habits you're forming and ones you're breaking
+- **Quick Log** — One-tap daily habit logging with optional time input
+- **Reminders** — Multiple time-of-day reminders per habit
+- **Weekly Summary** — Per-day log counts with streak computation
+
 ### Areas of Life
 - **7 Default Areas** — Sleep, Work, Math, Coding, Creative, Fitness, General
 - **Custom Areas** — Create your own life categories with hex color coding
 - **Color Cascading** — Area color changes propagate to all associated events
 - **Event Categorization** — Every time block belongs to an area for analytics grouping
+
+### AI Agent Tracking
+- **Session Logging** — Track Claude, OpenCode, Gemini, and Antigravity sessions
+- **Token & Cost Metrics** — Input, output, cache read/write tokens + USD cost per session
+- **Aggregated Stats** — Total sessions, tokens, time, and cost per agent
+- **Automatic Cost Calculation** — Claude pricing auto-applied based on token counts
 
 ### Data Integrity & Security
 - **SQLCipher Transparent Encryption** — Database encrypted at rest via `PRAGMA key`
@@ -123,30 +157,97 @@ All projects align to one of four pillars that guide prioritization:
 ## Architecture
 
 ```
-Calendarly
-├── client/          # React 19 + Vite frontend
-│   ├── React Router DOM for SPA routing
-│   ├── Luxon for timezone-aware dates
-│   ├── React Markdown for note preview
-│   └── Glassmorphic UI on pure black canvas
-│
-├── server/          # Node.js + Express backend
-│   ├── SQLite with SQLCipher encryption
-│   ├── Idempotent schema migrations
-│   ├── RESTful API routes for all entities
-│   └── Background backup & integrity services
-│
-└── docker-compose.yml  # One-command full stack deployment
+┌─────────────────────────────────────────────────────────────────┐
+│                     CLIENT (port 5173)                          │
+│  React 19  ·  Vite 8  ·  React Router DOM 7  ·  Luxon          │
+│  Glassmorphic UI  ·  Custom Hooks  ·  React Markdown           │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ HTTP REST (JSON)
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     SERVER (port 3000)                          │
+│  Node.js  ·  Express 4  ·  CORS  ·  Multer  ·  Luxon           │
+│  16 route groups  ·  RRULE engine  ·  Background backup svc    │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ @journeyapps/sqlcipher
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  DATABASE (SQLite + SQLCipher)                  │
+│  19 tables  ·  WAL mode  ·  Soft-delete  ·  PRAGMA key encrypt │
+│  Auto-migration (addColumnIfMissing)  ·  Golden backup system  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Tech Stack
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 19, Vite 8, React Router DOM 7, Luxon |
-| Backend | Node.js, Express 4, CORS |
-| Database | SQLite with SQLCipher (`@journeyapps/sqlcipher`) |
-| Proxy | Nginx (production static serving) |
-| Container | Docker + Docker Compose |
+
+| Layer | Technology | Version |
+|-------|------------|---------|
+| Frontend | React | 19 |
+| Build Tool | Vite | 8 |
+| Routing | React Router DOM | 7 |
+| Date/Time | Luxon | 3 |
+| Markdown | React Markdown | 10 |
+| Backend | Node.js + Express | 4 |
+| HTTP | CORS | 2.8 |
+| Database | SQLite + SQLCipher | `@journeyapps/sqlcipher` 5.3 |
+| File Upload | Multer | 2.0 |
+| Proxy | Nginx | (production) |
+| Container | Docker + Docker Compose | — |
+
+### Project Structure
+
+```
+calendarly/
+├── client/
+│   ├── src/
+│   │   ├── components/     # Reusable UI components (25 files)
+│   │   │   ├── Calendar/   # CalendarGrid, CreationPopover, resolveOverlaps
+│   │   │   └── Layout/     # Sidebar, NavIcons
+│   │   ├── pages/          # Route-level pages (13 files)
+│   │   ├── hooks/          # Custom React hooks (useProjects, useTasks, etc.)
+│   │   ├── utils/          # api.js, rruleExpander.js, statusMap.js
+│   │   ├── lib/            # taskMath.js (urgency scoring)
+│   │   └── App.jsx         # Root router and layout
+│   ├── public/             # Static assets (icons.svg, favicon.svg)
+│   └── index.html
+├── server/
+│   ├── routes/             # Express route handlers (one file per resource)
+│   ├── hooks/              # Claude & Gemini session-stop hooks
+│   ├── scripts/            # Migration and utility scripts
+│   ├── db.js               # Database connection, schema, migrations
+│   ├── server.js           # Express app bootstrap (mounts all routers)
+│   ├── backup-db.js        # Golden backup service
+│   └── integrity-checker.js
+├── graphify-out/           # Knowledge graph (AI-readable project map)
+├── docker-compose.yml
+├── .env.template
+├── UI_DESIGN_SYSTEM.md     # Figma design system reference
+└── README.md
+```
+
+### Database Schema (19 Tables)
+
+| Table | Purpose |
+|-------|---------|
+| `areas` | Life area categories with hex colors |
+| `projects` | PALM-phase projects with pillar alignment |
+| `tasks` | GTD inbox and kanban cards |
+| `events` | Dual-column calendar blocks (plan/measure) with RRULE |
+| `notes` | Markdown notes linkable to tasks |
+| `extracts` | Research bibliography captures |
+| `pomodoro_sessions` | Focus timer sessions |
+| `distraction_notes` | Interruptions captured during Pomodoro |
+| `habits` | Habit definitions (build/quit intent) |
+| `habit_reminders` | Time-of-day reminders per habit |
+| `habit_logs` | Daily habit occurrence records |
+| `code_agent_sessions` | AI agent session tracking (Claude/OpenCode/Gemini) |
+| `settings` | Global key/value config |
+| `CalendarDays` | Pre-seeded date dimension (2025–2030) |
+| `deleted_tasks` | Soft-delete archive for tasks |
+| `deleted_projects` | Soft-delete archive for projects |
+| `event_task_links` | Many-to-many events ↔ tasks |
+| `pomodoro_session_tasks` | Many-to-many sessions ↔ tasks |
+| `extract_resources` | Many-to-many extracts ↔ projects/tasks |
 
 ---
 
@@ -379,25 +480,219 @@ All traffic is end-to-end encrypted. No open ports. No DDNS. No certificate mana
 
 ---
 
-## API Endpoints
+## API Reference
 
-Calendarly exposes a comprehensive REST API:
+All endpoints are served from `http://localhost:3000/api/*`. The API is REST/JSON with no authentication by default — see [Security Checklist](#security-checklist).
 
-| Resource | Base Route | Key Operations |
-|----------|------------|----------------|
-| Events | `/api/events` | CRUD, sync-block, clone-plan, log-measure, task linking |
-| Areas | `/api/areas` | CRUD, color cascading |
-| Projects | `/api/projects` | CRUD, two-stage delete, stats aggregation |
-| Tasks | `/api/tasks` | CRUD, search, filter, bulk actions |
-| Notes | `/api/notes` | CRUD, task linking, tags |
-| Extracts | `/api/extracts` | CRUD, resource linking, bibliography |
-| Daily Logs | `/api/daily-logs` | Upsert journal entries by date |
-| Analytics | `/api/analytics` | Weekly reports, KPIs |
-| Pomodoro | `/api/pomodoro-sessions` | Session CRUD, task aggregation |
-| Distractions | `/api/distraction-notes` | Capture & review interruptions |
-| Settings | `/api/settings` | Preferences, env vars, backup management |
-| Upload | `/api/upload` | Password-protected archive import |
-| Health | `/api/health` | Liveness, integrity check, auto-restore |
+**Common patterns:**
+- List endpoints accept query params for filtering (e.g., `?status=active`, `?date=2026-05-25`)
+- All responses are `application/json`
+- Errors follow `{ error: "message" }` with appropriate HTTP status codes
+- Soft-deleted resources return `404` on subsequent reads
+
+---
+
+### Areas `/api/areas`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/areas` | List all areas (active first, archived last) |
+| `POST` | `/api/areas` | Create area `{ name, color_hex, description? }` |
+| `PATCH` | `/api/areas/:id` | Update area name, color, or archived flag |
+| `DELETE` | `/api/areas/:id` | Archive (soft-delete) area |
+
+---
+
+### Events `/api/events`
+
+Supports RFC 5545 RRULE recurrence and scope-aware updates (`single` / `series` / `forward`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/events` | Fetch events for `?date=YYYY-MM-DD` or `?from=&to=` range; returns `{ plan: [], measure: [] }` |
+| `POST` | `/api/events/sync-block` | Upsert single or recurring event (pass `rrule` for recurrence) |
+| `PATCH` | `/api/events/:id` | Update event; `?scope=single\|series\|forward` |
+| `POST` | `/api/events/log-measure` | Quick-log a measure column event |
+| `POST` | `/api/events/clone-plan` | Clone plan event to measure column |
+| `DELETE` | `/api/events/:id` | Delete event; `?scope=single\|series` |
+| `GET` | `/api/events/:id/tasks` | List tasks linked to event |
+| `POST` | `/api/events/:id/tasks` | Link task to event `{ task_id }` |
+| `DELETE` | `/api/events/:id/tasks/:taskId` | Unlink task from event |
+
+---
+
+### Projects `/api/projects`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/projects` | List all projects with task counts and pomodoro aggregates |
+| `POST` | `/api/projects` | Create project `{ title, area, pillar, phase, ... }` |
+| `PATCH` | `/api/projects/:id` | Update project fields |
+| `DELETE` | `/api/projects/:id` | First call archives; second call permanently deletes |
+
+---
+
+### Tasks `/api/tasks`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/tasks` | List tasks; filters: `?project_id=`, `?status=`, `?unassigned=true`, `?q=search` |
+| `POST` | `/api/tasks` | Create task `{ title, status?, project_id?, priority?, estimated_minutes? }` |
+| `PATCH` | `/api/tasks/:id` | Update task; auto-sets `finished_date` on transition to Done |
+| `DELETE` | `/api/tasks/:id` | Delete task |
+
+---
+
+### Notes `/api/notes`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/notes` | List notes; filters: `?task_id=`, `?type=`, `?tags=`, `?q=search` |
+| `GET` | `/api/notes/:id` | Get single note with linked task title |
+| `POST` | `/api/notes` | Create note `{ title, content, type?, tags?, linked_task_id? }` |
+| `PATCH` | `/api/notes/:id` | Update note |
+| `DELETE` | `/api/notes/:id` | Delete note |
+
+---
+
+### Extracts `/api/extracts`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/extracts` | List extracts with resource links; filters: `?project_id=`, `?task_id=`, `?tags=`, `?q=`, `?bibliography=` |
+| `GET` | `/api/extracts/:id` | Get single extract with full resource list |
+| `POST` | `/api/extracts` | Create extract `{ content, bibliography?, chapter_section?, position?, tags? }` |
+| `PATCH` | `/api/extracts/:id` | Update extract |
+| `DELETE` | `/api/extracts/:id` | Delete extract |
+| `POST` | `/api/extracts/:id/resources` | Link project or task `{ project_id? \| task_id? }` |
+| `DELETE` | `/api/extracts/:id/resources` | Unlink project or task `{ project_id? \| task_id? }` |
+
+---
+
+### Daily Logs `/api/daily-logs`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/daily-logs` | Fetch logs; `?date=YYYY-MM-DD` or `?from=&to=` |
+| `POST` | `/api/daily-logs` | Upsert daily journal entry `{ date_id, content }` |
+
+---
+
+### Pomodoro Sessions `/api/pomodoro-sessions`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/pomodoro-sessions` | List sessions; filters: `?task_id=`, `?status=`, `?date_from=`, `?date_to=` |
+| `GET` | `/api/pomodoro-sessions/by-task` | Aggregate actual minutes per task |
+| `GET` | `/api/pomodoro-sessions/:id` | Get single session |
+| `POST` | `/api/pomodoro-sessions` | Create session (auto-status: active) `{ task_id, planned_duration_minutes }` |
+| `PATCH` | `/api/pomodoro-sessions/:id` | Update session; auto-computes `actual_duration_minutes` |
+| `DELETE` | `/api/pomodoro-sessions/:id` | Delete session |
+
+---
+
+### Distraction Notes `/api/distraction-notes`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/distraction-notes` | List distractions; filters: `?task_id=`, `?session_id=`, `?date_from=`, `?date_to=` |
+| `GET` | `/api/distraction-notes/with-tasks` | Distractions joined with task titles |
+| `POST` | `/api/distraction-notes` | Create distraction note `{ content, task_id?, pomodoro_session_id? }` |
+| `POST` | `/api/distraction-notes/batch` | Batch insert multiple notes in a single transaction |
+| `DELETE` | `/api/distraction-notes/:id` | Delete distraction note |
+
+---
+
+### Habits `/api/habits`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/habits` | List habits; `?area=`, `?include_archived=true` |
+| `GET` | `/api/habits/:id` | Get habit with reminders array |
+| `POST` | `/api/habits` | Create habit `{ name, area?, goal_type, min_per_day?, max_per_day?, reminders?: [{time_of_day}] }` |
+| `PATCH` | `/api/habits/:id` | Update habit; reminders array fully synced if provided |
+| `DELETE` | `/api/habits/:id` | Delete habit |
+
+---
+
+### Habit Logs `/api/habit-logs`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/habit-logs` | List logs; filters: `?habit_id=`, `?date=`, `?date_from=`, `?date_to=`, `?source=` |
+| `GET` | `/api/habit-logs/today-summary` | All habits with today's log counts and streaks |
+| `GET` | `/api/habit-logs/weekly-summary` | Habits with per-day logs and streaks for the current week |
+| `POST` | `/api/habit-logs` | Create log `{ habit_id, logged_at?, count?, notes?, source? }` |
+| `POST` | `/api/habit-logs/quick/:habit_id` | One-tap quick log (no body required) |
+| `PATCH` | `/api/habit-logs/:id` | Update log |
+| `DELETE` | `/api/habit-logs/:id` | Delete log |
+
+---
+
+### Code Agents `/api/code-agents`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/code-agents/stats` | Aggregated stats per agent (sessions, tokens, cost, time) |
+| `GET` | `/api/code-agents` | List sessions; filters: `?agent=`, `?date_from=`, `?date_to=`; limit 200 |
+| `POST` | `/api/code-agents` | Create session `{ agent, started_at, ended_at?, input_tokens?, output_tokens?, model? }` |
+| `PATCH` | `/api/code-agents/:id` | Update session; cost auto-recomputed |
+| `DELETE` | `/api/code-agents/:id` | Delete session |
+
+---
+
+### Analytics `/api/analytics`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/analytics/weekly-report` | Full weekly report: area hours plan vs measure, sleep alignment, task KPIs, project progression |
+
+---
+
+### Settings `/api/settings`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/settings` | Fetch all settings, environment info, and backup file list |
+| `POST` | `/api/settings` | Save database settings (timezone, theme, time format, etc.) |
+| `POST` | `/api/settings/env` | Update `.env` variables (supports DB re-key for `DB_ENCRYPTION_KEY`) |
+| `GET` | `/api/settings/backup/download` | Download latest backup as file |
+| `POST` | `/api/settings/backup/upload` | Upload `.db` backup profile (with optional immediate activation) |
+| `POST` | `/api/settings/backup/activate` | Activate a backup profile as the running database |
+| `POST` | `/api/settings/backup/rename` | Rename a backup profile file |
+| `DELETE` | `/api/settings/backup/:filename` | Delete a backup profile |
+| `GET` | `/api/settings/gitignore-status` | Check `.gitignore` security coverage |
+
+---
+
+### Upload `/api/upload`
+
+Requires `x-upload-password` header matching `SECRET_UPLOAD_PASSWORD` env var.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/upload/graphify` | Upload zip/tar/tar.gz archive, extract to `graphify-out/` |
+| `GET` | `/api/upload/graphify/status` | Check extraction status |
+
+---
+
+### OpenCode `/api/opencode`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/opencode/sessions` | Cached OpenCode session list |
+| `GET` | `/api/opencode/stats` | Parsed OpenCode usage stats |
+| `GET` | `/api/opencode/sync` | Trigger live sync if OpenCode CLI is available |
+
+---
+
+### Health `/api/health`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/health` | Liveness check with timestamp and environment |
+| `GET` | `/api/health/integrity-check` | Database integrity validation; auto-restores from golden backup on failure |
+| `GET` | `/api/mcp` | Serve `OPENCLAW_MCP.md` specification for AI agents |
 
 ---
 
@@ -432,33 +727,11 @@ Visit `/api/health/integrity-check` to validate the database. If issues are foun
 - [ ] Run behind Tailscale or a firewall — the app has no built-in authentication
 - [ ] Keep backups in a separate location from the running server
 
+> **For production or mobile app deployments:** Add JWT or API-key middleware to Express before exposing the API to a public network or mobile client. See [Mobile App Porting Guide](#mobile-app-porting-guide).
+
 ---
 
-## Development
-
-### Project Structure
-
-```
-calendarly/
-├── client/
-│   ├── src/
-│   │   ├── components/    # Reusable UI components
-│   │   ├── pages/          # Route-level page components
-│   │   ├── hooks/          # Custom React hooks
-│   │   ├── utils/          # API clients and helpers
-│   │   └── App.jsx         # Root router and layout
-│   ├── public/             # Static assets
-│   └── index.html
-├── server/
-│   ├── routes/             # Express route handlers
-│   ├── scripts/            # Migration and utility scripts
-│   ├── db.js               # Database connection & migrations
-│   ├── server.js           # Express app bootstrap
-│   └── backup-db.js        # Golden backup service
-├── docker-compose.yml
-├── .env.template
-└── README.md
-```
+## Development Guide
 
 ### Running Tests
 
@@ -471,6 +744,134 @@ node scripts/test-db.js
 
 The schema is managed idempotently via `addColumnIfMissing` in `db.js`. New columns are added automatically on server startup. For structural changes, modify the initialization SQL in `initDatabase()`.
 
+### Adding a New Route
+
+1. Create `server/routes/myresource.js` following the pattern of existing route files
+2. Mount it in `server/server.js`:
+   ```js
+   const myResourceRoutes = require('./routes/myresource');
+   app.use('/api/myresource', myResourceRoutes);
+   ```
+3. Add the table DDL to `db.js → initDatabase()`
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DB_ENCRYPTION_KEY` | Yes (recommended) | SQLCipher passphrase for encryption at rest |
+| `DATABASE_PATH` | Yes | Absolute path to the `.db` file |
+| `PORT` | No (default: 3000) | Express server port |
+| `NODE_ENV` | No | `development` or `production` |
+| `SECRET_UPLOAD_PASSWORD` | No | Password for archive upload endpoint |
+| `GEMINI_API_KEY` | No | Gemini AI integration (masked in Settings UI) |
+
+---
+
+## Mobile App Porting Guide
+
+The Calendarly API is REST/JSON and fully mobile-ready. This section documents what needs to be done before exposing it to a mobile client.
+
+### 1. Add Authentication
+
+The API currently has **no authentication**. Before mobile deployment:
+
+```js
+// Recommended: JWT middleware in server.js
+const jwt = require('jsonwebtoken');
+
+const authMiddleware = (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+// Apply to all routes except health
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/health')) return next();
+  return authMiddleware(req, res, next);
+});
+```
+
+### 2. CORS Configuration
+
+Restrict CORS origins for production:
+
+```js
+// server/server.js
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://calendarly.yourdomain.com',
+    // Add your mobile app's origin or Capacitor/Expo URL
+  ],
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+}));
+```
+
+### 3. Mobile-Optimized Endpoints
+
+These endpoints are particularly well-suited for mobile use cases:
+
+| Endpoint | Mobile Use Case |
+|----------|----------------|
+| `GET /api/habit-logs/today-summary` | Home screen widget — shows today's habit status |
+| `GET /api/habit-logs/weekly-summary` | Habit streak card |
+| `POST /api/habit-logs/quick/:habit_id` | One-tap habit logging from widget |
+| `GET /api/analytics/weekly-report` | Dashboard overview screen |
+| `GET /api/events?date=YYYY-MM-DD` | Daily calendar view |
+| `GET /api/tasks?status=03+-+In+Progress` | Active task focus screen |
+| `POST /api/pomodoro-sessions` | Start a focus session |
+| `PATCH /api/pomodoro-sessions/:id` | End/pause session |
+
+### 4. Offline Support (PWA)
+
+For a Progressive Web App:
+
+1. Add a `manifest.json` to `client/public/`
+2. Register a Service Worker in `client/src/main.jsx`
+3. Cache `GET` responses for events, tasks, habits using the Cache API
+4. Queue mutations (POST/PATCH/DELETE) during offline and replay on reconnect
+
+```json
+// client/public/manifest.json
+{
+  "name": "Calendarly",
+  "short_name": "Calendarly",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
+```
+
+### 5. React Native / Expo Port
+
+The backend API requires no changes for React Native. Key considerations:
+
+- Use `axios` or `fetch` with the server's Tailscale/LAN IP
+- Store the JWT token in `SecureStore` (Expo) or `Keychain` (React Native)
+- Use `react-navigation` bottom tab navigator matching the 5 primary tabs (Calendar, Tasks, Analytics, Habits, Settings)
+- Deep link scheme: `calendarly://` for widget → app navigation
+- Use `expo-notifications` for habit reminder push notifications (map to `habit_reminders` table)
+
+### 6. Recommended Deep Link Structure
+
+```
+calendarly://calendar?date=2026-05-25
+calendarly://task/:id
+calendarly://habit/:id/log
+calendarly://pomodoro/start?task_id=:id
+```
+
 ---
 
 ## Roadmap & Contributing
@@ -478,6 +879,7 @@ The schema is managed idempotently via `addColumnIfMissing` in `db.js`. New colu
 Calendarly is a personal operating system that grows with its user. Planned directions include:
 
 - Mobile-optimized PWA with offline support
+- React Native / Expo mobile app
 - Calendar import/export (ICS)
 - Plugin system for custom analytics widgets
 - Collaborative mode for household/team use
