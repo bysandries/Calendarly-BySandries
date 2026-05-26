@@ -758,3 +758,54 @@
   .habit-grid { grid-template-columns: 1fr; }
   .habit-form-2col { grid-template-columns: 1fr; }
 }
+
+/* Phones — simplify table to essential columns */
+@media (max-width: 480px) {
+  .habits-overview {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  /* Smooth iOS scroll on table */
+  .habit-table-wrapper {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    border-radius: var(--radius-md);
+  }
+  /* Reduce table cell padding to keep content visible */
+  .habit-table th,
+  .habit-table td {
+    padding: 10px 10px;
+  }
+  /* Hide non-essential day columns: keep only today + 2 most recent */
+  .col-day:not(.today):not(:nth-last-child(2)):not(:nth-last-child(3)) {
+    display: none;
+  }
+  /* Compact habit name column */
+  .col-habit { min-width: 140px; }
+  /* Compact action column */
+  .col-action { width: 60px; }
+}
+
+/* iPhone — show only today column + streak */
+@media (max-width: 430px) {
+  .habits-overview {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .habit-stat-card {
+    padding: 12px;
+  }
+  .habit-stat-value {
+    font-size: 1.2rem;
+  }
+  /* On very small screens only show habit, today, streak, action */
+  .col-day:not(.today) {
+    display: none;
+  }
+  .col-habit { min-width: 120px; }
+  .habit-table th,
+  .habit-table td {
+    padding: 8px 8px;
+    font-size: 0.8rem;
+  }
+}
