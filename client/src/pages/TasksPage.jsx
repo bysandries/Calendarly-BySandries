@@ -139,6 +139,14 @@ export default function TasksPage() {
   const visibleTasks = tasks.filter(t => t.status !== '00 - Not Actionable');
 
   const activeTabDef = TASK_TABS.find(t => t.key === activeTab);
+  
+  const STATUS_COLORS = {
+    actionable: '#3498DB', // Blue
+    planned: '#9B59B6',    // Purple
+    someday: '#E67E22',    // Orange
+    done: '#2ECC71'        // Green
+  };
+
   const filteredTasks = activeTabDef
     ? visibleTasks.filter(t => activeTabDef.statuses.includes(t.status))
     : visibleTasks;
@@ -559,7 +567,10 @@ export default function TasksPage() {
       )}
 
       {!loading && !error && sortedTasks.length > 0 && (
-        <div className="tasks-mobile-list">
+        <div 
+          className="tasks-mobile-list" 
+          style={{ '--status-color': STATUS_COLORS[activeTab] }}
+        >
           {sortedTasks.map(task => (
             <Link key={task.id} to={`/tasks/${task.id}`} className="task-mobile-card">
               <div className="task-mobile-info">
