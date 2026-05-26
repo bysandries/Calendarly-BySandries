@@ -2893,59 +2893,6 @@ body {
     margin: 16px;
   }
 
-  /* ── Restore Mobile List Styles for Projects ── */
-  .projects-mobile-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .project-mobile-card {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-md);
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    text-decoration: none;
-    transition: background var(--transition-fast);
-  }
-
-  .project-mobile-card:hover {
-    background: var(--bg-card-hover);
-  }
-
-  .project-mobile-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .project-mobile-title {
-    color: var(--text-primary);
-    font-weight: 700;
-    font-size: 1.1rem;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .project-mobile-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-  }
-
-  .project-mobile-stat {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
   .filter-select {
     display: none !important;
   }
