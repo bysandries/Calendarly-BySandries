@@ -41,6 +41,8 @@ const pomodoroRouter = require('./routes/pomodoro');
 const distractionNotesRouter = require('./routes/distractionNotes');
 const opencodeRouter = require('./routes/opencode');
 const codeAgentsRouter = require('./routes/codeAgents');
+const habitsRouter = require('./routes/habits');
+const habitLogsRouter = require('./routes/habit-logs');
 
 // Mount routes
 app.use('/api/events', eventsRouter);
@@ -57,6 +59,8 @@ app.use('/api/pomodoro-sessions', pomodoroRouter);
 app.use('/api/distraction-notes', distractionNotesRouter);
 app.use('/api/opencode', opencodeRouter);
 app.use('/api/code-agents', codeAgentsRouter);
+app.use('/api/habits', habitsRouter);
+app.use('/api/habit-logs', habitLogsRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

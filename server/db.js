@@ -392,6 +392,39 @@ async function initDatabase(forceReset = false) {
     );
   `);
 
+  // Create habits table — discrete trackable actions (brushing teeth, cups of coffee, etc.)
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS habits (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      area TEXT,
+      description TEXT,
+      color_hex TEXT,
+      icon TEXT,
+      sort_order INTEGER DEFAULT 0,
+      is_archived INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(area) REFERENCES areas(id) ON DELETE SET NULL
+    );
+  `);
+
+  // Create habit_logs table — timestamped occurrences of a habit being performed
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS habit_logs (
+      id TEXT PRIMARY KEY,
+      habit_id TEXT NOT NULL,
+      logged_at TEXT NOT NULL,
+      date_id TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 1,
+      notes TEXT,
+      source TEXT DEFAULT 'manual',
+      FOREIGN KEY(habit_id) REFERENCES habits(id) ON DELETE CASCADE
+    );
+  `);
+
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_habit_logs_habit_date ON habit_logs(habit_id, date_id);`);
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_habit_logs_date ON habit_logs(date_id);`);
+
   // Create settings table
   await database.exec(`
     CREATE TABLE IF NOT EXISTS settings (

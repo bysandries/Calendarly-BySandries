@@ -11,6 +11,7 @@ import SettingsPage from './pages/SettingsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SecretUploadPage from './pages/SecretUploadPage';
 import AgentsPage from './pages/AgentsPage';
+import HabitsPage from './pages/HabitsPage';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/habits" element={<HabitsPage />} />
             <Route path="/secret-upload" element={<SecretUploadPage />} />
             <Route path="*" element={<Navigate to="/gtd" replace />} />
           </Routes>
