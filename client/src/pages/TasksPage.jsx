@@ -336,7 +336,7 @@ export default function TasksPage() {
           </div>
         </div>
       ) : (
-        <div className="glass-panel">
+        <div className="glass-panel data-table-wrapper">
           <table className="data-table">
             <thead>
               <tr>

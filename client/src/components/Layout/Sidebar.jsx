@@ -13,7 +13,8 @@ import {
   IconAgents,
   IconSettings,
   IconChevronLeft,
-  IconChevronRight
+  IconChevronRight,
+  IconX
 } from './NavIcons';
 
 const NAV_ITEMS = [
@@ -29,7 +30,7 @@ const NAV_ITEMS = [
   { to: '/settings', icon: IconSettings, label: 'Settings' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isMobileOpen, onClose }) {
   const [isOnline, setIsOnline] = useState(true);
 
   // Persist collapsed state in localStorage; default to collapsed on small screens
@@ -74,10 +75,20 @@ export default function Sidebar() {
   const ToggleIcon = collapsed ? IconChevronRight : IconChevronLeft;
 
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-logo">
         <h1>C</h1>
         <span className="sidebar-logo-full">Calendarly</span>
+        
+        {/* Mobile Close Button */}
+        <button 
+          className="mobile-close-btn" 
+          onClick={onClose}
+          aria-label="Close menu"
+        >
+          <IconX />
+        </button>
+
         <button
           type="button"
           className="sidebar-toggle"
