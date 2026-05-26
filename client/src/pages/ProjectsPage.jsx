@@ -400,6 +400,55 @@ export default function ProjectsPage() {
         </div>
       )}
 
+      {!loading && !error && visibleProjects.length > 0 && (
+        <div className="projects-mobile-list">
+          {visibleProjects.map(project => {
+            const area = getAreaInfo(project.area);
+            const total = project.total_tasks ?? 0;
+            const done = project.complete_tasks ?? 0;
+            const pct = calcProgression(done, total);
+            
+            return (
+              <div key={project.id} className="project-mobile-card" onClick={() => setDrawerProject(project)}>
+                <div className="project-mobile-header">
+                  <span className="project-mobile-title" style={{ borderLeft: `4px solid ${area?.color_hex || '#95A5A6'}`, paddingLeft: '12px' }}>
+                    {project.title}
+                  </span>
+                  <ProjectStatusBadge
+                    status={project.status}
+                    onChange={(newStatus) => updateProject(project.id, { status: newStatus })}
+                    compact
+                  />
+                </div>
+                
+                <div className="project-mobile-meta">
+                  <div className="project-mobile-stat">
+                    <span>Phase:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{project.phase || '—'}</span>
+                  </div>
+                  <div className="project-mobile-stat">
+                    <span>Progress:</span>
+                    <span style={{ fontWeight: 600, color: pct === 100 ? '#2ECC71' : 'var(--accent-primary)' }}>{pct ?? 0}%</span>
+                  </div>
+                  {project.due_date && (
+                    <div className="project-mobile-stat">
+                      <span>Due:</span>
+                      <span>{formatIsoDateShort(project.due_date)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {project.description && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--glass-border)', paddingTop: '8px' }}>
+                    {project.description.substring(0, 100)}{project.description.length > 100 ? '…' : ''}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Permanent-delete confirmation modal */}
       {confirmDelete && (
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setConfirmDelete(null); }}>
