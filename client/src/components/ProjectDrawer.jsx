@@ -31,6 +31,7 @@ export default function ProjectDrawer({ projects = [], onSave, onDelete, onClose
 
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [goalsInput, setGoalsInput] = useState('');
+  const [changedFields, setChangedFields] = useState(new Set());
   const [areas, setAreas] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -48,6 +49,7 @@ export default function ProjectDrawer({ projects = [], onSave, onDelete, onClose
   }, []);
 
   useEffect(() => {
+    setChangedFields(new Set());
     if (!isOpen) return;
     if (isCreate) {
       setFormData(EMPTY_FORM);
@@ -157,43 +159,52 @@ export default function ProjectDrawer({ projects = [], onSave, onDelete, onClose
 
   function set(field, value) {
     setFormData(prev => ({ ...prev, [field]: value }));
+    if (isBulk) setChangedFields(prev => new Set([...prev, field]));
+  }
+
+  function setGoals(value) {
+    setGoalsInput(value);
+    if (isBulk) setChangedFields(prev => new Set([...prev, 'goals_aligned']));
   }
 
   async function handleSave() {
-    if (!isBulk && !formData.title.trim()) {
+    if (!isBulk && !isCreate && !formData.title.trim()) {
+      setError('Title is required');
+      return;
+    }
+    if (isCreate && !formData.title.trim()) {
       setError('Title is required');
       return;
     }
     setBusy(true);
     setError('');
     try {
-      const goals = goalsInput.split(',').map(s => s.trim()).filter(Boolean);
-      
-      const updates = { ...formData };
-      if (goals.length > 0) updates.goals_aligned = goals;
-
-      if (isBulk) {
-        // Remove empty fields to avoid overwriting with empty values in bulk mode
-        if (!updates.status) delete updates.status;
-        if (!updates.area) delete updates.area;
-        if (!updates.pillar) delete updates.pillar;
-        if (!updates.phase) delete updates.phase;
-        if (!updates.methodology) delete updates.methodology;
-        if (!updates.person_id) delete updates.person_id;
-        if (!updates.due_date) delete updates.due_date;
-        if (!updates.start_date) delete updates.start_date;
-        if (!updates.end_date) delete updates.end_date;
-        if (!updates.description) delete updates.description;
-        if (goals.length === 0) delete updates.goals_aligned;
-      }
-
       if (isCreate) {
-        const result = await apiCreate({ ...updates, goals_aligned: goals });
+        const goals = goalsInput.split(',').map(s => s.trim()).filter(Boolean);
+        const result = await apiCreate({ ...formData, goals_aligned: goals });
         onSave(result);
-      } else {
+      } else if (isBulk) {
+        // Only send fields the user explicitly changed — title/description never in bulk
+        const updates = {};
+        for (const field of changedFields) {
+          if (field === 'title' || field === 'description') continue;
+          if (field === 'goals_aligned') {
+            const goals = goalsInput.split(',').map(s => s.trim()).filter(Boolean);
+            if (goals.length > 0) updates.goals_aligned = goals;
+          } else {
+            updates[field] = formData[field];
+          }
+        }
         for (const p of projects) {
           await apiUpdate(p.id, updates);
         }
+        onSave(null);
+      } else {
+        // Single edit: send all fields
+        const goals = goalsInput.split(',').map(s => s.trim()).filter(Boolean);
+        const updates = { ...formData };
+        if (goals.length > 0) updates.goals_aligned = goals;
+        await apiUpdate(firstProject.id, updates);
         onSave(null);
       }
     } catch (e) {
@@ -226,7 +237,14 @@ export default function ProjectDrawer({ projects = [], onSave, onDelete, onClose
         <div className="drawer-header">
           <div style={{ flex: 1, minWidth: 0 }}>
             {isBulk ? (
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Editing {projects.length} Projects</h2>
+              <div>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>
+                  Editing {projects.length} Projects
+                </h2>
+                <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                  Only fields you change here will be updated
+                </p>
+              </div>
             ) : (
               <input
                 className="inline-edit"
@@ -373,8 +391,8 @@ export default function ProjectDrawer({ projects = [], onSave, onDelete, onClose
               <input
                 className="form-input"
                 value={goalsInput}
-                onChange={(e) => setGoalsInput(e.target.value)}
-                placeholder={isBulk ? '(No Change)' : "Build MVP, Ship v1, …"}
+                onChange={(e) => setGoals(e.target.value)}
+                placeholder={isBulk ? '(unchanged if left blank)' : "Build MVP, Ship v1, …"}
               />
             </div>
             {!isBulk && (
