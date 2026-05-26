@@ -586,45 +586,6 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* Mobile list */}
-      {!loading && !error && sortedProjects.length > 0 && (
-        <div className="projects-mobile-list">
-          {sortedProjects.map(project => {
-            const area = getAreaInfo(project.area);
-            const total = project.total_tasks ?? 0;
-            const done = project.complete_tasks ?? 0;
-            const pct = calcProgression(done, total);
-            const isSelected = selectedProjectIds.has(project.id);
-            return (
-              <div
-                key={project.id}
-                className={`project-mobile-card ${isSelected ? 'selected' : ''}`}
-                onClick={() => setSelectedProjectIds(new Set([project.id]))}
-              >
-                <div className="project-mobile-header">
-                  <span className="project-mobile-title" style={{ borderLeft: `4px solid ${area?.color_hex || '#95A5A6'}`, paddingLeft: '12px' }}>
-                    {project.title}
-                  </span>
-                  <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'var(--glass-bg-strong)' }}>
-                    {project.status}
-                  </span>
-                </div>
-                <div className="project-mobile-meta">
-                  <div className="project-mobile-stat">
-                    <span>Phase:</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{project.phase || '—'}</span>
-                  </div>
-                  <div className="project-mobile-stat">
-                    <span>Progress:</span>
-                    <span style={{ fontWeight: 600, color: pct === 100 ? '#2ECC71' : 'var(--accent-primary)' }}>{pct ?? 0}%</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       {/* Permanent-delete confirmation modal */}
       {confirmDelete && (
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setConfirmDelete(null); }}>
