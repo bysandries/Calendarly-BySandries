@@ -175,6 +175,75 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
+// GET /api/projects/:id/settings
+// Returns per-project UI preferences (visible columns + column order).
+// Returns null fields when no settings have been saved yet — client falls back to defaults.
+router.get('/:id/settings', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const project = await db.get('SELECT id FROM projects WHERE id = ?', [req.params.id]);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const row = await db.get(
+      'SELECT visible_columns, column_order FROM project_settings WHERE project_id = ?',
+      [req.params.id]
+    );
+    if (!row) {
+      return res.json({ visible_columns: null, column_order: null });
+    }
+    res.json({
+      visible_columns: row.visible_columns ? JSON.parse(row.visible_columns) : null,
+      column_order: row.column_order ? JSON.parse(row.column_order) : null,
+    });
+  } catch (error) {
+    console.error('Error fetching project settings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/projects/:id/settings
+// Upserts per-project UI preferences.
+router.put('/:id/settings', async (req, res) => {
+  const { visible_columns, column_order } = req.body;
+
+  if (visible_columns !== undefined && (typeof visible_columns !== 'object' || Array.isArray(visible_columns) || visible_columns === null)) {
+    return res.status(400).json({ error: 'visible_columns must be an object' });
+  }
+  if (column_order !== undefined && !Array.isArray(column_order)) {
+    return res.status(400).json({ error: 'column_order must be an array' });
+  }
+
+  try {
+    const db = await getDbConnection();
+    const project = await db.get('SELECT id FROM projects WHERE id = ?', [req.params.id]);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const vcStr = JSON.stringify(visible_columns ?? {});
+    const coStr = JSON.stringify(column_order ?? []);
+
+    await db.run(
+      `INSERT INTO project_settings (project_id, visible_columns, column_order)
+       VALUES (?, ?, ?)
+       ON CONFLICT(project_id) DO UPDATE SET
+         visible_columns = excluded.visible_columns,
+         column_order = excluded.column_order`,
+      [req.params.id, vcStr, coStr]
+    );
+
+    res.json({
+      visible_columns: JSON.parse(vcStr),
+      column_order: JSON.parse(coStr),
+    });
+  } catch (error) {
+    console.error('Error saving project settings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // DELETE /api/projects/:id
 // - Non-archived project → moves to 'archived' status (soft delete)
 // - Archived project     → moves project + its tasks to deleted_* tables, then hard-deletes

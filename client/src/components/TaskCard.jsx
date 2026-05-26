@@ -22,6 +22,7 @@ export default function TaskCard({
   isSelected,
   onClick,
   onUpdateTask,
+  onSelectionToggle,
   projects = [],
   people = [],
   areas,
@@ -107,11 +108,8 @@ export default function TaskCard({
         );
       case 'title':
         return (
-          <td key={col} className={cellClass}>
-            <div
-              className="cell-truncate"
-              style={{ display: 'block', fontWeight: 500 }}
-            >
+          <td key={col} className={cellClass} style={{ whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+            <div style={{ display: 'block', fontWeight: 500 }}>
               {task.title}
               <div className="mobile-only-subtext">
                 {projectTitle && <span className="mobile-project-tag">{projectTitle}</span>}
@@ -182,11 +180,21 @@ export default function TaskCard({
   };
 
   return (
-    <tr 
-      onClick={(e) => onClick(e)} 
+    <tr
+      onClick={(e) => onClick(e)}
       className={`task-row ${isSelected ? 'selected' : ''}`}
       style={{ cursor: 'pointer' }}
     >
+      {onSelectionToggle && (
+        <td onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            className="task-checkbox"
+            checked={!!isSelected}
+            onChange={() => onSelectionToggle(task.id)}
+          />
+        </td>
+      )}
       {columnOrder.map((col) => renderCell(col))}
     </tr>
   );

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useProjects } from '../hooks/useProjects';
 import { useTasks } from '../hooks/useTasks';
 import { usePeople } from '../hooks/usePeople';
-import { fetchAreas, fetchTasks } from '../utils/api';
+import { fetchAreas, fetchTasks, fetchProjectSettings, updateProjectSettings } from '../utils/api';
 import { getStatusInfo, GTD_STATUSES, TASK_TABS, PRIORITY_COLORS } from '../utils/statusMap';
 import { formatDuration, calcDaysLeft, formatDaysLeft, calcUrgency, formatIsoDateShort } from '../lib/taskMath';
 import ProjectStatusBadge from '../components/ProjectStatusBadge';
@@ -13,6 +13,42 @@ import TaskDrawer from '../components/TaskDrawer';
 import PersonPicker from '../components/PersonPicker';
 
 const PALM_PHASES = ['Plan', 'Act', 'Measure', 'Learn', 'Ignored'];
+
+const DEFAULT_VISIBLE_COLUMNS = {
+  starred: true,
+  urgency: true,
+  status: true,
+  priority: true,
+  title: true,
+  project: false,
+  ect: true,
+  date_due: true,
+  days_left: true,
+  notes: true,
+  actions: false,
+  assignee: true,
+};
+
+const DEFAULT_COLUMN_ORDER = [
+  'starred', 'urgency', 'status', 'priority', 'title', 'project', 'assignee', 'ect', 'date_due', 'days_left', 'notes', 'actions'
+];
+
+const DEFAULT_COLUMN_WIDTHS = {
+  starred: 40,
+  urgency: 100,
+  status: 130,
+  priority: 80,
+  title: 300,
+  project: 180,
+  assignee: 120,
+  ect: 90,
+  date_due: 130,
+  days_left: 90,
+  notes: 40,
+  actions: 60,
+};
+
+const COLUMN_LABEL = (col) => col === 'ect' ? 'ECT' : col.charAt(0).toUpperCase() + col.slice(1).replace('_', ' ');
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -36,24 +72,13 @@ export default function ProjectDetailPage() {
   const [editingProjectDesc, setEditingProjectDesc] = useState(false);
   const [editingProjectGoals, setEditingProjectGoals] = useState(false);
 
-  // Column config for TaskCard
-  const [visibleColumns] = useState({
-    starred: true,
-    urgency: true,
-    status: true,
-    priority: true,
-    title: true,
-    project: false,
-    ect: true,
-    date_due: true,
-    days_left: true,
-    notes: true,
-    actions: false,
-    assignee: true,
-  });
-  const [columnOrder] = useState([
-    'starred', 'urgency', 'status', 'priority', 'title', 'assignee', 'ect', 'date_due', 'days_left', 'notes'
-  ]);
+  // Column config for TaskCard — persisted per-project via /api/projects/:id/settings
+  const [visibleColumns, setVisibleColumns] = useState(DEFAULT_VISIBLE_COLUMNS);
+  const [columnOrder, setColumnOrder] = useState(DEFAULT_COLUMN_ORDER);
+  const [columnWidths, setColumnWidths] = useState(DEFAULT_COLUMN_WIDTHS);
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState(null);
+  const resizingColumn = useRef(null);
 
   // Find & Link modal state
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -68,10 +93,118 @@ export default function ProjectDetailPage() {
     fetchAreas().then(setAreas).catch(() => {});
   }, []);
 
+  // Global handlers for column resize drag (mirrors TasksPage)
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!resizingColumn.current) return;
+      const { key, startX, startWidth } = resizingColumn.current;
+      const deltaX = e.clientX - startX;
+      setColumnWidths(prev => ({
+        ...prev,
+        [key]: Math.max(50, startWidth + deltaX),
+      }));
+    };
+
+    const handleMouseUp = () => {
+      resizingColumn.current = null;
+      document.body.style.cursor = 'default';
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  const handleResizeStart = (e, key) => {
+    e.preventDefault();
+    resizingColumn.current = {
+      key,
+      startX: e.clientX,
+      startWidth: columnWidths[key] ?? DEFAULT_COLUMN_WIDTHS[key] ?? 100,
+    };
+    document.body.style.cursor = 'col-resize';
+  };
+
   useEffect(() => {
     const filters = { project_id: id };
     refetch(filters);
   }, [id]);
+
+  // Load per-project column settings whenever the project changes.
+  // Reset to defaults first so we never leak the previous project's state into the new one.
+  useEffect(() => {
+    if (!id) return;
+    setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
+    setColumnOrder(DEFAULT_COLUMN_ORDER);
+    fetchProjectSettings(id)
+      .then(({ visible_columns, column_order }) => {
+        if (visible_columns && typeof visible_columns === 'object') {
+          // Merge defaults so any newly-introduced column has a sensible default
+          setVisibleColumns({ ...DEFAULT_VISIBLE_COLUMNS, ...visible_columns });
+        }
+        if (Array.isArray(column_order) && column_order.length > 0) {
+          // Append any default columns not present in saved order (forward-compat)
+          const merged = [...column_order];
+          DEFAULT_COLUMN_ORDER.forEach(col => {
+            if (!merged.includes(col)) merged.push(col);
+          });
+          setColumnOrder(merged);
+        }
+      })
+      .catch(() => {});
+  }, [id]);
+
+  const persistSettings = (nextVisible, nextOrder) => {
+    if (!id) return;
+    updateProjectSettings(id, {
+      visible_columns: nextVisible,
+      column_order: nextOrder,
+    }).catch(err => console.error('Failed to save project settings:', err));
+  };
+
+  const toggleColumnVisibility = (col) => {
+    const next = { ...visibleColumns, [col]: !visibleColumns[col] };
+    setVisibleColumns(next);
+    persistSettings(next, columnOrder);
+  };
+
+  const moveColumn = (index, direction) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= columnOrder.length) return;
+    const next = [...columnOrder];
+    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    setColumnOrder(next);
+    persistSettings(visibleColumns, next);
+  };
+
+  const handleColumnDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index);
+  };
+
+  const handleColumnDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+    const next = [...columnOrder];
+    const item = next.splice(draggedIndex, 1)[0];
+    next.splice(index, 0, item);
+    setColumnOrder(next);
+    setDraggedIndex(index);
+  };
+
+  const handleColumnDragEnd = () => {
+    if (draggedIndex === null) return;
+    setDraggedIndex(null);
+    // Read latest order via functional setter, then persist.
+    setColumnOrder(prev => {
+      persistSettings(visibleColumns, prev);
+      return prev;
+    });
+  };
 
   const project = projects.find(p => p.id === id);
   const area = areas.find(a => a.id === project?.area);
@@ -117,6 +250,15 @@ export default function ProjectDetailPage() {
     });
 
     setLastSelectedIndex(index);
+  };
+
+  const toggleSelectionOne = (taskId) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
   };
 
   const toggleSelectAll = () => {
@@ -216,9 +358,11 @@ export default function ProjectDetailPage() {
   const visibleTasks = tasks.filter(t => t.status !== '00 - Not Actionable');
 
   const activeTabDef = TASK_TABS.find(t => t.key === activeTab);
-  const filteredTasks = activeTabDef
-    ? visibleTasks.filter(t => activeTabDef.statuses.includes(t.status))
-    : visibleTasks;
+  const filteredTasks = activeTab === 'priorities'
+    ? tasks.filter(t => t.is_starred)
+    : (activeTabDef
+        ? visibleTasks.filter(t => activeTabDef.statuses.includes(t.status))
+        : visibleTasks);
 
   const handleSort = (key) => {
     setSortConfig(prev => {
@@ -245,6 +389,12 @@ export default function ProjectDetailPage() {
       case 'title':
         cmp = (a.title || '').localeCompare(b.title || '');
         break;
+      case 'assignee': {
+        const pA = people.find(p => p.id === a.person_id);
+        const pB = people.find(p => p.id === b.person_id);
+        cmp = (pA?.name || '').localeCompare(pB?.name || '');
+        break;
+      }
       case 'date_due': {
         if (!a.date_due && !b.date_due) cmp = 0;
         else if (!a.date_due) cmp = 1;
@@ -563,7 +713,9 @@ export default function ProjectDetailPage() {
 
       <div className="task-tabs" style={{ marginBottom: '16px' }}>
         {TASK_TABS.map(tab => {
-          const count = visibleTasks.filter(t => tab.statuses.includes(t.status)).length;
+          const count = tab.key === 'priorities'
+            ? tasks.filter(t => t.is_starred).length
+            : visibleTasks.filter(t => tab.statuses.includes(t.status)).length;
           return (
             <button
               key={tab.key}
@@ -576,6 +728,159 @@ export default function ProjectDetailPage() {
           );
         })}
       </div>
+
+      {/* Task Table */}
+      {tasksLoading ? (
+        <div className="glass-panel" style={{ marginBottom: '16px' }}>
+          {[...Array(3)].map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
+        </div>
+      ) : sortedTasks.length === 0 ? (
+        <div className="glass-panel" style={{ marginBottom: '16px' }}>
+          <div className="empty-state">
+            <div className="empty-icon">✓</div>
+            <h3>No tasks in this tab</h3>
+            <p>Add a task with the + button or link existing tasks.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="glass-panel data-table-wrapper" style={{ marginBottom: '16px' }}>
+          <div className="mobile-hide" style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px' }}>
+            <div style={{ position: 'relative' }}>
+              <button
+                className="btn-icon"
+                onClick={() => setShowColumnPicker(v => !v)}
+                title="Manage columns"
+                aria-label="Manage columns"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+              </button>
+              {showColumnPicker && (
+                <div className="glass-panel glass-panel-strong" style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: '100%',
+                  marginTop: '6px',
+                  zIndex: 200,
+                  padding: '16px',
+                  minWidth: '240px',
+                  boxShadow: 'var(--shadow-xl)',
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                    Manage Columns
+                  </div>
+                  <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    {columnOrder.map((col, index) => (
+                      <div
+                        key={col}
+                        className={`column-picker-item ${draggedIndex === index ? 'dragging' : ''}`}
+                        draggable
+                        onDragStart={(e) => handleColumnDragStart(e, index)}
+                        onDragOver={(e) => handleColumnDragOver(e, index)}
+                        onDragEnd={handleColumnDragEnd}
+                      >
+                        <div className="drag-handle" title="Drag to reorder">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <circle cx="9" cy="5" r="1.5" fill="currentColor"/>
+                            <circle cx="15" cy="5" r="1.5" fill="currentColor"/>
+                            <circle cx="9" cy="12" r="1.5" fill="currentColor"/>
+                            <circle cx="15" cy="12" r="1.5" fill="currentColor"/>
+                            <circle cx="9" cy="19" r="1.5" fill="currentColor"/>
+                            <circle cx="15" cy="19" r="1.5" fill="currentColor"/>
+                          </svg>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={!!visibleColumns[col]}
+                          onChange={() => toggleColumnVisibility(col)}
+                        />
+                        <span style={{ fontSize: '0.85rem', color: visibleColumns[col] ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                          {COLUMN_LABEL(col)}
+                        </span>
+                        <div className="column-reorder-btns">
+                          <button
+                            className="reorder-btn"
+                            onClick={() => moveColumn(index, -1)}
+                            disabled={index === 0}
+                            title="Move Up"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            className="reorder-btn"
+                            onClick={() => moveColumn(index, 1)}
+                            disabled={index === columnOrder.length - 1}
+                            title="Move Down"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <table className="data-table" style={{ tableLayout: 'fixed' }}>
+            <thead>
+              <tr>
+                <th style={{ width: '40px' }}>
+                  <input
+                    type="checkbox"
+                    className="task-checkbox"
+                    checked={sortedTasks.length > 0 && sortedTasks.every(t => selectedTaskIds.has(t.id))}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
+                {columnOrder.map(col => {
+                  if (!visibleColumns[col]) return null;
+                  const isSortable = ['urgency', 'status', 'priority', 'title', 'assignee', 'ect', 'date_due', 'days_left'].includes(col);
+                  return (
+                    <th
+                      key={col}
+                      className={(isSortable ? 'sortable-header ' : '') + 'desktop-only-cell'}
+                      style={{ width: columnWidths[col] }}
+                      onClick={isSortable ? () => handleSort(col) : undefined}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>
+                          {COLUMN_LABEL(col)} {isSortable && <SortIndicator columnKey={col} />}
+                        </span>
+                        <div
+                          className="resizer"
+                          onMouseDown={(e) => handleResizeStart(e, col)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {sortedTasks.map((task, index) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  viewMode="desktop"
+                  visibleColumns={visibleColumns}
+                  columnOrder={columnOrder}
+                  isSelected={selectedTaskIds.has(task.id)}
+                  onClick={(e) => handleTaskClick(e, task.id, index)}
+                  onUpdateTask={updateTask}
+                  onSelectionToggle={toggleSelectionOne}
+                  projects={projects}
+                  people={people}
+                  areas={areas}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Inline create form */}
       {showCreateForm && (
