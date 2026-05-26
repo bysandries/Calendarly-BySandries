@@ -10,7 +10,7 @@ const path = require('path');
 const { URL } = require('url');
 
 const API_PORT = process.env.PORT || 3000;
-const EXTERNAL_URL = process.env.GEMINI_EXTERNAL_STATS_API || 'https://dietpi.tailc92e5c.ts.net/agents';
+const EXTERNAL_URL = process.env.GEMINI_EXTERNAL_STATS_API || 'https://dietpi.tailc92e5c.ts.net/api/code-agents';
 const SCRATCH_DIR = '/Users/bysandries/.gemini/antigravity-cli/scratch';
 const PENDING_DIR = path.join(SCRATCH_DIR, 'pending_stats');
 
