@@ -64,6 +64,11 @@ export function getStatusInfo(rawStatus) {
  */
 export const TASK_TABS = [
   {
+    key: 'priorities',
+    label: 'Priorities',
+    statuses: [], // Filtered by is_starred instead
+  },
+  {
     key: 'actionable',
     label: 'Actionable',
     statuses: [

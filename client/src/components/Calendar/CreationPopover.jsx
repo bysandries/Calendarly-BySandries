@@ -150,7 +150,17 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
   const selectedAreaObj = areas.find(a => a.id === area);
   const accentColor = selectedAreaObj ? selectedAreaObj.color_hex : 'var(--accent-primary)';
 
-  const style = {
+  const isMobile = window.innerWidth <= 768;
+
+  const style = isMobile ? {
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    zIndex: 900,
+    width: '95%',
+    maxWidth: '420px',
+  } : {
     position: 'fixed',
     top: `${initialData.y}px`,
     left: `${initialData.x}px`,

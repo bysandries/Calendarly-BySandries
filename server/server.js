@@ -30,6 +30,7 @@ app.use((req, res, next) => {
 const eventsRouter = require('./routes/events');
 const areasRouter = require('./routes/areas');
 const projectsRouter = require('./routes/projects');
+const peopleRouter = require('./routes/people');
 const tasksRouter = require('./routes/tasks');
 const notesRouter = require('./routes/notes');
 const extractsRouter = require('./routes/extracts');
@@ -48,6 +49,7 @@ const habitLogsRouter = require('./routes/habit-logs');
 app.use('/api/events', eventsRouter);
 app.use('/api/areas', areasRouter);
 app.use('/api/projects', projectsRouter);
+app.use('/api/people', peopleRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/notes', notesRouter);
 app.use('/api/extracts', extractsRouter);

@@ -81,6 +81,15 @@ router.get('/', async (req, res) => {
       }
     }
 
+    // Parse navigation config safely
+    if (dbSettings.navigation_config) {
+      try {
+        dbSettings.navigation_config = JSON.parse(dbSettings.navigation_config);
+      } catch (_) {
+        dbSettings.navigation_config = null;
+      }
+    }
+
     // Get sanitized environment variables
     const envSettings = {
       PORT: process.env.PORT || '3000',
@@ -525,6 +534,45 @@ router.get('/gitignore-status', (req, res) => {
   } catch (error) {
     console.error('Error fetching gitignore status:', error);
     res.status(500).json({ success: false, error: 'Failed to inspect Git protections' });
+  }
+});
+
+// ── 10. POST Batch Assign Default ──
+router.post('/batch-assign-default', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    
+    // 1. Get current default assignee from settings
+    const setting = await db.get('SELECT value FROM settings WHERE key = ?', ['default_assignee']);
+    if (!setting || !setting.value) {
+      return res.status(400).json({ success: false, error: 'No default assignee configured in Team Settings.' });
+    }
+    
+    const defaultPersonId = setting.value;
+
+    // 2. Update projects
+    const projectResult = await db.run(
+      'UPDATE projects SET person_id = ? WHERE person_id IS NULL OR person_id = ""',
+      [defaultPersonId]
+    );
+
+    // 3. Update tasks
+    const taskResult = await db.run(
+      'UPDATE tasks SET person_id = ? WHERE person_id IS NULL OR person_id = ""',
+      [defaultPersonId]
+    );
+
+    res.json({
+      success: true,
+      message: `Batch assignment complete!`,
+      details: {
+        projectsUpdated: projectResult.changes,
+        tasksUpdated: taskResult.changes
+      }
+    });
+  } catch (error) {
+    console.error('Error during batch assignment:', error);
+    res.status(500).json({ success: false, error: 'Batch assignment operation failed.' });
   }
 });
 

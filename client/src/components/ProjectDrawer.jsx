@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchAreas, createProject as apiCreate, updateProject as apiUpdate, fetchTasks, updateTask } from '../utils/api';
 import AreaPicker from './AreaPicker';
+import PersonPicker from './PersonPicker';
 import ProjectStatusBadge from './ProjectStatusBadge';
 import { calcProgression, calcImportance, formatDuration } from '../lib/taskMath';
 
@@ -16,7 +17,7 @@ const EMPTY_FORM = {
   methodology: 'PALM',
   goals_aligned: [],
   description: '',
-  person_in_charge: '',
+  person_id: '',
   due_date: '',
   start_date: '',
   end_date: '',
@@ -59,7 +60,7 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
         methodology: project.methodology || 'PALM',
         goals_aligned: project.goals_aligned || [],
         description: project.description || '',
-        person_in_charge: project.person_in_charge || '',
+        person_id: project.person_id || '',
         due_date: project.due_date || '',
         start_date: project.start_date || '',
         end_date: project.end_date || '',
@@ -222,13 +223,10 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
             </div>
 
             <div className="detail-row">
-              <span className="detail-label">Persons</span>
-              <input
-                className="form-input"
-                value={formData.person_in_charge}
-                onChange={(e) => set('person_in_charge', e.target.value)}
-                placeholder="Responsible person"
-                style={{ padding: '4px 10px', fontSize: '0.85rem' }}
+              <span className="detail-label">Person</span>
+              <PersonPicker
+                value={formData.person_id}
+                onSelect={(id) => set('person_id', id)}
               />
             </div>
           </div>

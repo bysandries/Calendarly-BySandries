@@ -15,6 +15,10 @@ router.get('/', async (req, res) => {
       conditions.push('project_id = ?');
       params.push(req.query.project_id);
     }
+    if (req.query.person_id) {
+      conditions.push('person_id = ?');
+      params.push(req.query.person_id);
+    }
     if (req.query.status) {
       conditions.push('status = ?');
       params.push(req.query.status);
@@ -43,7 +47,7 @@ router.get('/', async (req, res) => {
 // POST /api/tasks
 // Creates a new task (GTD capture or Kanban card)
 router.post('/', async (req, res) => {
-  const { title, status, project_id, date_due, priority, notes, estimated_minutes } = req.body;
+  const { title, status, project_id, date_due, priority, notes, estimated_minutes, is_starred, person_id } = req.body;
 
   if (!title) {
     return res.status(400).json({ error: 'title is required' });
@@ -56,9 +60,18 @@ router.post('/', async (req, res) => {
 
   try {
     const db = await getDbConnection();
+    
+    let finalPersonId = person_id;
+    if (!finalPersonId) {
+      const defaultAssigneeSetting = await db.get('SELECT value FROM settings WHERE key = ?', ['default_assignee']);
+      if (defaultAssigneeSetting) {
+        finalPersonId = defaultAssigneeSetting.value;
+      }
+    }
+
     await db.run(
-      `INSERT INTO tasks (id, title, status, project_id, date_due, priority, notes, estimated_minutes, received_date, finished_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (id, title, status, project_id, date_due, priority, notes, estimated_minutes, received_date, finished_date, is_starred, person_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         taskId,
         title,
@@ -70,6 +83,8 @@ router.post('/', async (req, res) => {
         Number.isFinite(Number(estimated_minutes)) ? Number(estimated_minutes) : 0,
         receivedDate,
         finishedDate,
+        is_starred ? 1 : 0,
+        finalPersonId || null
       ]
     );
 
@@ -120,7 +135,7 @@ router.patch('/:id', async (req, res) => {
     await db.run(
       `UPDATE tasks
        SET title = ?, status = ?, project_id = ?, date_due = ?, priority = ?, notes = ?,
-           estimated_minutes = ?, received_date = ?, finished_date = ?
+           estimated_minutes = ?, received_date = ?, finished_date = ?, is_starred = ?, person_id = ?
        WHERE id = ?`,
       [
         merged.title,
@@ -132,6 +147,8 @@ router.patch('/:id', async (req, res) => {
         estimatedMinutes,
         merged.received_date || null,
         merged.finished_date || null,
+        merged.is_starred ? 1 : 0,
+        merged.person_id || null,
         id
       ]
     );

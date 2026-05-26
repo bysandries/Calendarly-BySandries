@@ -34,7 +34,15 @@ const TASK_STATS_JOIN = `
 router.get('/', async (req, res) => {
   try {
     const db = await getDbConnection();
-    const projects = await db.all(TASK_STATS_JOIN);
+    let query = TASK_STATS_JOIN;
+    const params = [];
+
+    if (req.query.person_id) {
+      query += ' WHERE p.person_id = ?';
+      params.push(req.query.person_id);
+    }
+
+    const projects = await db.all(query, params);
     const parsedProjects = projects.map(p => ({
       ...p,
       goals_aligned: p.goals_aligned ? JSON.parse(p.goals_aligned) : []
@@ -62,6 +70,7 @@ router.post('/', async (req, res) => {
     due_date,
     start_date,
     end_date,
+    person_id,
   } = req.body;
 
   if (!title || !status || !area || !pillar || !phase) {
@@ -73,15 +82,25 @@ router.post('/', async (req, res) => {
 
   try {
     const db = await getDbConnection();
+    
+    let finalPersonId = person_id;
+    if (!finalPersonId) {
+      const defaultAssigneeSetting = await db.get('SELECT value FROM settings WHERE key = ?', ['default_assignee']);
+      if (defaultAssigneeSetting) {
+        finalPersonId = defaultAssigneeSetting.value;
+      }
+    }
+
     await db.run(
       `INSERT INTO projects
          (id, title, status, area, pillar, methodology, phase, goals_aligned, description,
-          person_in_charge, due_date, start_date, end_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          person_in_charge, due_date, start_date, end_date, person_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         projectId, title, status, area, pillar,
         methodology || 'PALM', phase, finalGoals, description || '',
         person_in_charge || null, due_date || null, start_date || null, end_date || null,
+        finalPersonId || null
       ]
     );
 
@@ -125,13 +144,14 @@ router.patch('/:id', async (req, res) => {
       `UPDATE projects
        SET title = ?, status = ?, area = ?, pillar = ?, methodology = ?, phase = ?,
            goals_aligned = ?, description = ?,
-           person_in_charge = ?, due_date = ?, start_date = ?, end_date = ?
+           person_in_charge = ?, due_date = ?, start_date = ?, end_date = ?, person_id = ?
        WHERE id = ?`,
       [
         merged.title, merged.status, merged.area, merged.pillar,
         merged.methodology, merged.phase, goalsAligned, merged.description,
         merged.person_in_charge || null, merged.due_date || null,
         merged.start_date || null, merged.end_date || null,
+        merged.person_id || null,
         id,
       ]
     );
@@ -195,14 +215,15 @@ router.delete('/:id', async (req, res) => {
       await db.run(
         `INSERT INTO deleted_projects
            (id, title, status, area, pillar, methodology, phase, goals_aligned, description,
-            person_in_charge, due_date, start_date, end_date, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            person_in_charge, due_date, start_date, end_date, deleted_at, person_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           project.id, project.title, project.status, project.area, project.pillar,
           project.methodology, project.phase, project.goals_aligned, project.description,
           project.person_in_charge || null, project.due_date || null,
           project.start_date || null, project.end_date || null,
           deletedAt,
+          project.person_id || null
         ]
       );
       await db.run('DELETE FROM projects WHERE id = ?', [id]);

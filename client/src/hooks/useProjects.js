@@ -1,23 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchProjects, createProject as apiCreate, updateProject as apiUpdate, deleteProject as apiDelete } from '../utils/api';
 
-export function useProjects() {
+export function useProjects(initialFilters = {}) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filters, setFilters] = useState(initialFilters);
 
-  const loadProjects = useCallback(async () => {
+  const loadProjects = useCallback(async (overrideFilters) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchProjects();
+      const data = await fetchProjects(overrideFilters || filters);
       setProjects(data);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters]);
 
   useEffect(() => {
     loadProjects();
@@ -47,5 +48,10 @@ export function useProjects() {
     return result;
   };
 
-  return { projects, loading, error, createProject, updateProject, deleteProject, refetch: loadProjects };
+  const refetch = (newFilters) => {
+    if (newFilters) setFilters(newFilters);
+    loadProjects(newFilters);
+  };
+
+  return { projects, loading, error, createProject, updateProject, deleteProject, refetch };
 }
