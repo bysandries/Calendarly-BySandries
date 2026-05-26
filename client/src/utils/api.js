@@ -52,7 +52,7 @@ export const deleteTask = (id) => api.delete(`/tasks/${id}`);
 
 // ── Projects ──
 
-export const fetchProjects = () => api.get('/projects');
+export const fetchProjects = (filters) => api.get('/projects', filters);
 export const createProject = (data) => api.post('/projects', data);
 export const updateProject = (id, data) => api.patch(`/projects/${id}`, data);
 export const deleteProject = (id) => api.delete(`/projects/${id}`);
@@ -153,6 +153,13 @@ export const logHabit = (habit_id, data = {}) => api.post(`/habit-logs/quick/${h
 export const createHabitLog = (data) => api.post('/habit-logs', data);
 export const updateHabitLog = (id, data) => api.patch(`/habit-logs/${id}`, data);
 export const deleteHabitLog = (id) => api.delete(`/habit-logs/${id}`);
+
+// ── People ──
+
+export const fetchPeople = () => api.get('/people');
+export const createPerson = (data) => api.post('/people', data);
+export const updatePerson = (id, data) => api.patch(`/people/${id}`, data);
+export const deletePerson = (id) => api.delete(`/people/${id}`);
 
 // ── OpenCode Sync ──
 

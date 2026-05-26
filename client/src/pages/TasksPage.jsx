@@ -1,24 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
+import { usePeople } from '../hooks/usePeople';
 import { fetchAreas } from '../utils/api';
-import ProjectPicker from '../components/ProjectPicker';
 import TaskCard from '../components/TaskCard';
-import { getStatusInfo, GTD_STATUSES, TASK_TABS, PRIORITY_COLORS, getNextPriority } from '../utils/statusMap';
-import { formatDuration, calcDaysLeft, formatDaysLeft, calcUrgency, formatIsoDateShort } from '../lib/taskMath';
+import TaskDrawer from '../components/TaskDrawer';
+import { getStatusInfo, GTD_STATUSES, TASK_TABS } from '../utils/statusMap';
+import { calcDaysLeft, calcUrgency } from '../lib/taskMath';
 
 export default function TasksPage() {
   const { tasks, loading, error, createTask, updateTask, deleteTask, refetch } = useTasks();
   const { projects, createProject } = useProjects();
+  const { people } = usePeople();
   const [areas, setAreas] = useState([]);
   const [projectFilter, setProjectFilter] = useState('');
   const [activeTab, setActiveTab] = useState('actionable');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', project_id: '', priority: 0, estimated_minutes: '' });
+  
+  // Selection & Drawer State
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
+  const [lastSelectedIndex, setLastSelectedIndex] = useState(null);
+  const [isSelectMode, setIsSelectMode] = useState(false); // For mobile
+  
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [visibleColumns, setVisibleColumns] = useState({
+    starred: true,
     urgency: true,
     status: true,
     priority: true,
@@ -29,16 +36,19 @@ export default function TasksPage() {
     days_left: true,
     notes: false,
     actions: true,
+    assignee: true,
   });
   const [columnOrder, setColumnOrder] = useState([
-    'urgency', 'status', 'priority', 'title', 'project', 'ect', 'date_due', 'days_left', 'notes', 'actions'
+    'starred', 'urgency', 'status', 'priority', 'title', 'project', 'assignee', 'ect', 'date_due', 'days_left', 'notes', 'actions'
   ]);
   const [columnWidths, setColumnWidths] = useState({
+    starred: 40,
     urgency: 100,
     status: 130,
     priority: 80,
     title: 300,
     project: 180,
+    assignee: 120,
     ect: 90,
     date_due: 130,
     days_left: 90,
@@ -46,6 +56,7 @@ export default function TasksPage() {
     actions: 60,
   });
   const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState(null);
   const resizingColumn = useRef(null);
 
   useEffect(() => {
@@ -82,6 +93,28 @@ export default function TasksPage() {
     document.body.style.cursor = 'col-resize';
   };
 
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index);
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const newOrder = [...columnOrder];
+    const item = newOrder.splice(draggedIndex, 1)[0];
+    newOrder.splice(index, 0, item);
+    
+    setColumnOrder(newOrder);
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
   const moveColumn = (index, direction) => {
     const newOrder = [...columnOrder];
     const targetIndex = index + direction;
@@ -91,7 +124,6 @@ export default function TasksPage() {
     newOrder[targetIndex] = temp;
     setColumnOrder(newOrder);
   };
-  const titleInputRef = useRef(null);
 
   useEffect(() => {
     fetchAreas().then(setAreas).catch(() => {});
@@ -101,19 +133,7 @@ export default function TasksPage() {
     const filters = {};
     if (projectFilter) filters.project_id = projectFilter;
     refetch(filters);
-  }, [projectFilter]);
-
-  const getProjectTitle = (projectId) => {
-    const p = projects.find(pr => pr.id === projectId);
-    return p ? p.title : null;
-  };
-
-  const getProjectArea = (projectId) => {
-    const p = projects.find(pr => pr.id === projectId);
-    if (!p) return null;
-    const area = areas.find(a => a.id === p.area);
-    return area || null;
-  };
+  }, [projectFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -130,49 +150,55 @@ export default function TasksPage() {
     setShowCreateForm(false);
   };
 
-  const toggleSelect = (id) => {
+  const handleTaskClick = (e, id, index) => {
+    const isShift = e.shiftKey;
+    const isCmdCtrl = e.metaKey || e.ctrlKey || isSelectMode;
+
     setSelectedTaskIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+
+      if (isShift && lastSelectedIndex !== null) {
+        // Range selection
+        const start = Math.min(lastSelectedIndex, index);
+        const end = Math.max(lastSelectedIndex, index);
+        const rangeIds = sortedTasks.slice(start, end + 1).map(t => t.id);
+        rangeIds.forEach(rid => next.add(id)); // Wait, should be rid
+        // Re-implementing correctly:
+        const rangeSet = new Set(prev);
+        sortedTasks.slice(start, end + 1).forEach(t => rangeSet.add(t.id));
+        return rangeSet;
+      } else if (isCmdCtrl) {
+        // Additive toggle
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+      } else {
+        // Single selection
+        if (next.has(id) && next.size === 1) {
+          // If clicking the same one already selected, keep it or toggle? 
+          // Usually single click just selects that one.
+          return new Set([id]);
+        }
+        return new Set([id]);
+      }
       return next;
     });
+
+    setLastSelectedIndex(index);
   };
 
-  const toggleSelectAll = () => {
-    setSelectedTaskIds(prev => {
-      const allSelected = sortedTasks.length > 0 && sortedTasks.every(t => prev.has(t.id));
-      if (allSelected) {
-        return new Set();
-      }
-      return new Set(sortedTasks.map(t => t.id));
-    });
-  };
-
-  const clearSelection = () => setSelectedTaskIds(new Set());
-
-  const handleBulkStatusChange = async (newStatus) => {
-    const ids = Array.from(selectedTaskIds);
-    for (const id of ids) {
-      await updateTask(id, { status: newStatus });
-    }
-    clearSelection();
+  const clearSelection = () => {
+    setSelectedTaskIds(new Set());
+    setLastSelectedIndex(null);
   };
 
   const visibleTasks = tasks.filter(t => t.status !== '00 - Not Actionable');
-
   const activeTabDef = TASK_TABS.find(t => t.key === activeTab);
-  
-  const STATUS_COLORS = {
-    actionable: '#3498DB', // Blue
-    planned: '#9B59B6',    // Purple
-    someday: '#E67E22',    // Orange
-    done: '#2ECC71'        // Green
-  };
 
-  const filteredTasks = activeTabDef
-    ? visibleTasks.filter(t => activeTabDef.statuses.includes(t.status))
-    : visibleTasks;
+  const filteredTasks = activeTab === 'priorities'
+    ? tasks.filter(t => t.is_starred)
+    : (activeTabDef
+        ? visibleTasks.filter(t => activeTabDef.statuses.includes(t.status))
+        : visibleTasks);
 
   const handleSort = (key) => {
     setSortConfig(prev => {
@@ -200,9 +226,15 @@ export default function TasksPage() {
         cmp = (a.title || '').localeCompare(b.title || '');
         break;
       case 'project': {
-        const titleA = getProjectTitle(a.project_id) || '';
-        const titleB = getProjectTitle(b.project_id) || '';
-        cmp = titleA.localeCompare(titleB);
+        const pA = projects.find(p => p.id === a.project_id);
+        const pB = projects.find(p => p.id === b.project_id);
+        cmp = (pA?.title || '').localeCompare(pB?.title || '');
+        break;
+      }
+      case 'assignee': {
+        const pA = people.find(p => p.id === a.person_id);
+        const pB = people.find(p => p.id === b.person_id);
+        cmp = (pA?.name || '').localeCompare(pB?.name || '');
         break;
       }
       case 'date_due': {
@@ -225,7 +257,6 @@ export default function TasksPage() {
         break;
       }
       case 'urgency': {
-        // Sort by slack ascending (most critical first when asc)
         const uA = calcUrgency(calcDaysLeft(a.date_due), a.estimated_minutes);
         const uB = calcUrgency(calcDaysLeft(b.date_due), b.estimated_minutes);
         const sA = uA.slack === null ? Number.POSITIVE_INFINITY : uA.slack;
@@ -244,19 +275,22 @@ export default function TasksPage() {
     return <span className="sort-indicator active">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
   };
 
+  const selectedTasks = sortedTasks.filter(t => selectedTaskIds.has(t.id));
+
   return (
     <div>
       <div className="page-header">
         <h2>Tasks</h2>
-        <p className="page-description">Manage your GTD workflow — click status badges and priority dots to edit inline</p>
+        <p className="page-description">Click to select — Use Shift or Cmd/Ctrl for multiple — Side drawer for editing</p>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs & Filters */}
       <div className="filter-bar">
-        {/* Desktop Tabs */}
         <div className="task-tabs desktop-only">
           {TASK_TABS.map(tab => {
-            const count = visibleTasks.filter(t => tab.statuses.includes(t.status)).length;
+            const count = tab.key === 'priorities'
+              ? tasks.filter(t => t.is_starred).length
+              : visibleTasks.filter(t => tab.statuses.includes(t.status)).length;
             return (
               <button
                 key={tab.key}
@@ -270,7 +304,6 @@ export default function TasksPage() {
           })}
         </div>
 
-        {/* Mobile Selection Menu */}
         <div className="task-status-mobile-menu mobile-only">
           <label htmlFor="mobile-status-select" className="form-label" style={{ marginBottom: '8px', display: 'block' }}>View Status</label>
           <select
@@ -280,7 +313,9 @@ export default function TasksPage() {
             onChange={(e) => setActiveTab(e.target.value)}
           >
             {TASK_TABS.map(tab => {
-              const count = visibleTasks.filter(t => tab.statuses.includes(t.status)).length;
+              const count = tab.key === 'priorities'
+                ? tasks.filter(t => t.is_starred).length
+                : visibleTasks.filter(t => tab.statuses.includes(t.status)).length;
               return (
                 <option key={tab.key} value={tab.key}>
                   {tab.label} ({count})
@@ -290,16 +325,25 @@ export default function TasksPage() {
           </select>
         </div>
 
-        <select
-          className="filter-select desktop-only"
-          value={projectFilter}
-          onChange={(e) => setProjectFilter(e.target.value)}
-        >
-          <option value="">All Projects</option>
-          {projects.map(p => (
-            <option key={p.id} value={p.id}>{p.title}</option>
-          ))}
-        </select>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            className={`btn ${isSelectMode ? 'btn-primary' : 'btn-ghost'} mobile-only`}
+            onClick={() => setIsSelectMode(!isSelectMode)}
+          >
+            {isSelectMode ? 'Cancel Select' : 'Select Mode'}
+          </button>
+
+          <select
+            className="filter-select desktop-only"
+            value={projectFilter}
+            onChange={(e) => setProjectFilter(e.target.value)}
+          >
+            <option value="">All Projects</option>
+            {projects.map(p => (
+              <option key={p.id} value={p.id}>{p.title}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Create Form */}
@@ -347,29 +391,7 @@ export default function TasksPage() {
         </div>
       )}
 
-      {/* Bulk Action Bar */}
-      {selectedTaskIds.size > 0 && (
-        <div className="glass-panel bulk-action-bar" style={{ padding: '12px 20px', marginBottom: '16px' }}>
-          <span className="bulk-count">{selectedTaskIds.size} selected</span>
-          <select
-            className="form-select"
-            defaultValue=""
-            onChange={(e) => handleBulkStatusChange(e.target.value)}
-            style={{ minWidth: '160px' }}
-          >
-            <option value="" disabled>Change status to...</option>
-            {GTD_STATUSES.map(s => (
-              <option key={s} value={s}>{getStatusInfo(s).label}</option>
-            ))}
-          </select>
-          <button className="btn btn-primary" onClick={() => handleBulkStatusChange('07 - Done')}>
-            Mark as Done
-          </button>
-          <button className="btn btn-ghost" onClick={clearSelection}>Clear</button>
-        </div>
-      )}
-
-      {/* Table */}
+      {/* Table Section */}
       {loading ? (
         <div className="glass-panel">
           {[...Array(5)].map((_, i) => (
@@ -412,7 +434,24 @@ export default function TasksPage() {
                   <div style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Manage Columns</div>
                   <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                     {columnOrder.map((col, index) => (
-                      <div key={col} className="column-picker-item">
+                      <div 
+                        key={col} 
+                        className={`column-picker-item ${draggedIndex === index ? 'dragging' : ''}`}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, index)}
+                        onDragOver={(e) => handleDragOver(e, index)}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <div className="drag-handle" title="Drag to reorder">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <circle cx="9" cy="5" r="1.5" fill="currentColor"/>
+                            <circle cx="15" cy="5" r="1.5" fill="currentColor"/>
+                            <circle cx="9" cy="12" r="1.5" fill="currentColor"/>
+                            <circle cx="15" cy="12" r="1.5" fill="currentColor"/>
+                            <circle cx="9" cy="19" r="1.5" fill="currentColor"/>
+                            <circle cx="15" cy="19" r="1.5" fill="currentColor"/>
+                          </svg>
+                        </div>
                         <input
                           type="checkbox"
                           checked={visibleColumns[col]}
@@ -449,21 +488,12 @@ export default function TasksPage() {
           <table className="data-table" style={{ tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th className="mobile-hide-col" style={{ width: '40px' }}>
-                  <input
-                    type="checkbox"
-                    className="task-checkbox"
-                    checked={sortedTasks.length > 0 && sortedTasks.every(t => selectedTaskIds.has(t.id))}
-                    onChange={toggleSelectAll}
-                    title="Select all"
-                  />
-                </th>
                 {columnOrder.map(col => {
                   if (!visibleColumns[col]) return null;
                   
                   const label = col.charAt(0).toUpperCase() + col.slice(1).replace('_', ' ');
-                  const isSortable = ['urgency', 'status', 'priority', 'title', 'project', 'ect', 'date_due', 'days_left'].includes(col);
-                  const desktopOnly = col !== 'title'; // User wants ONLY task name and due date (due date will be in subtext)
+                  const isSortable = ['urgency', 'status', 'priority', 'title', 'project', 'assignee', 'ect', 'date_due', 'days_left'].includes(col);
+                  const desktopOnly = col !== 'title';
                   const headerClass = (isSortable ? "sortable-header " : "") + (desktopOnly ? "desktop-only-cell" : "");
                   
                   return (
@@ -489,27 +519,35 @@ export default function TasksPage() {
               </tr>
             </thead>
             <tbody>
-              {sortedTasks.map(task => (
+              {sortedTasks.map((task, index) => (
                 <TaskCard
                   key={task.id}
                   task={task}
                   viewMode="desktop"
                   visibleColumns={visibleColumns}
                   columnOrder={columnOrder}
-                  columnWidths={columnWidths}
                   isSelected={selectedTaskIds.has(task.id)}
-                  onToggleSelect={toggleSelect}
+                  onClick={(e) => handleTaskClick(e, task.id, index)}
                   onUpdateTask={updateTask}
-                  onDeleteTask={deleteTask}
                   projects={projects}
+                  people={people}
                   areas={areas}
-                  createProject={createProject}
                 />
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {/* Task Drawer */}
+      <TaskDrawer
+        tasks={selectedTasks}
+        projects={projects}
+        areas={areas}
+        onSave={updateTask}
+        onDelete={deleteTask}
+        onClose={clearSelection}
+      />
 
       {/* FAB */}
       <button

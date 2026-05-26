@@ -2,121 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProjects } from '../hooks/useProjects';
 import { useTasks } from '../hooks/useTasks';
-import { fetchAreas, fetchTasks, updateTask } from '../utils/api';
-import { getStatusInfo, GTD_STATUSES, TASK_TABS, PRIORITY_COLORS, getNextPriority } from '../utils/statusMap';
+import { usePeople } from '../hooks/usePeople';
+import { fetchAreas, fetchTasks } from '../utils/api';
+import { getStatusInfo, GTD_STATUSES, TASK_TABS, PRIORITY_COLORS } from '../utils/statusMap';
 import { formatDuration, calcDaysLeft, formatDaysLeft, calcUrgency, formatIsoDateShort } from '../lib/taskMath';
 import ProjectStatusBadge from '../components/ProjectStatusBadge';
 import ProjectPicker from '../components/ProjectPicker';
-
-// Inline edit modal for tasks
-function TaskEditModal({ task, isOpen, onClose, onSave, areas }) {
-  const [form, setForm] = useState({});
-  useEffect(() => {
-    if (task) setForm({ ...task });
-  }, [task]);
-  if (!isOpen || !task) return null;
-
-  const handleSave = (e) => {
-    e.preventDefault();
-    onSave(task.id, form);
-    onClose();
-  };
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
-        <div className="modal-header">
-          <h3>Edit Task</h3>
-          <button className="btn-icon" onClick={onClose} title="Close">✕</button>
-        </div>
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
-          <div className="form-group">
-            <label className="form-label">Title</label>
-            <input
-              className="form-input"
-              value={form.title || ''}
-              onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
-              required
-            />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div className="form-group">
-              <label className="form-label">Status</label>
-              <select
-                className="form-select"
-                value={form.status || '01 - Inbox'}
-                onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
-              >
-                {GTD_STATUSES.map(s => (
-                  <option key={s} value={s}>{getStatusInfo(s).label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Priority (0-3)</label>
-              <input
-                type="number"
-                min="0"
-                max="3"
-                className="form-input"
-                value={form.priority ?? 0}
-                onChange={(e) => setForm(f => ({ ...f, priority: parseInt(e.target.value, 10) || 0 }))}
-              />
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div className="form-group">
-              <label className="form-label">ECT (minutes)</label>
-              <input
-                type="number"
-                min="0"
-                step="5"
-                className="form-input"
-                value={form.estimated_minutes || ''}
-                onChange={(e) => setForm(f => ({ ...f, estimated_minutes: e.target.value ? parseInt(e.target.value, 10) : 0 }))}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Due Date</label>
-              <input
-                type="date"
-                className="form-input"
-                value={form.date_due || ''}
-                onChange={(e) => setForm(f => ({ ...f, date_due: e.target.value || null }))}
-              />
-            </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Area</label>
-            <select
-              className="form-select"
-              value={form.area_id || ''}
-              onChange={(e) => setForm(f => ({ ...f, area_id: e.target.value || null }))}
-            >
-              <option value="">— None —</option>
-              {areas.map(a => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Notes</label>
-            <textarea
-              className="form-input"
-              rows="3"
-              value={form.notes || ''}
-              onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Save Changes</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+import TaskCard from '../components/TaskCard';
+import TaskDrawer from '../components/TaskDrawer';
+import PersonPicker from '../components/PersonPicker';
 
 const PALM_PHASES = ['Plan', 'Act', 'Measure', 'Learn', 'Ignored'];
 
@@ -125,18 +19,41 @@ export default function ProjectDetailPage() {
   const navigate = useNavigate();
   const { projects, loading: projectsLoading, updateProject, createProject } = useProjects();
   const { tasks, loading: tasksLoading, createTask, updateTask, deleteTask, refetch } = useTasks({ project_id: id });
+  const { people } = usePeople();
   const [areas, setAreas] = useState([]);
   const [activeTab, setActiveTab] = useState('actionable');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', priority: 0, estimated_minutes: '' });
-  const [editingTitle, setEditingTitle] = useState(null);
-  const [editingEct, setEditingEct] = useState(null);
-  const [editingDueDate, setEditingDueDate] = useState(null);
+  
+  // Selection & Drawer State
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
+  const [lastSelectedIndex, setLastSelectedIndex] = useState(null);
+  
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-  const [editingTask, setEditingTask] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const titleInputRef = useRef(null);
+
+  // Project editing state
+  const [editingProjectTitle, setEditingProjectTitle] = useState(false);
+  const [editingProjectDesc, setEditingProjectDesc] = useState(false);
+  const [editingProjectGoals, setEditingProjectGoals] = useState(false);
+
+  // Column config for TaskCard
+  const [visibleColumns] = useState({
+    starred: true,
+    urgency: true,
+    status: true,
+    priority: true,
+    title: true,
+    project: false,
+    ect: true,
+    date_due: true,
+    days_left: true,
+    notes: true,
+    actions: false,
+    assignee: true,
+  });
+  const [columnOrder] = useState([
+    'starred', 'urgency', 'status', 'priority', 'title', 'assignee', 'ect', 'date_due', 'days_left', 'notes'
+  ]);
 
   // Find & Link modal state
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -174,69 +91,32 @@ export default function ProjectDetailPage() {
     setShowCreateForm(false);
   };
 
-  const handleEctBlur = async (task, raw) => {
-    setEditingEct(null);
-    const minutes = parseInt(raw, 10);
-    const next = Number.isFinite(minutes) && minutes > 0 ? minutes : 0;
-    if (next !== (task.estimated_minutes || 0)) {
-      await updateTask(task.id, { estimated_minutes: next });
-    }
-  };
+  const handleTaskClick = (e, id, index) => {
+    const isShift = e.shiftKey;
+    const isCmdCtrl = e.metaKey || e.ctrlKey;
 
-  const handleDueDateChange = async (task, value) => {
-    setEditingDueDate(null);
-    const next = value || null;
-    if (next !== (task.date_due || null)) {
-      await updateTask(task.id, { date_due: next });
-    }
-  };
-
-  const openEditModal = (task) => {
-    setEditingTask(task);
-    setShowEditModal(true);
-  };
-
-  const closeEditModal = () => {
-    setShowEditModal(false);
-    setEditingTask(null);
-  };
-
-  const handleSaveTask = async (taskId, form) => {
-    const updates = {};
-    if (form.title !== undefined) updates.title = form.title;
-    if (form.status !== undefined) updates.status = form.status;
-    if (form.priority !== undefined) updates.priority = form.priority;
-    if (form.estimated_minutes !== undefined) updates.estimated_minutes = form.estimated_minutes;
-    if (form.date_due !== undefined) updates.date_due = form.date_due;
-    if (form.area_id !== undefined) updates.area_id = form.area_id;
-    if (form.notes !== undefined) updates.notes = form.notes;
-    await updateTask(taskId, updates);
-  };
-
-  const handlePriorityCycle = async (task) => {
-    const next = getNextPriority(task.priority);
-    await updateTask(task.id, { priority: next });
-  };
-
-  const handleTitleBlur = async (task, newTitle) => {
-    setEditingTitle(null);
-    if (newTitle && newTitle !== task.title) {
-      await updateTask(task.id, { title: newTitle });
-    }
-  };
-
-  const handleTitleKeyDown = (e, task) => {
-    if (e.key === 'Enter') e.target.blur();
-    else if (e.key === 'Escape') setEditingTitle(null);
-  };
-
-  const toggleSelect = (id) => {
     setSelectedTaskIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+
+      if (isShift && lastSelectedIndex !== null) {
+        // Range selection
+        const start = Math.min(lastSelectedIndex, index);
+        const end = Math.max(lastSelectedIndex, index);
+        const rangeSet = new Set(prev);
+        sortedTasks.slice(start, end + 1).forEach(t => rangeSet.add(t.id));
+        return rangeSet;
+      } else if (isCmdCtrl) {
+        // Additive toggle
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+      } else {
+        // Single selection
+        return new Set([id]);
+      }
       return next;
     });
+
+    setLastSelectedIndex(index);
   };
 
   const toggleSelectAll = () => {
@@ -249,7 +129,10 @@ export default function ProjectDetailPage() {
     });
   };
 
-  const clearSelection = () => setSelectedTaskIds(new Set());
+  const clearSelection = () => {
+    setSelectedTaskIds(new Set());
+    setLastSelectedIndex(null);
+  };
 
   const handleBulkStatusChange = async (newStatus) => {
     const ids = Array.from(selectedTaskIds);
@@ -330,16 +213,6 @@ export default function ProjectDetailPage() {
     refetch({ project_id: id });
   };
 
-  const isOverdue = (dateStr) => {
-    if (!dateStr) return false;
-    return new Date(dateStr) < new Date(new Date().toDateString());
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
   const visibleTasks = tasks.filter(t => t.status !== '00 - Not Actionable');
 
   const activeTabDef = TASK_TABS.find(t => t.key === activeTab);
@@ -405,6 +278,8 @@ export default function ProjectDetailPage() {
     return sortConfig.direction === 'asc' ? cmp : -cmp;
   });
 
+  const selectedTasks = sortedTasks.filter(t => selectedTaskIds.has(t.id));
+
   const SortIndicator = ({ columnKey }) => {
     if (sortConfig.key !== columnKey) return <span className="sort-indicator">⇅</span>;
     return <span className="sort-indicator active">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
@@ -455,9 +330,59 @@ export default function ProjectDetailPage() {
             <div style={{ width: '4px', minHeight: '40px', borderRadius: '2px', background: area.color_hex, flexShrink: 0, marginTop: '4px' }} />
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{ marginBottom: '4px', fontSize: '1.3rem' }}>{project.title}</h2>
-            {project.description && (
-              <p className="page-description" style={{ marginBottom: 0 }}>{project.description}</p>
+            {editingProjectTitle ? (
+              <input
+                className="inline-edit"
+                defaultValue={project.title}
+                autoFocus
+                onBlur={async (e) => {
+                  setEditingProjectTitle(false);
+                  if (e.target.value && e.target.value !== project.title) {
+                    await updateProject(project.id, { title: e.target.value });
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.target.blur();
+                  else if (e.key === 'Escape') setEditingProjectTitle(false);
+                }}
+                style={{ fontSize: '1.3rem', fontWeight: 700, width: '100%', marginBottom: '4px' }}
+              />
+            ) : (
+              <h2
+                style={{ marginBottom: '4px', fontSize: '1.3rem', cursor: 'pointer' }}
+                onClick={() => setEditingProjectTitle(true)}
+                title="Click to edit title"
+              >
+                {project.title}
+              </h2>
+            )}
+
+            {editingProjectDesc ? (
+              <textarea
+                className="form-input"
+                defaultValue={project.description}
+                autoFocus
+                rows="3"
+                onBlur={async (e) => {
+                  setEditingProjectDesc(false);
+                  if (e.target.value !== project.description) {
+                    await updateProject(project.id, { description: e.target.value });
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setEditingProjectDesc(false);
+                }}
+                style={{ width: '100%', fontSize: '0.9rem' }}
+              />
+            ) : (
+              <p
+                className="page-description"
+                style={{ marginBottom: 0, cursor: 'pointer', minHeight: '1.2em' }}
+                onClick={() => setEditingProjectDesc(true)}
+                title="Click to edit description"
+              >
+                {project.description || 'Add a description...'}
+              </p>
             )}
           </div>
           <ProjectStatusBadge
@@ -467,7 +392,7 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Meta grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px', marginBottom: '20px' }}>
           {/* Area */}
           <div>
             <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Area</div>
@@ -499,36 +424,49 @@ export default function ProjectDetailPage() {
           </div>
 
           {/* Person in charge */}
-          {project.person_in_charge && (
-            <div>
-              <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Person</div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{project.person_in_charge}</div>
-            </div>
-          )}
+          <div>
+            <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Person</div>
+            <PersonPicker
+              value={project.person_id}
+              onSelect={(val) => updateProject(project.id, { person_id: val })}
+            />
+          </div>
 
           {/* Due date */}
-          {project.due_date && (
-            <div>
-              <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Due</div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatIsoDateShort(project.due_date)}</div>
-            </div>
-          )}
+          <div>
+            <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Due Date</div>
+            <input
+              type="date"
+              className="form-input"
+              style={{ padding: '3px 10px', height: 'auto', fontSize: '0.82rem', width: '100%' }}
+              value={project.due_date || ''}
+              onChange={(e) => updateProject(project.id, { due_date: e.target.value || null })}
+            />
+          </div>
 
           {/* Start date */}
-          {project.start_date && (
-            <div>
-              <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Start</div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatIsoDateShort(project.start_date)}</div>
-            </div>
-          )}
+          <div>
+            <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>Start Date</div>
+            <input
+              type="date"
+              className="form-input"
+              style={{ padding: '3px 10px', height: 'auto', fontSize: '0.82rem', width: '100%' }}
+              value={project.start_date || ''}
+              onChange={(e) => updateProject(project.id, { start_date: e.target.value || null })}
+            />
+          </div>
 
           {/* End date */}
-          {project.end_date && (
-            <div>
-              <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>End</div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatIsoDateShort(project.end_date)}</div>
-            </div>
-          )}
+          <div>
+            <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '4px' }}>End Date</div>
+            <input
+              type="date"
+              className="form-input"
+              style={{ padding: '3px 10px', height: 'auto', fontSize: '0.82rem', width: '100%' }}
+              value={project.end_date || ''}
+              onChange={(e) => updateProject(project.id, { end_date: e.target.value || null })}
+            />
+          </div>
 
           {/* Time Invested */}
           <div>
@@ -548,25 +486,52 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Goals aligned */}
-        {project.goals_aligned && project.goals_aligned.length > 0 && (
-          <div style={{ marginBottom: '14px' }}>
-            <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>Goals Aligned</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {project.goals_aligned.map((g, i) => (
-                <span key={i} style={{
-                  fontSize: '0.75rem',
-                  padding: '2px 10px',
-                  borderRadius: '10px',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid var(--glass-border)',
-                  color: 'var(--text-secondary)',
-                }}>
-                  {g}
-                </span>
-              ))}
+        <div style={{ marginBottom: '14px' }}>
+          <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>Goals Aligned</div>
+          {editingProjectGoals ? (
+            <input
+              className="form-input"
+              defaultValue={Array.isArray(project.goals_aligned) ? project.goals_aligned.join(', ') : project.goals_aligned || ''}
+              autoFocus
+              onBlur={async (e) => {
+                setEditingProjectGoals(false);
+                const next = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                if (JSON.stringify(next) !== JSON.stringify(project.goals_aligned)) {
+                  await updateProject(project.id, { goals_aligned: next });
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.target.blur();
+                else if (e.key === 'Escape') setEditingProjectGoals(false);
+              }}
+              placeholder="Enter goals separated by commas..."
+              style={{ width: '100%' }}
+            />
+          ) : (
+            <div
+              style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', cursor: 'pointer', minHeight: '24px' }}
+              onClick={() => setEditingProjectGoals(true)}
+              title="Click to edit goals"
+            >
+              {Array.isArray(project.goals_aligned) && project.goals_aligned.length > 0 ? (
+                project.goals_aligned.map((g, i) => (
+                  <span key={i} style={{
+                    fontSize: '0.75rem',
+                    padding: '2px 10px',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid var(--glass-border)',
+                    color: 'var(--text-secondary)',
+                  }}>
+                    {g}
+                  </span>
+                ))
+              ) : (
+                <span style={{ color: 'var(--text-dimmed)', fontSize: '0.82rem' }}>Add goals aligned with this project...</span>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* PALM Phase selector */}
         <div>
@@ -644,226 +609,15 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Bulk Action Bar */}
-      {selectedTaskIds.size > 0 && (
-        <div className="glass-panel bulk-action-bar" style={{ padding: '12px 20px', marginBottom: '16px' }}>
-          <span className="bulk-count">{selectedTaskIds.size} selected</span>
-          <select
-            className="form-select"
-            defaultValue=""
-            onChange={(e) => handleBulkStatusChange(e.target.value)}
-            style={{ minWidth: '160px' }}
-          >
-            <option value="" disabled>Change status to...</option>
-            {GTD_STATUSES.map(s => (
-              <option key={s} value={s}>{getStatusInfo(s).label}</option>
-            ))}
-          </select>
-          <button className="btn btn-primary" onClick={() => handleBulkStatusChange('07 - Done')}>
-            Mark as Done
-          </button>
-          <button className="btn btn-ghost" onClick={clearSelection}>Clear</button>
-        </div>
-      )}
-
-      {/* Tasks table */}
-      {tasksLoading ? (
-        <div className="glass-panel">
-          {[...Array(3)].map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
-        </div>
-      ) : sortedTasks.length === 0 ? (
-        <div className="glass-panel">
-          <div className="empty-state">
-            <div className="empty-icon">✓</div>
-            <h3>No {activeTabDef?.label.toLowerCase()} tasks</h3>
-            <p>Add a task or switch tabs to see other statuses.</p>
-          </div>
-        </div>
-      ) : (
-        <div className="glass-panel">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ width: '40px' }}>
-                  <input
-                    type="checkbox"
-                    className="task-checkbox"
-                    checked={sortedTasks.length > 0 && sortedTasks.every(t => selectedTaskIds.has(t.id))}
-                    onChange={toggleSelectAll}
-                    title="Select all"
-                  />
-                </th>
-                <th className="sortable-header" style={{ width: '100px' }} onClick={() => handleSort('urgency')}>Urgency <SortIndicator columnKey="urgency" /></th>
-                <th className="sortable-header" style={{ width: '130px' }} onClick={() => handleSort('status')}>Status <SortIndicator columnKey="status" /></th>
-                <th className="sortable-header" style={{ width: '60px' }} onClick={() => handleSort('priority')}>Priority <SortIndicator columnKey="priority" /></th>
-                <th className="sortable-header" onClick={() => handleSort('title')}>Title <SortIndicator columnKey="title" /></th>
-                <th className="sortable-header" style={{ width: '90px' }} onClick={() => handleSort('ect')}>ECT <SortIndicator columnKey="ect" /></th>
-                <th className="sortable-header" style={{ width: '130px' }} onClick={() => handleSort('date_due')}>Due Date <SortIndicator columnKey="date_due" /></th>
-                <th className="sortable-header" style={{ width: '90px' }} onClick={() => handleSort('days_left')}>Days Left <SortIndicator columnKey="days_left" /></th>
-                <th style={{ width: '40px' }}></th>
-                <th style={{ width: '40px' }}></th>
-                <th style={{ width: '40px' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedTasks.map(task => {
-                const statusInfo = getStatusInfo(task.status);
-                const daysLeft = calcDaysLeft(task.date_due);
-                const urgency = calcUrgency(daysLeft, task.estimated_minutes);
-                const urgencyTitle = [
-                  `Received: ${formatIsoDateShort(task.received_date)}`,
-                  `Finished: ${formatIsoDateShort(task.finished_date)}`,
-                  urgency.daysNeeded != null ? `Days needed: ${urgency.daysNeeded}` : null,
-                  urgency.slack != null ? `Slack: ${urgency.slack}d` : null,
-                ].filter(Boolean).join('\n');
-                return (
-                  <tr key={task.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        className="task-checkbox"
-                        checked={selectedTaskIds.has(task.id)}
-                        onChange={() => toggleSelect(task.id)}
-                      />
-                    </td>
-                    <td>
-                      <span className={`urgency-badge ${urgency.cssClass}`} title={urgencyTitle}>
-                        {urgency.label}
-                      </span>
-                    </td>
-                    <td>
-                      <select
-                        className={`status-select ${statusInfo.cssClass}`}
-                        value={task.status || '01 - Inbox'}
-                        onChange={(e) => updateTask(task.id, { status: e.target.value })}
-                        title="Change status"
-                      >
-                        {GTD_STATUSES.map(s => (
-                          <option key={s} value={s}>{getStatusInfo(s).label}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      <div
-                        className="priority-dots"
-                        onClick={() => handlePriorityCycle(task)}
-                        title={`Priority: ${task.priority}/3 — Click to cycle`}
-                      >
-                        {[1, 2, 3].map(level => (
-                          <div
-                            key={level}
-                            className={`priority-dot ${level <= task.priority ? 'filled' : ''}`}
-                            style={level <= task.priority ? { background: PRIORITY_COLORS[task.priority] } : {}}
-                          />
-                        ))}
-                      </div>
-                    </td>
-                    <td>
-                      {editingTitle === task.id ? (
-                        <input
-                          ref={titleInputRef}
-                          className="inline-edit"
-                          defaultValue={task.title}
-                          onBlur={(e) => handleTitleBlur(task, e.target.value)}
-                          onKeyDown={(e) => handleTitleKeyDown(e, task)}
-                          autoFocus
-                        />
-                      ) : (
-                        <span
-                          className="cell-truncate"
-                          style={{ cursor: 'text', display: 'block' }}
-                          onClick={() => setEditingTitle(task.id)}
-                          title="Click to edit"
-                        >
-                          {task.title}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {editingEct === task.id ? (
-                        <input
-                          type="number"
-                          min="0"
-                          step="5"
-                          className="inline-edit-compact"
-                          defaultValue={task.estimated_minutes || ''}
-                          autoFocus
-                          onBlur={(e) => handleEctBlur(task, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') e.target.blur();
-                            else if (e.key === 'Escape') setEditingEct(null);
-                          }}
-                        />
-                      ) : (
-                        <span
-                          className="ect-cell"
-                          onClick={() => setEditingEct(task.id)}
-                          title="Click to edit estimated completion time (minutes)"
-                        >
-                          {formatDuration(task.estimated_minutes)}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {editingDueDate === task.id ? (
-                        <input
-                          type="date"
-                          className="inline-edit-compact"
-                          defaultValue={task.date_due || ''}
-                          autoFocus
-                          onBlur={(e) => handleDueDateChange(task, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') e.target.blur();
-                            else if (e.key === 'Escape') setEditingDueDate(null);
-                          }}
-                        />
-                      ) : (
-                        <span
-                          className={isOverdue(task.date_due) ? 'overdue' : ''}
-                          onClick={() => setEditingDueDate(task.id)}
-                          style={{ cursor: 'pointer' }}
-                          title="Click to edit due date"
-                        >
-                          {formatDate(task.date_due)}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`days-left-cell ${daysLeft !== null && daysLeft < 0 ? 'overdue' : ''}`}>
-                        {formatDaysLeft(daysLeft)}
-                      </span>
-                    </td>
-                    <td>
-                      {task.notes && <span className="notes-indicator" title={task.notes}>📝</span>}
-                    </td>
-                    <td>
-                      <button
-                        className="btn-icon"
-                        onClick={() => openEditModal(task)}
-                        title="Edit task"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        ✎
-                      </button>
-                    </td>
-                    <td>
-                      <button
-                        className="btn-icon"
-                        onClick={() => {
-                          if (confirm('Delete this task?')) deleteTask(task.id);
-                        }}
-                        title="Delete task"
-                      >
-                        ✕
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* Task Drawer */}
+      <TaskDrawer
+        tasks={selectedTasks}
+        projects={projects}
+        areas={areas}
+        onSave={updateTask}
+        onDelete={deleteTask}
+        onClose={clearSelection}
+      />
 
       {/* Find & Link Modal */}
       {showLinkModal && (
@@ -1005,15 +759,6 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       )}
-
-      {/* Edit Task Modal */}
-      <TaskEditModal
-        task={editingTask}
-        isOpen={showEditModal}
-        onClose={closeEditModal}
-        onSave={handleSaveTask}
-        areas={areas}
-      />
 
       <button className="fab" onClick={() => setShowCreateForm(!showCreateForm)} title="Add task to project">
         +

@@ -4,6 +4,8 @@ import Sidebar from './components/Layout/Sidebar';
 import TasksPage from './pages/TasksPage';
 import GTDPage from './pages/GTDPage';
 import KanbanPage from './pages/KanbanPage';
+import TeamPage from './pages/TeamPage';
+import PersonDetailPage from './pages/PersonDetailPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import NotesPage from './pages/NotesPage';
@@ -60,6 +62,8 @@ function MainLayout() {
           <Route path="/tasks/:id" element={<TaskDetailPage />} />
           <Route path="/gtd" element={<GTDPage />} />
           <Route path="/kanban" element={<KanbanPage />} />
+          <Route path="/team" element={<TeamPage />} />
+          <Route path="/team/:id" element={<PersonDetailPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
           <Route path="/notes" element={<NotesPage />} />

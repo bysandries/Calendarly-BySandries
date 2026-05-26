@@ -66,6 +66,15 @@ async function initDatabase(forceReset = false) {
     );
   `);
 
+  // Create people table
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS people (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL
+    );
+  `);
+
   // Create CalendarDays table
   await database.exec(`
     CREATE TABLE IF NOT EXISTS CalendarDays (
@@ -234,17 +243,23 @@ async function initDatabase(forceReset = false) {
   await addColumnIfMissing(database, 'tasks', 'estimated_minutes', 'INTEGER NOT NULL DEFAULT 0');
   await addColumnIfMissing(database, 'tasks', 'received_date', 'TEXT');
   await addColumnIfMissing(database, 'tasks', 'finished_date', 'TEXT');
+  await addColumnIfMissing(database, 'tasks', 'is_starred', 'INTEGER NOT NULL DEFAULT 0');
+  await addColumnIfMissing(database, 'tasks', 'person_id', 'TEXT REFERENCES people(id) ON DELETE SET NULL');
   await addColumnIfMissing(database, 'deleted_tasks', 'estimated_minutes', 'INTEGER NOT NULL DEFAULT 0');
   await addColumnIfMissing(database, 'deleted_tasks', 'received_date', 'TEXT');
   await addColumnIfMissing(database, 'deleted_tasks', 'finished_date', 'TEXT');
+  await addColumnIfMissing(database, 'deleted_tasks', 'is_starred', 'INTEGER NOT NULL DEFAULT 0');
+  await addColumnIfMissing(database, 'deleted_tasks', 'person_id', 'TEXT');
   await addColumnIfMissing(database, 'projects', 'person_in_charge', 'TEXT');
   await addColumnIfMissing(database, 'projects', 'due_date', 'TEXT');
   await addColumnIfMissing(database, 'projects', 'start_date', 'TEXT');
   await addColumnIfMissing(database, 'projects', 'end_date', 'TEXT');
+  await addColumnIfMissing(database, 'projects', 'person_id', 'TEXT REFERENCES people(id) ON DELETE SET NULL');
   await addColumnIfMissing(database, 'deleted_projects', 'person_in_charge', 'TEXT');
   await addColumnIfMissing(database, 'deleted_projects', 'due_date', 'TEXT');
   await addColumnIfMissing(database, 'deleted_projects', 'start_date', 'TEXT');
   await addColumnIfMissing(database, 'deleted_projects', 'end_date', 'TEXT');
+  await addColumnIfMissing(database, 'deleted_projects', 'person_id', 'TEXT');
 
   // Create events table (category -> area)
   await database.exec(`
@@ -479,8 +494,42 @@ async function initDatabase(forceReset = false) {
   await addColumnIfMissing(database, 'habits', 'min_per_day', 'INTEGER DEFAULT 1');
   await addColumnIfMissing(database, 'habits', 'max_per_day', 'INTEGER');
 
+  await migratePeople(database);
   await seedDatabase(database);
   console.log('Database initialization completed.');
+}
+
+async function migratePeople(database) {
+  // Seed initial system users if needed (e.g., agents)
+  const initialPeople = ['OpenClaw'];
+  for (const name of initialPeople) {
+    const exists = await database.get('SELECT id FROM people WHERE name = ?', [name]);
+    if (!exists) {
+      await database.run(
+        'INSERT INTO people (id, name, created_at) VALUES (?, ?, ?)',
+        [`person-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, name, new Date().toISOString()]
+      );
+    }
+  }
+
+  // Migrate projects.person_in_charge to projects.person_id
+  const projectsToMigrate = await database.all('SELECT id, person_in_charge FROM projects WHERE person_in_charge IS NOT NULL AND person_id IS NULL');
+  for (const p of projectsToMigrate) {
+    if (!p.person_in_charge || !p.person_in_charge.trim()) continue;
+    
+    // Find or create person
+    let person = await database.get('SELECT id FROM people WHERE name = ?', [p.person_in_charge]);
+    if (!person) {
+      const personId = `person-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      await database.run(
+        'INSERT INTO people (id, name, created_at) VALUES (?, ?, ?)',
+        [personId, p.person_in_charge, new Date().toISOString()]
+      );
+      person = { id: personId };
+    }
+    
+    await database.run('UPDATE projects SET person_id = ? WHERE id = ?', [person.id, p.id]);
+  }
 }
 
 async function seedDatabase(database) {
