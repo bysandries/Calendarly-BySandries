@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useProjects } from '../hooks/useProjects';
 import { fetchAreas, fetchTasks, updateTask } from '../utils/api';
-import ProjectStatusBadge from '../components/ProjectStatusBadge';
+import ProjectCard from '../components/ProjectCard';
 import ProjectDrawer from '../components/ProjectDrawer';
-import { formatIsoDateShort, calcProgression, calcImportance, formatDuration } from '../lib/taskMath';
+import { formatIsoDateShort, calcProgression } from '../lib/taskMath';
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: 'All' },
@@ -14,19 +14,12 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'archived', label: 'Archived' },
 ];
 
-const IMPORTANCE_COLORS = {
-  'importance-none':     'var(--text-dimmed)',
-  'importance-low':      '#3498DB',
-  'importance-medium':   '#E67E22',
-  'importance-high':     '#E74C3C',
-  'importance-critical': '#8E44AD',
-};
-
 export default function ProjectsPage() {
   const { projects, loading, error, updateProject, deleteProject, refetch } = useProjects();
   const [areas, setAreas] = useState([]);
   const [statusFilter, setStatusFilter] = useState('active');
-  const [drawerProject, setDrawerProject] = useState(null); // null=closed, {}=create, project=edit
+  const [selectedProjectIds, setSelectedProjectIds] = useState(new Set());
+  const [lastSelectedIndex, setLastSelectedIndex] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -78,40 +71,87 @@ export default function ProjectsPage() {
     refetch();
   };
 
-  const getAreaInfo = (areaId) => areas.find(a => a.id === areaId);
+  const getAreaInfo = useCallback((areaId) => areas.find(a => a.id === areaId), [areas]);
 
-  // Delete / archive flow (can also be triggered from drawer)
-  const handleDeleteClick = (project) => {
-    if (project.status === 'archived') {
-      setConfirmDelete({ project, taskCount: project.total_tasks });
+  const visibleProjects = useMemo(() => {
+    return statusFilter
+      ? projects.filter(p => p.status === statusFilter)
+      : projects;
+  }, [projects, statusFilter]);
+
+  const handleProjectClick = (project) => {
+    setSelectedProjectIds(new Set([project.id]));
+  };
+
+  const handleSelect = (id, index) => {
+    setSelectedProjectIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setLastSelectedIndex(index);
+  };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedProjectIds(new Set(visibleProjects.map(p => p.id)));
     } else {
-      deleteProject(project.id);
-      setDrawerProject(null);
+      setSelectedProjectIds(new Set());
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedProjectIds(new Set());
+    setLastSelectedIndex(null);
+  };
+
+  const selectedProjects = useMemo(() => {
+    const selected = projects.filter(p => selectedProjectIds.has(p.id));
+    if (selectedProjectIds.has(null)) {
+      selected.push({ id: null }); // Marker for creation mode
+    }
+    return selected;
+  }, [projects, selectedProjectIds]);
+
+  // Delete / archive flow
+  const handleDeleteClick = async (target) => {
+    const targets = Array.isArray(target) ? target : [target];
+    const archivedOnly = targets.every(p => p.status === 'archived');
+
+    if (archivedOnly) {
+      setConfirmDelete({ 
+        projects: targets, 
+        taskCount: targets.reduce((acc, p) => acc + (p.total_tasks || 0), 0) 
+      });
+    } else {
+      if (confirm(`Archive ${targets.length > 1 ? targets.length + ' projects' : 'this project'}?`)) {
+        for (const p of targets) {
+          await deleteProject(p.id);
+        }
+        clearSelection();
+      }
     }
   };
 
   const handleConfirmDelete = async () => {
     if (!confirmDelete) return;
-    await deleteProject(confirmDelete.project.id);
+    for (const p of confirmDelete.projects) {
+      await deleteProject(p.id);
+    }
     setConfirmDelete(null);
-    setDrawerProject(null);
+    clearSelection();
   };
 
-  const handleDrawerSave = (saved) => {
-    // useProjects already updated its internal state via createProject/updateProject;
-    // just close the drawer and refetch to get fresh task stats from the join.
+  const handleDrawerSave = () => {
     refetch();
-    setDrawerProject(null);
+    clearSelection();
   };
 
   const handleAreasChanged = async () => {
     const updated = await fetchAreas();
     setAreas(updated);
   };
-
-  const visibleProjects = statusFilter
-    ? projects.filter(p => p.status === statusFilter)
-    : projects;
 
   return (
     <div>
@@ -157,6 +197,7 @@ export default function ProjectsPage() {
       {/* Unassigned Tasks Panel - Mobile only or hidden as requested */}
       {showUnassigned && isMobile && (
         <div className="glass-panel" style={{ marginBottom: '20px', padding: '16px 20px' }}>
+          {/* ... (Unassigned tasks logic kept unchanged) ... */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>
             <input
               className="form-input"
@@ -244,6 +285,14 @@ export default function ProjectsPage() {
           <table className="data-table">
             <thead>
               <tr>
+                <th style={{ width: '40px', textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    className="task-checkbox"
+                    checked={selectedProjectIds.size === visibleProjects.length && visibleProjects.length > 0}
+                    onChange={handleSelectAll}
+                  />
+                </th>
                 <th style={{ width: '110px' }}>Status</th>
                 <th>Title</th>
                 <th style={{ width: '80px' }}>Phase</th>
@@ -254,156 +303,20 @@ export default function ProjectsPage() {
                 <th style={{ width: '80px' }}>Time Invested</th>
                 <th style={{ width: '70px' }}>Importance</th>
                 <th style={{ width: '40px' }}></th>
-                <th style={{ width: '40px' }}></th>
               </tr>
             </thead>
             <tbody>
-              {visibleProjects.map(project => {
-                const area = getAreaInfo(project.area);
-                const total = project.total_tasks ?? 0;
-                const done = project.complete_tasks ?? 0;
-                const pct = calcProgression(done, total);
-                const importance = calcImportance(total);
-
-                return (
-                  <tr
-                    key={project.id}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => setDrawerProject(project)}
-                  >
-                    {/* Status — stop row-click so badge dropdown works */}
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <ProjectStatusBadge
-                        status={project.status}
-                        onChange={(newStatus) => updateProject(project.id, { status: newStatus })}
-                      />
-                    </td>
-
-                    {/* Title */}
-                    <td>
-                      <div style={{ position: 'relative', paddingLeft: '12px' }}>
-                        <div
-                          className="area-strip"
-                          style={{ background: area?.color_hex || '#95A5A6' }}
-                        />
-                        <Link
-                          to={`/projects/${project.id}`}
-                          style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 600 }}
-                          className="project-title-link"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {project.title}
-                        </Link>
-                        {project.description && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            {project.description.substring(0, 70)}{project.description.length > 70 ? '…' : ''}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* PALM Phase */}
-                    <td>
-                      <span style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        padding: '2px 8px',
-                        borderRadius: '10px',
-                        background: 'rgba(255,255,255,0.06)',
-                        color: 'var(--text-secondary)',
-                        border: '1px solid var(--glass-border)',
-                      }}>
-                        {project.phase || '—'}
-                      </span>
-                    </td>
-
-                    {/* Area */}
-                    <td>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span className="color-swatch" style={{ background: area?.color_hex || '#95A5A6' }} />
-                        <span style={{ textTransform: 'capitalize', fontSize: '0.8rem' }}>{project.area}</span>
-                      </span>
-                    </td>
-
-                    {/* Persons */}
-                    <td>
-                      <span style={{ fontSize: '0.8rem', color: project.person_in_charge ? 'var(--text-primary)' : 'var(--text-dimmed)' }}>
-                        {project.person_in_charge || '—'}
-                      </span>
-                    </td>
-
-                    {/* Due Date */}
-                    <td>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        {formatIsoDateShort(project.due_date)}
-                      </span>
-                    </td>
-
-                    {/* Progression */}
-                    <td>
-                      {pct === null ? (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-dimmed)' }}>—</span>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <div style={{ width: '60px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', flexShrink: 0 }}>
-                            <div style={{
-                              width: `${pct}%`,
-                              height: '100%',
-                              background: pct === 100 ? '#2ECC71' : 'var(--accent-primary)',
-                              borderRadius: '3px',
-                              transition: 'width 0.3s ease',
-                            }} />
-                          </div>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', minWidth: '30px' }}>
-                            {pct}%
-                          </span>
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Time Invested */}
-                    <td>
-                      <span style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        color: (project.pomodoro_minutes ?? 0) > 0 ? 'var(--accent-primary)' : 'var(--text-dimmed)',
-                      }}>
-                        {formatDuration(project.pomodoro_minutes ?? 0)}
-                      </span>
-                    </td>
-
-                    {/* Importance */}
-                    <td>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: IMPORTANCE_COLORS[importance.cssClass] }}>
-                        {importance.label}
-                      </span>
-                    </td>
-
-                    {/* Edit */}
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <button
-                        className="btn-icon"
-                        onClick={() => setDrawerProject(project)}
-                        title="Edit project"
-                      >
-                        ✎
-                      </button>
-                    </td>
-
-                    {/* Delete / Archive */}
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <button
-                        className="btn-icon"
-                        onClick={() => handleDeleteClick(project)}
-                        title={project.status === 'archived' ? 'Permanently delete project' : 'Archive project'}
-                        style={project.status === 'archived' ? { color: 'var(--accent-danger)' } : {}}
-                      >
-                        ✕
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {visibleProjects.map((project, index) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  isSelected={selectedProjectIds.has(project.id)}
+                  onSelect={() => handleSelect(project.id, index)}
+                  onClick={handleProjectClick}
+                  updateProject={updateProject}
+                  getAreaInfo={getAreaInfo}
+                />
+              ))}
             </tbody>
           </table>
         </div>
@@ -418,16 +331,14 @@ export default function ProjectsPage() {
             const pct = calcProgression(done, total);
             
             return (
-              <div key={project.id} className="project-mobile-card" onClick={() => setDrawerProject(project)}>
+              <div key={project.id} className="project-mobile-card" onClick={() => handleProjectClick(project)}>
                 <div className="project-mobile-header">
                   <span className="project-mobile-title" style={{ borderLeft: `4px solid ${area?.color_hex || '#95A5A6'}`, paddingLeft: '12px' }}>
                     {project.title}
                   </span>
-                  <ProjectStatusBadge
-                    status={project.status}
-                    onChange={(newStatus) => updateProject(project.id, { status: newStatus })}
-                    compact
-                  />
+                  <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'var(--glass-bg-strong)' }}>
+                    {project.status}
+                  </span>
                 </div>
                 
                 <div className="project-mobile-meta">
@@ -439,19 +350,7 @@ export default function ProjectsPage() {
                     <span>Progress:</span>
                     <span style={{ fontWeight: 600, color: pct === 100 ? '#2ECC71' : 'var(--accent-primary)' }}>{pct ?? 0}%</span>
                   </div>
-                  {project.due_date && (
-                    <div className="project-mobile-stat">
-                      <span>Due:</span>
-                      <span>{formatIsoDateShort(project.due_date)}</span>
-                    </div>
-                  )}
                 </div>
-
-                {project.description && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--glass-border)', paddingTop: '8px' }}>
-                    {project.description.substring(0, 100)}{project.description.length > 100 ? '…' : ''}
-                  </div>
-                )}
               </div>
             );
           })}
@@ -463,16 +362,16 @@ export default function ProjectsPage() {
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setConfirmDelete(null); }}>
           <div className="modal-content" style={{ maxWidth: '420px' }}>
             <div className="modal-header">
-              <h3 style={{ color: 'var(--accent-danger)' }}>Permanently Delete Project</h3>
+              <h3 style={{ color: 'var(--accent-danger)' }}>Permanently Delete Projects</h3>
               <button className="btn-icon" onClick={() => setConfirmDelete(null)}>✕</button>
             </div>
             <div style={{ padding: '4px 0 20px' }}>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                You are about to permanently delete:
+                You are about to permanently delete {confirmDelete.projects.length} project{confirmDelete.projects.length !== 1 ? 's' : ''}:
               </p>
-              <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-                "{confirmDelete.project.title}"
-              </p>
+              <ul style={{ maxHeight: '120px', overflowY: 'auto', marginBottom: '16px', color: 'var(--text-primary)', fontSize: '0.9rem', paddingLeft: '20px' }}>
+                {confirmDelete.projects.map(p => <li key={p.id}>{p.title}</li>)}
+              </ul>
               {confirmDelete.taskCount > 0 && (
                 <div style={{
                   padding: '10px 14px',
@@ -483,11 +382,11 @@ export default function ProjectsPage() {
                   fontSize: '0.85rem',
                   marginBottom: '16px',
                 }}>
-                  This will also permanently delete {confirmDelete.taskCount} task{confirmDelete.taskCount !== 1 ? 's' : ''} linked to this project.
+                  This will also permanently delete {confirmDelete.taskCount} task{confirmDelete.taskCount !== 1 ? 's' : ''} linked to these projects.
                 </div>
               )}
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                The project and its tasks will be moved to the deleted records archive. This cannot be undone.
+                These records will be moved to the deleted records archive. This cannot be undone.
               </p>
             </div>
             <div className="form-actions">
@@ -506,15 +405,15 @@ export default function ProjectsPage() {
 
       {/* Project slide-out drawer */}
       <ProjectDrawer
-        project={drawerProject}
+        projects={selectedProjects}
         onSave={handleDrawerSave}
         onDelete={handleDeleteClick}
-        onClose={() => setDrawerProject(null)}
+        onClose={clearSelection}
         onAreasChanged={handleAreasChanged}
       />
 
       {/* FAB */}
-      <button className="fab" onClick={() => setDrawerProject({})} title="Create new project">
+      <button className="fab" onClick={() => setSelectedProjectIds(new Set([null]))} title="Create new project">
         +
       </button>
     </div>
