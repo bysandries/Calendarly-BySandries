@@ -268,6 +268,13 @@ async function initDatabase(forceReset = false) {
 
   await addColumnIfMissing(database, 'events', 'timezone', 'TEXT DEFAULT \'America/Los_Angeles\'');
   await addColumnIfMissing(database, 'events', 'rrule', 'TEXT');
+  await addColumnIfMissing(database, 'events', 'series_id', 'TEXT');
+  await addColumnIfMissing(database, 'events', 'is_series_master', 'INTEGER DEFAULT 0');
+  await addColumnIfMissing(database, 'events', 'series_index', 'INTEGER DEFAULT 0');
+  await addColumnIfMissing(database, 'events', 'series_count', 'INTEGER DEFAULT 0');
+
+  // Migration: add is_archived to areas table for soft-delete support
+  await addColumnIfMissing(database, 'areas', 'is_archived', 'INTEGER NOT NULL DEFAULT 0');
 
   // Create notes table
   await database.exec(`

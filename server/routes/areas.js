@@ -16,7 +16,7 @@ function idFromName(input) {
 router.get('/', async (req, res) => {
   try {
     const db = await getDbConnection();
-    const areas = await db.all('SELECT * FROM areas ORDER BY name COLLATE NOCASE');
+    const areas = await db.all('SELECT * FROM areas ORDER BY is_archived ASC, name COLLATE NOCASE');
     res.json(areas);
   } catch (error) {
     console.error('Error fetching areas:', error);
@@ -43,13 +43,25 @@ router.post('/', async (req, res) => {
 
   try {
     const db = await getDbConnection();
+
+    // Prevent duplicate names (active or archived)
+    const nameCollision = await db.get(
+      'SELECT id, is_archived FROM areas WHERE LOWER(name) = LOWER(?)',
+      [name.trim()]
+    );
+    if (nameCollision) {
+      return res.status(409).json({
+        error: `Category "${name.trim()}" already exists${nameCollision.is_archived ? ' (archived)' : ''}. Unarchive it or choose a different name.`
+      });
+    }
+
     const existing = await db.get('SELECT id FROM areas WHERE id = ?', [finalId]);
     if (existing) {
       return res.status(409).json({ error: `Area with id "${finalId}" already exists` });
     }
 
     await db.run(
-      'INSERT INTO areas (id, name, color_hex, description) VALUES (?, ?, ?, ?)',
+      'INSERT INTO areas (id, name, color_hex, description, is_archived) VALUES (?, ?, ?, ?, 0)',
       [finalId, name.trim(), color_hex, description || '']
     );
     const area = await db.get('SELECT * FROM areas WHERE id = ?', [finalId]);
@@ -61,16 +73,12 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/areas/:id
-// Body: { name?, color_hex? } — at least one required.
-// color_hex update cascades to all events using this area.
-// If name changes, the area id is updated to match (spaces removed) and
-// references in events/projects are migrated.
 router.patch('/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, color_hex } = req.body;
+  const { name, color_hex, is_archived } = req.body;
 
-  if (!name && !color_hex) {
-    return res.status(400).json({ error: 'At least one of name or color_hex is required' });
+  if (!name && !color_hex && is_archived === undefined) {
+    return res.status(400).json({ error: 'At least one of name, color_hex, or is_archived is required' });
   }
   if (color_hex && !HEX_RE.test(color_hex)) {
     return res.status(400).json({ error: 'color_hex must be a 6-digit hex like #RRGGBB' });
@@ -90,6 +98,18 @@ router.patch('/:id', async (req, res) => {
 
     if (name) {
       const trimmedName = name.trim();
+
+      // Prevent duplicate names (active or archived) excluding self
+      const nameCollision = await db.get(
+        'SELECT id, is_archived FROM areas WHERE LOWER(name) = LOWER(?) AND id != ?',
+        [trimmedName, id]
+      );
+      if (nameCollision) {
+        return res.status(409).json({
+          error: `Category "${trimmedName}" already exists${nameCollision.is_archived ? ' (archived)' : ''}. Unarchive it or choose a different name.`
+        });
+      }
+
       const newId = idFromName(trimmedName);
 
       if (newId !== id) {
@@ -100,8 +120,8 @@ router.patch('/:id', async (req, res) => {
 
         // Migrate references and swap the row id
         await db.run(
-          'INSERT INTO areas (id, name, color_hex, description) VALUES (?, ?, ?, ?)',
-          [newId, trimmedName, existing.color_hex, existing.description || '']
+          'INSERT INTO areas (id, name, color_hex, description, is_archived) VALUES (?, ?, ?, ?, ?)',
+          [newId, trimmedName, existing.color_hex, existing.description || '', existing.is_archived || 0]
         );
         await db.run('UPDATE events SET area = ? WHERE area = ?', [newId, id]);
         await db.run('UPDATE projects SET area = ? WHERE area = ?', [newId, id]);
@@ -117,6 +137,10 @@ router.patch('/:id', async (req, res) => {
       await db.run('UPDATE events SET color_hex = ? WHERE area = ?', [color_hex, finalId]);
     }
 
+    if (is_archived !== undefined) {
+      await db.run('UPDATE areas SET is_archived = ? WHERE id = ?', [is_archived ? 1 : 0, finalId]);
+    }
+
     const area = await db.get('SELECT * FROM areas WHERE id = ?', [finalId]);
     res.json({ area });
   } catch (error) {
@@ -125,7 +149,7 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/areas/:id
+// DELETE /api/areas/:id — soft delete (archive)
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -136,17 +160,11 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Area not found' });
     }
 
-    const projectCount = await db.get('SELECT COUNT(*) as count FROM projects WHERE area = ?', [id]);
-    if (projectCount.count > 0) {
-      return res.status(400).json({
-        error: `Cannot delete area: ${projectCount.count} project(s) still use this area. Reassign them first.`
-      });
-    }
-
-    await db.run('DELETE FROM areas WHERE id = ?', [id]);
-    res.json({ message: 'Area deleted successfully' });
+    // Soft delete: mark as archived instead of hard deleting
+    await db.run('UPDATE areas SET is_archived = 1 WHERE id = ?', [id]);
+    res.json({ message: 'Area archived successfully' });
   } catch (error) {
-    console.error('Error deleting area:', error);
+    console.error('Error archiving area:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
