@@ -262,9 +262,16 @@ async function initDatabase(forceReset = false) {
   await addColumnIfMissing(database, 'deleted_projects', 'person_id', 'TEXT');
   await addColumnIfMissing(database, 'projects', 'is_starred', 'INTEGER NOT NULL DEFAULT 0');
   await addColumnIfMissing(database, 'deleted_projects', 'is_starred', 'INTEGER NOT NULL DEFAULT 0');
-  await addColumnIfMissing(database, 'pomodoro_sessions', 'actual_duration_minutes', 'INTEGER');
-  await addColumnIfMissing(database, 'pomodoro_sessions', 'planned_duration_minutes', 'INTEGER DEFAULT 25');
-  await addColumnIfMissing(database, 'pomodoro_sessions', 'status', "TEXT DEFAULT 'completed'");
+
+  // Create project_settings table — per-project UI preferences (column visibility + order)
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS project_settings (
+      project_id TEXT PRIMARY KEY,
+      visible_columns TEXT NOT NULL DEFAULT '{}',
+      column_order TEXT NOT NULL DEFAULT '[]',
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+  `);
 
   // Create events table (category -> area)
   await database.exec(`
@@ -381,6 +388,11 @@ async function initDatabase(forceReset = false) {
       FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
     );
   `);
+
+  // Idempotent migrations for pomodoro_sessions columns added after initial schema
+  await addColumnIfMissing(database, 'pomodoro_sessions', 'actual_duration_minutes', 'INTEGER');
+  await addColumnIfMissing(database, 'pomodoro_sessions', 'planned_duration_minutes', 'INTEGER DEFAULT 25');
+  await addColumnIfMissing(database, 'pomodoro_sessions', 'status', "TEXT DEFAULT 'completed'");
 
   // Create pomodoro_session_tasks junction table
   await database.exec(`
