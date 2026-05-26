@@ -31,6 +31,20 @@ export default function SettingsPage() {
     date_format: 'YYYY-MM-DD',
     theme: 'midnight-abyss',
     default_assignee: '',
+    navigation_config: [
+      { id: '/tasks', label: 'Tasks', enabled: true },
+      { id: '/projects', label: 'Projects', enabled: true },
+      { id: '/team', label: 'Team', enabled: true },
+      { id: '/gtd', label: 'GTD Inbox', enabled: true },
+      { id: '/kanban', label: 'Kanban Board', enabled: true },
+      { id: '/notes', label: 'Extracts', enabled: true },
+      { id: '/habits', label: 'Habits', enabled: true },
+      { id: '/calendar', label: 'Calendar Tracking', enabled: true },
+      { id: '/pomodoro', label: 'Pomodoro', enabled: true },
+      { id: '/analytics', label: 'Reflection Dashboard', enabled: true },
+      { id: '/agents', label: 'Code Agents', enabled: true },
+      { id: '/settings', label: 'Settings', enabled: true }
+    ],
     palm_pillars: {
       Kindness: 'Kindness',
       Authenticity: 'Authenticity',
@@ -59,6 +73,7 @@ export default function SettingsPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [dbProfiles, setDbProfiles] = useState([]);
+  const [draggedNavIndex, setDraggedNavIndex] = useState(null);
   
   // Decryption verification modal
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -91,14 +106,36 @@ export default function SettingsPage() {
         const settingsData = await settingsRes.json();
         if (settingsData.success) {
           if (settingsData.database) {
-            setDbSettings(prev => ({
-              ...prev,
-              ...settingsData.database,
-              palm_pillars: (settingsData.database.palm_pillars && typeof settingsData.database.palm_pillars === 'object') 
-                ? settingsData.database.palm_pillars 
-                : prev.palm_pillars,
-              default_assignee: settingsData.database.default_assignee || ''
-            }));
+            setDbSettings(prev => {
+              const base = {
+                ...prev,
+                ...settingsData.database,
+                palm_pillars: (settingsData.database.palm_pillars && typeof settingsData.database.palm_pillars === 'object') 
+                  ? settingsData.database.palm_pillars 
+                  : prev.palm_pillars,
+                default_assignee: settingsData.database.default_assignee || ''
+              };
+
+              // Merge navigation_config safely
+              if (settingsData.database.navigation_config) {
+                let saved = settingsData.database.navigation_config;
+                if (typeof saved === 'string') {
+                  try { saved = JSON.parse(saved); } catch (e) { saved = null; }
+                }
+
+                if (saved && Array.isArray(saved)) {
+                  const defaults = prev.navigation_config;
+                  const merged = [...saved];
+                  defaults.forEach(def => {
+                    if (!merged.find(m => m.id === def.id)) {
+                      merged.push(def);
+                    }
+                  });
+                  base.navigation_config = merged;
+                }
+              }
+              return base;
+            });
             const selectedTheme = settingsData.database.theme || 'midnight-abyss';
             applyThemeClass(selectedTheme);
           }
@@ -513,6 +550,37 @@ export default function SettingsPage() {
     }));
   };
 
+  // ── UI Navigation Customization ──
+  const handleToggleNav = (id) => {
+    setDbSettings(prev => {
+      const newConfig = prev.navigation_config.map(item => 
+        item.id === id ? { ...item, enabled: !item.enabled } : item
+      );
+      return { ...prev, navigation_config: newConfig };
+    });
+  };
+
+  const handleNavDragStart = (e, index) => {
+    setDraggedNavIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleNavDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedNavIndex === null || draggedNavIndex === index) return;
+
+    const newConfig = [...dbSettings.navigation_config];
+    const item = newConfig.splice(draggedNavIndex, 1)[0];
+    newConfig.splice(index, 0, item);
+    
+    setDbSettings(prev => ({ ...prev, navigation_config: newConfig }));
+    setDraggedNavIndex(index);
+  };
+
+  const handleNavDragEnd = () => {
+    setDraggedNavIndex(null);
+  };
+
   if (loading) {
     return (
       <div className="settings-container text-center" style={{ paddingTop: '100px' }}>
@@ -594,6 +662,13 @@ export default function SettingsPage() {
           >
             <span className="tab-btn-icon">🎨</span>
             <span>Personalization</span>
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'ui' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ui')}
+          >
+            <span className="tab-btn-icon">📱</span>
+            <span>Interface & Navigation</span>
           </button>
           <button 
             className={`tab-btn ${activeTab === 'team' ? 'active' : ''}`}
@@ -1010,7 +1085,50 @@ export default function SettingsPage() {
             </form>
           )}
 
-          {/* TAB 5: TEAM */}
+          {/* TAB 5: UI & NAVIGATION */}
+          {activeTab === 'ui' && (
+            <form onSubmit={handleSaveDbSettings}>
+              <div className="panel-header">
+                <h2>Interface & Navigation</h2>
+                <p>Customize your main menu. Drag items to reorder and toggle visibility with switches.</p>
+              </div>
+
+              <div className="ui-config-list">
+                {dbSettings.navigation_config.map((item, index) => (
+                  <div 
+                    key={item.id}
+                    className={`ui-config-item ${draggedNavIndex === index ? 'dragging' : ''}`}
+                    draggable
+                    onDragStart={(e) => handleNavDragStart(e, index)}
+                    onDragOver={(e) => handleNavDragOver(e, index)}
+                    onDragEnd={handleNavDragEnd}
+                  >
+                    <div className="ui-item-info">
+                      <span className="ui-drag-handle">☰</span>
+                      <span className="ui-item-label">{item.label}</span>
+                    </div>
+                    
+                    <label className="switch-toggle">
+                      <input 
+                        type="checkbox" 
+                        checked={item.enabled}
+                        onChange={() => handleToggleNav(item.id)}
+                      />
+                      <span className="slider-round"></span>
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: '30px' }}>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Navigation Order'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* TAB 6: TEAM */}
           {activeTab === 'team' && (
             <form onSubmit={handleSaveDbSettings}>
               <div className="panel-header">

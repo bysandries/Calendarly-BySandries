@@ -38,11 +38,51 @@ const NAV_ITEMS = [
 export default function Sidebar({ isMobileOpen, onClose }) {
   const [isOnline, setIsOnline] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [navItems, setNavItems] = useState(NAV_ITEMS);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Fetch UI Config on mount
+  useEffect(() => {
+    const fetchUIConfig = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.success && data.database && data.database.navigation_config) {
+          let config = data.database.navigation_config;
+          
+          // Safety: Parse if string
+          if (typeof config === 'string') {
+            try { config = JSON.parse(config); } catch (e) { config = null; }
+          }
+
+          if (config && Array.isArray(config)) {
+            // Reconstruct NAV_ITEMS based on config
+            const orderedItems = config
+              .filter(c => c.enabled)
+              .map(c => {
+                const original = NAV_ITEMS.find(item => item.to === c.id);
+                return original ? { ...original, label: c.label } : null;
+              })
+              .filter(Boolean);
+              
+            setNavItems(orderedItems);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load sidebar UI config', err);
+      }
+    };
+    fetchUIConfig();
+
+    // Listen for storage events (if user saves settings in another tab or we want to trigger refresh)
+    // For now, we'll just poll every 30s like the health check or assume page refresh
+    const interval = setInterval(fetchUIConfig, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // Persist collapsed state in localStorage; default to collapsed on small screens
@@ -115,7 +155,7 @@ export default function Sidebar({ isMobileOpen, onClose }) {
       <nav className="sidebar-nav">
         <div className="sidebar-section-label">Navigation</div>
 
-        {NAV_ITEMS.map(({ to, icon: Icon, label, mobileOnly }) => {
+        {navItems.map(({ to, icon: Icon, label, mobileOnly }) => {
           if (mobileOnly && !isMobile) return null;
           return (
             <NavLink
