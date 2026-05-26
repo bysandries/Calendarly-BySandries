@@ -3314,6 +3314,42 @@ body {
   cursor: not-allowed;
 }
 
+/* ── CreationPopover: Custom Day Picker ── */
+.gpop-day-picker {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.gpop-day-pill {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-dimmed);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gpop-day-pill:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.gpop-day-pill.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(52, 152, 219, 0.35);
+}
+
 .drawing-placeholder {
   position: absolute;
   pointer-events: none;

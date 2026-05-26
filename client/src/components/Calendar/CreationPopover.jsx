@@ -13,6 +13,7 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
   const [repeatLimitType, setRepeatLimitType] = useState('count');
   const [repeatCount, setRepeatCount] = useState(10);
   const [repeatUntilDate, setRepeatUntilDate] = useState('');
+  const [customDays, setCustomDays] = useState([true, true, true, true, true, false, false]); // M T W T F S S
   const [area, setArea] = useState('general');
   const [notes, setNotes] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -89,7 +90,7 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
 
     // Map selected repeat option to standard RFC 5545 RRULE string
     let rrule = null;
-    if (repeatOption !== 'does-not-repeat' && repeatOption !== 'custom') {
+    if (repeatOption !== 'does-not-repeat') {
       let baseRule = '';
       if (repeatOption === 'daily') {
         baseRule = 'FREQ=DAILY;INTERVAL=1';
@@ -101,18 +102,29 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
         baseRule = 'FREQ=MONTHLY;INTERVAL=1';
       } else if (repeatOption === 'annually') {
         baseRule = 'FREQ=YEARLY;INTERVAL=1';
+      } else if (repeatOption === 'custom') {
+        const dayCodes = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+        const selected = customDays
+          .map((active, i) => (active ? dayCodes[i] : null))
+          .filter(Boolean)
+          .join(',');
+        if (selected) {
+          baseRule = `FREQ=WEEKLY;BYDAY=${selected};INTERVAL=1`;
+        }
       }
 
       // Append limit
-      if (repeatLimitType === 'count') {
-        baseRule += `;COUNT=${Math.max(1, parseInt(repeatCount, 10) || 1)}`;
-      } else if (repeatLimitType === 'until') {
-        const untilStr = repeatUntilDate.replace(/-/g, '');
-        if (untilStr.length === 8) {
-          baseRule += `;UNTIL=${untilStr}`;
+      if (baseRule) {
+        if (repeatLimitType === 'count') {
+          baseRule += `;COUNT=${Math.max(1, parseInt(repeatCount, 10) || 1)}`;
+        } else if (repeatLimitType === 'until') {
+          const untilStr = repeatUntilDate.replace(/-/g, '');
+          if (untilStr.length === 8) {
+            baseRule += `;UNTIL=${untilStr}`;
+          }
         }
+        rrule = baseRule;
       }
-      rrule = baseRule;
     }
 
     onSave({
@@ -274,8 +286,32 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
           </select>
         </div>
 
+        {/* Custom day picker */}
+        {repeatOption === 'custom' && (
+          <div className="gpop-row">
+            <div className="gpop-day-picker">
+              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((label, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`gpop-day-pill ${customDays[i] ? 'active' : ''}`}
+                  onClick={() => {
+                    setCustomDays(prev => {
+                      const next = [...prev];
+                      next[i] = !next[i];
+                      return next;
+                    });
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Recurring limit controls */}
-        {repeatOption !== 'does-not-repeat' && repeatOption !== 'custom' && (
+        {repeatOption !== 'does-not-repeat' && (
           <div className="gpop-row gpop-repeat-limit">
             <label className="gpop-limit-label">
               <input
