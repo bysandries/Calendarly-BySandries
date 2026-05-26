@@ -14,17 +14,19 @@ import {
   IconSettings,
   IconChevronLeft,
   IconChevronRight,
-  IconX
+  IconX,
+  IconClock
 } from './NavIcons';
 
 const NAV_ITEMS = [
-  { to: '/tasks', icon: IconDatabase, label: 'Database' },
+  { to: '/tasks', icon: IconDatabase, label: 'Tasks' },
+  { to: '/projects', icon: IconProjects, label: 'Projects' },
   { to: '/gtd', icon: IconInbox, label: 'GTD Inbox' },
   { to: '/kanban', icon: IconKanban, label: 'Kanban Board' },
-  { to: '/projects', icon: IconProjects, label: 'Projects' },
   { to: '/notes', icon: IconExtracts, label: 'Extracts' },
   { to: '/habits', icon: IconHabits, label: 'Habits' },
   { to: '/calendar', icon: IconCalendar, label: 'Calendar Tracking' },
+  { to: '/pomodoro', icon: IconClock, label: 'Pomodoro', mobileOnly: true },
   { to: '/analytics', icon: IconAnalytics, label: 'Reflection Dashboard' },
   { to: '/agents', icon: IconAgents, label: 'Code Agents' },
   { to: '/settings', icon: IconSettings, label: 'Settings' },
@@ -32,6 +34,13 @@ const NAV_ITEMS = [
 
 export default function Sidebar({ isMobileOpen, onClose }) {
   const [isOnline, setIsOnline] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Persist collapsed state in localStorage; default to collapsed on small screens
   const getInitialCollapsed = () => {
@@ -103,19 +112,22 @@ export default function Sidebar({ isMobileOpen, onClose }) {
       <nav className="sidebar-nav">
         <div className="sidebar-section-label">Navigation</div>
 
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            title={label}
-          >
-            <span className="nav-icon">
-              <Icon />
-            </span>
-            <span className="nav-label">{label}</span>
-          </NavLink>
-        ))}
+        {NAV_ITEMS.map(({ to, icon: Icon, label, mobileOnly }) => {
+          if (mobileOnly && !isMobile) return null;
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              title={label}
+            >
+              <span className="nav-icon">
+                <Icon />
+              </span>
+              <span className="nav-label">{label}</span>
+            </NavLink>
+          );
+        })}
       </nav>
 
       <div className="sidebar-footer">

@@ -14,6 +14,7 @@ import SecretUploadPage from './pages/SecretUploadPage';
 import AgentsPage from './pages/AgentsPage';
 import HabitsPage from './pages/HabitsPage';
 import TaskDetailPage from './pages/TaskDetailPage';
+import PomodoroPage from './pages/PomodoroPage';
 import { IconMenu } from './components/Layout/NavIcons';
 
 function MainLayout() {
@@ -67,6 +68,7 @@ function MainLayout() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/agents" element={<AgentsPage />} />
           <Route path="/habits" element={<HabitsPage />} />
+          <Route path="/pomodoro" element={<PomodoroPage />} />
           <Route path="/secret-upload" element={<SecretUploadPage />} />
           <Route path="*" element={<Navigate to="/gtd" replace />} />
         </Routes>
