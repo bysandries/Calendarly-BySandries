@@ -31,7 +31,7 @@ export default function ProjectCard({
 
   const renderCell = (col) => {
     if (!visibleColumns[col]) return null;
-    const desktopOnly = col !== 'title';
+    const desktopOnly = !['title', 'assignee', 'due_date'].includes(col);
     const cellClass = desktopOnly ? 'desktop-only-cell' : '';
 
     switch (col) {

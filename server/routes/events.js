@@ -60,6 +60,11 @@ function expandRRuleDates(rruleStr, startDateStr) {
   const maxOccurrences = count || 1000; // safety cap when using UNTIL
   const untilDate = until ? new Date(until.substring(0, 4) + '-' + until.substring(4, 6) + '-' + until.substring(6, 8) + 'T23:59:59Z') : null;
 
+  // Pre-add start date for BYDAY weekly (RFC 5545: DTSTART is always first instance)
+  if (freq === 'WEEKLY' && rule.BYDAY) {
+    dates.push(formatISODate(start));
+  }
+
   while (occurrences < maxOccurrences) {
     if (untilDate && current > untilDate) break;
     if (count && occurrences >= count) break;
@@ -70,14 +75,13 @@ function expandRRuleDates(rruleStr, startDateStr) {
     } else if (freq === 'WEEKLY') {
       if (rule.BYDAY) {
         const days = rule.BYDAY.split(',').map(d => getDayIndex(d.trim()));
-        // Generate all days in this week interval that match BYDAY
         const weekStart = new Date(current);
         weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
         for (let w = 0; w < interval; w++) {
           for (const dayIdx of days.sort((a, b) => a - b)) {
             const d = new Date(weekStart);
             d.setUTCDate(d.getUTCDate() + dayIdx + (w * 7));
-            if (d < start) continue;
+            if (d <= start) continue;
             if (untilDate && d > untilDate) break;
             if (count && dates.length >= count) break;
             dates.push(formatISODate(d));
@@ -92,6 +96,9 @@ function expandRRuleDates(rruleStr, startDateStr) {
     } else if (freq === 'MONTHLY') {
       dates.push(formatISODate(current));
       current = addMonths(current, interval);
+    } else if (freq === 'YEARLY') {
+      dates.push(formatISODate(current));
+      current = addMonths(current, interval * 12);
     } else {
       throw new Error(`Unsupported FREQ: ${freq}`);
     }
@@ -429,7 +436,7 @@ router.patch('/:id', async (req, res) => {
           const shiftedStr = shifted.toISOString().split('T')[0];
           await db.run(
             `UPDATE events SET date_string = ?, time_slot = ? ${updates.length ? ', ' + updates.join(', ') : ''} WHERE id = ?`,
-            [shiftedStr, time_slot !== undefined ? time_slot : row.time_slot, ...params.map(() => row.id).flat(), row.id]
+            [shiftedStr, time_slot !== undefined ? time_slot : row.time_slot, ...params, row.id]
           );
         }
       } else {
@@ -456,7 +463,7 @@ router.patch('/:id', async (req, res) => {
           const shiftedStr = shifted.toISOString().split('T')[0];
           await db.run(
             `UPDATE events SET date_string = ?, time_slot = ? ${updates.length ? ', ' + updates.join(', ') : ''} WHERE id = ?`,
-            [shiftedStr, time_slot !== undefined ? time_slot : row.time_slot, ...params.map(() => row.id).flat(), row.id]
+            [shiftedStr, time_slot !== undefined ? time_slot : row.time_slot, ...params, row.id]
           );
         }
       } else {
