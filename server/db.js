@@ -354,6 +354,18 @@ async function initDatabase(forceReset = false) {
     );
   `);
 
+  // Create extract_links table (Zettelkasten bidirectional links)
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS extract_links (
+      source_id TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      PRIMARY KEY (source_id, target_id),
+      FOREIGN KEY (source_id) REFERENCES extracts(id) ON DELETE CASCADE,
+      FOREIGN KEY (target_id) REFERENCES extracts(id) ON DELETE CASCADE,
+      CHECK (source_id != target_id)
+    );
+  `);
+
   // Create pomodoro_sessions table
   await database.exec(`
     CREATE TABLE IF NOT EXISTS pomodoro_sessions (
