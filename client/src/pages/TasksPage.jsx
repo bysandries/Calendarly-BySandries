@@ -421,25 +421,14 @@ export default function TasksPage() {
                       </div>
                     </td>
                     <td>
-                      {editingTitle === task.id ? (
-                        <input
-                          ref={titleInputRef}
-                          className="inline-edit"
-                          defaultValue={task.title}
-                          onBlur={(e) => handleTitleBlur(task, e.target.value)}
-                          onKeyDown={(e) => handleTitleKeyDown(e, task)}
-                          autoFocus
-                        />
-                      ) : (
-                        <span
-                          className="cell-truncate"
-                          style={{ cursor: 'text', display: 'block' }}
-                          onClick={() => setEditingTitle(task.id)}
-                          title="Click to edit"
-                        >
-                          {task.title}
-                        </span>
-                      )}
+                      <Link
+                        to={`/tasks/${task.id}`}
+                        className="cell-truncate project-title-link"
+                        style={{ display: 'block', fontWeight: 500 }}
+                        title="View details"
+                      >
+                        {task.title}
+                      </Link>
                     </td>
                     <td>
                       {projectTitle ? (
