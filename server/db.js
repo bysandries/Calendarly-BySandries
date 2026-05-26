@@ -260,6 +260,11 @@ async function initDatabase(forceReset = false) {
   await addColumnIfMissing(database, 'deleted_projects', 'start_date', 'TEXT');
   await addColumnIfMissing(database, 'deleted_projects', 'end_date', 'TEXT');
   await addColumnIfMissing(database, 'deleted_projects', 'person_id', 'TEXT');
+  await addColumnIfMissing(database, 'projects', 'is_starred', 'INTEGER NOT NULL DEFAULT 0');
+  await addColumnIfMissing(database, 'deleted_projects', 'is_starred', 'INTEGER NOT NULL DEFAULT 0');
+  await addColumnIfMissing(database, 'pomodoro_sessions', 'actual_duration_minutes', 'INTEGER');
+  await addColumnIfMissing(database, 'pomodoro_sessions', 'planned_duration_minutes', 'INTEGER DEFAULT 25');
+  await addColumnIfMissing(database, 'pomodoro_sessions', 'status', "TEXT DEFAULT 'completed'");
 
   // Create events table (category -> area)
   await database.exec(`

@@ -8,6 +8,7 @@ import { calcProgression } from '../lib/taskMath';
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: 'All' },
+  { value: 'starred', label: '★ Starred' },
   { value: 'active', label: 'Active' },
   { value: 'on-hold', label: 'On Hold' },
   { value: 'completed', label: 'Completed' },
@@ -18,6 +19,7 @@ const PALM_PHASE_ORDER = ['Plan', 'Act', 'Measure', 'Learn', 'Ignored'];
 const PROJECT_STATUS_ORDER = ['active', 'on-hold', 'completed', 'archived'];
 
 const COLUMN_LABELS = {
+  starred:      'Starred',
   status:       'Status',
   title:        'Title',
   phase:        'Phase',
@@ -51,6 +53,7 @@ export default function ProjectsPage() {
   // Column state
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [visibleColumns, setVisibleColumns] = useState({
+    starred:       true,
     status:        true,
     title:         true,
     phase:         true,
@@ -65,10 +68,11 @@ export default function ProjectsPage() {
     notes:         true,
   });
   const [columnOrder, setColumnOrder] = useState([
-    'status', 'title', 'phase', 'pillar', 'area', 'assignee',
+    'starred', 'status', 'title', 'phase', 'pillar', 'area', 'assignee',
     'due_date', 'start_date', 'progression', 'time_invested', 'importance', 'notes',
   ]);
   const [columnWidths, setColumnWidths] = useState({
+    starred:       40,
     status:        110,
     title:         280,
     phase:         85,
@@ -185,6 +189,7 @@ export default function ProjectsPage() {
 
   // Filtering
   const visibleProjects = useMemo(() => {
+    if (statusFilter === 'starred') return projects.filter(p => p.is_starred);
     return statusFilter ? projects.filter(p => p.status === statusFilter) : projects;
   }, [projects, statusFilter]);
 
@@ -365,20 +370,25 @@ export default function ProjectsPage() {
       {/* Filter bar */}
       <div className="filter-bar">
         <div className="filter-pills">
-          {STATUS_FILTER_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              className={`filter-pill ${statusFilter === opt.value ? 'active' : ''}`}
-              onClick={() => setStatusFilter(opt.value)}
-            >
-              {opt.label}
-              {opt.value !== '' && (
-                <span style={{ marginLeft: '5px', opacity: 0.55, fontSize: '0.7rem' }}>
-                  {projects.filter(p => p.status === opt.value).length}
-                </span>
-              )}
-            </button>
-          ))}
+          {STATUS_FILTER_OPTIONS.map(opt => {
+            const count = opt.value === ''
+              ? null
+              : opt.value === 'starred'
+                ? projects.filter(p => p.is_starred).length
+                : projects.filter(p => p.status === opt.value).length;
+            return (
+              <button
+                key={opt.value}
+                className={`filter-pill ${statusFilter === opt.value ? 'active' : ''}`}
+                onClick={() => setStatusFilter(opt.value)}
+              >
+                {opt.label}
+                {count !== null && (
+                  <span style={{ marginLeft: '5px', opacity: 0.55, fontSize: '0.7rem' }}>{count}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         <button

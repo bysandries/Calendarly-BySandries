@@ -144,7 +144,8 @@ router.patch('/:id', async (req, res) => {
       `UPDATE projects
        SET title = ?, status = ?, area = ?, pillar = ?, methodology = ?, phase = ?,
            goals_aligned = ?, description = ?,
-           person_in_charge = ?, due_date = ?, start_date = ?, end_date = ?, person_id = ?
+           person_in_charge = ?, due_date = ?, start_date = ?, end_date = ?, person_id = ?,
+           is_starred = ?
        WHERE id = ?`,
       [
         merged.title, merged.status, merged.area, merged.pillar,
@@ -152,6 +153,7 @@ router.patch('/:id', async (req, res) => {
         merged.person_in_charge || null, merged.due_date || null,
         merged.start_date || null, merged.end_date || null,
         merged.person_id || null,
+        merged.is_starred ? 1 : 0,
         id,
       ]
     );
