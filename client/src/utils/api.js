@@ -136,6 +136,22 @@ export const createCodeAgentSession = (data) => api.post('/code-agents', data);
 export const updateCodeAgentSession = (id, data) => api.patch(`/code-agents/${id}`, data);
 export const deleteCodeAgentSession = (id) => api.delete(`/code-agents/${id}`);
 
+// ── Habits ──
+
+export const fetchHabits = (filters) => api.get('/habits', filters);
+export const fetchHabit = (id) => api.get(`/habits/${id}`);
+export const createHabit = (data) => api.post('/habits', data);
+export const updateHabit = (id, data) => api.patch(`/habits/${id}`, data);
+export const deleteHabit = (id) => api.delete(`/habits/${id}`);
+
+// ── Habit Logs ──
+
+export const fetchHabitLogs = (filters) => api.get('/habit-logs', filters);
+export const fetchHabitsTodaySummary = () => api.get('/habit-logs/today-summary');
+export const logHabit = (habit_id, data = {}) => api.post(`/habit-logs/quick/${habit_id}`, data);
+export const createHabitLog = (data) => api.post('/habit-logs', data);
+export const deleteHabitLog = (id) => api.delete(`/habit-logs/${id}`);
+
 // ── OpenCode Sync ──
 
 export const fetchOpenCodeSessions = () => api.get('/opencode/sessions');
