@@ -11,11 +11,6 @@ function normalizeName(name) {
   let n = name.trim();
   // Remove trailing periods from the whole string
   n = n.replace(/\.+$/, '');
-  // Normalize "Louis" variations -> "Luis S"
-  const louisRegex = /^Louis\.?\s*S\.?$/i;
-  if (louisRegex.test(n)) {
-    return 'Luis S';
-  }
   // Trim any remaining trailing periods (e.g. "Lis C." -> "Lis C")
   n = n.replace(/\.+$/, '');
   return n || null;

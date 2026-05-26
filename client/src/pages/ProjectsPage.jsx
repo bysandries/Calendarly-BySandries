@@ -28,6 +28,13 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState('active');
   const [drawerProject, setDrawerProject] = useState(null); // null=closed, {}=create, project=edit
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Unassigned tasks panel
   const [showUnassigned, setShowUnassigned] = useState(false);
@@ -131,22 +138,24 @@ export default function ProjectsPage() {
             </button>
           ))}
         </div>
-        <button
-          className={`filter-pill ${showUnassigned ? 'active' : ''}`}
-          onClick={() => setShowUnassigned(v => !v)}
-          style={{ marginLeft: 'auto' }}
-        >
-          Unassigned Tasks
-          {unassignedCount > 0 && (
-            <span style={{ marginLeft: '5px', opacity: 0.7, fontSize: '0.7rem' }}>
-              {unassignedCount}
-            </span>
-          )}
-        </button>
+        {isMobile && (
+          <button
+            className={`filter-pill ${showUnassigned ? 'active' : ''}`}
+            onClick={() => setShowUnassigned(v => !v)}
+            style={{ marginLeft: 'auto' }}
+          >
+            Unassigned Tasks
+            {unassignedCount > 0 && (
+              <span style={{ marginLeft: '5px', opacity: 0.7, fontSize: '0.7rem' }}>
+                {unassignedCount}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
-      {/* Unassigned Tasks Panel */}
-      {showUnassigned && (
+      {/* Unassigned Tasks Panel - Mobile only or hidden as requested */}
+      {showUnassigned && isMobile && (
         <div className="glass-panel" style={{ marginBottom: '20px', padding: '16px 20px' }}>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>
             <input
@@ -231,7 +240,7 @@ export default function ProjectsPage() {
           </div>
         </div>
       ) : (
-        <div className="glass-panel">
+        <div className="glass-panel data-table-wrapper">
           <table className="data-table">
             <thead>
               <tr>
@@ -397,6 +406,55 @@ export default function ProjectsPage() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && !error && visibleProjects.length > 0 && (
+        <div className="projects-mobile-list">
+          {visibleProjects.map(project => {
+            const area = getAreaInfo(project.area);
+            const total = project.total_tasks ?? 0;
+            const done = project.complete_tasks ?? 0;
+            const pct = calcProgression(done, total);
+            
+            return (
+              <div key={project.id} className="project-mobile-card" onClick={() => setDrawerProject(project)}>
+                <div className="project-mobile-header">
+                  <span className="project-mobile-title" style={{ borderLeft: `4px solid ${area?.color_hex || '#95A5A6'}`, paddingLeft: '12px' }}>
+                    {project.title}
+                  </span>
+                  <ProjectStatusBadge
+                    status={project.status}
+                    onChange={(newStatus) => updateProject(project.id, { status: newStatus })}
+                    compact
+                  />
+                </div>
+                
+                <div className="project-mobile-meta">
+                  <div className="project-mobile-stat">
+                    <span>Phase:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{project.phase || '—'}</span>
+                  </div>
+                  <div className="project-mobile-stat">
+                    <span>Progress:</span>
+                    <span style={{ fontWeight: 600, color: pct === 100 ? '#2ECC71' : 'var(--accent-primary)' }}>{pct ?? 0}%</span>
+                  </div>
+                  {project.due_date && (
+                    <div className="project-mobile-stat">
+                      <span>Due:</span>
+                      <span>{formatIsoDateShort(project.due_date)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {project.description && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--glass-border)', paddingTop: '8px' }}>
+                    {project.description.substring(0, 100)}{project.description.length > 100 ? '…' : ''}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

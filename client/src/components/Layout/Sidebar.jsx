@@ -7,30 +7,83 @@ import {
   IconKanban,
   IconProjects,
   IconExtracts,
-  IconHabits,
   IconCalendar,
   IconAnalytics,
+  IconUsers,
   IconAgents,
+  IconHabits,
   IconSettings,
+
   IconChevronLeft,
-  IconChevronRight
+  IconChevronRight,
+  IconX,
+  IconClock
 } from './NavIcons';
 
 const NAV_ITEMS = [
-  { to: '/tasks', icon: IconDatabase, label: 'Database' },
+  { to: '/tasks', icon: IconDatabase, label: 'Tasks' },
+  { to: '/projects', icon: IconProjects, label: 'Projects' },
+  { to: '/team', icon: IconUsers, label: 'Team' },
   { to: '/gtd', icon: IconInbox, label: 'GTD Inbox' },
   { to: '/kanban', icon: IconKanban, label: 'Kanban Board' },
-  { to: '/projects', icon: IconProjects, label: 'Projects' },
   { to: '/notes', icon: IconExtracts, label: 'Extracts' },
   { to: '/habits', icon: IconHabits, label: 'Habits' },
   { to: '/calendar', icon: IconCalendar, label: 'Calendar Tracking' },
+  { to: '/pomodoro', icon: IconClock, label: 'Pomodoro', mobileOnly: true },
   { to: '/analytics', icon: IconAnalytics, label: 'Reflection Dashboard' },
   { to: '/agents', icon: IconAgents, label: 'Code Agents' },
   { to: '/settings', icon: IconSettings, label: 'Settings' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isMobileOpen, onClose }) {
   const [isOnline, setIsOnline] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [navItems, setNavItems] = useState(NAV_ITEMS);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Fetch UI Config on mount
+  useEffect(() => {
+    const fetchUIConfig = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.success && data.database && data.database.navigation_config) {
+          let config = data.database.navigation_config;
+          
+          // Safety: Parse if string
+          if (typeof config === 'string') {
+            try { config = JSON.parse(config); } catch (e) { config = null; }
+          }
+
+          if (config && Array.isArray(config)) {
+            // Reconstruct NAV_ITEMS based on config
+            const orderedItems = config
+              .filter(c => c.enabled)
+              .map(c => {
+                const original = NAV_ITEMS.find(item => item.to === c.id);
+                return original ? { ...original, label: c.label } : null;
+              })
+              .filter(Boolean);
+              
+            setNavItems(orderedItems);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load sidebar UI config', err);
+      }
+    };
+    fetchUIConfig();
+
+    // Listen for storage events (if user saves settings in another tab or we want to trigger refresh)
+    // For now, we'll just poll every 30s like the health check or assume page refresh
+    const interval = setInterval(fetchUIConfig, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Persist collapsed state in localStorage; default to collapsed on small screens
   const getInitialCollapsed = () => {
@@ -74,10 +127,20 @@ export default function Sidebar() {
   const ToggleIcon = collapsed ? IconChevronRight : IconChevronLeft;
 
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-logo">
         <h1>C</h1>
         <span className="sidebar-logo-full">Calendarly</span>
+        
+        {/* Mobile Close Button */}
+        <button 
+          className="mobile-close-btn" 
+          onClick={onClose}
+          aria-label="Close menu"
+        >
+          <IconX />
+        </button>
+
         <button
           type="button"
           className="sidebar-toggle"
@@ -92,19 +155,22 @@ export default function Sidebar() {
       <nav className="sidebar-nav">
         <div className="sidebar-section-label">Navigation</div>
 
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            title={label}
-          >
-            <span className="nav-icon">
-              <Icon />
-            </span>
-            <span className="nav-label">{label}</span>
-          </NavLink>
-        ))}
+        {navItems.map(({ to, icon: Icon, label, mobileOnly }) => {
+          if (mobileOnly && !isMobile) return null;
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              title={label}
+            >
+              <span className="nav-icon">
+                <Icon />
+              </span>
+              <span className="nav-label">{label}</span>
+            </NavLink>
+          );
+        })}
       </nav>
 
       <div className="sidebar-footer">

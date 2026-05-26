@@ -61,6 +61,7 @@
 
   /* Accent */
   --accent-primary: #3498DB;
+  --accent-primary-rgb: 52, 152, 219;
   --accent-success: #2ECC71;
   --accent-warning: #F39C12;
   --accent-danger: #E74C3C;
@@ -540,6 +541,25 @@ body {
 .data-table tbody tr {
   transition: all var(--transition-fast);
   position: relative;
+}
+
+.data-table tbody tr.selected {
+  background: rgba(var(--accent-primary-rgb), 0.1) !important;
+  box-shadow: inset 3px 0 0 var(--accent-primary);
+}
+
+.data-table tbody tr.selected td {
+  color: var(--text-primary);
+}
+
+.status-badge-inline {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--glass-bg-strong);
+  color: var(--text-secondary);
 }
 
 .data-table tbody tr:hover {
@@ -1996,6 +2016,167 @@ body {
   background: var(--glass-bg);
 }
 
+/* ── Responsive Helpers for TaskCard ── */
+.mobile-only-subtext {
+  display: none;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  gap: 8px;
+  align-items: center;
+}
+
+.mobile-project-tag {
+  background: var(--glass-bg-strong);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.mobile-date-tag {
+  color: var(--accent-primary);
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 16px 0; /* Remove side padding on mobile */
+    overflow-x: hidden;
+  }
+
+  .data-table-wrapper {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .data-table {
+    width: 100% !important;
+  }
+
+  .desktop-only-cell {
+    display: none !important;
+  }
+
+  .mobile-hide {
+    display: none !important;
+  }
+  
+  .mobile-only-subtext {
+    display: flex;
+  }
+
+  /* Only show Title and Status or similar if requested, 
+     but user specifically asked for "only task name and due date".
+     I will hide other columns like checkbox and actions if they aren't part of "name and due date" 
+     conceptually, but usually name/date are the core.
+  */
+
+  /* Hide specific columns in mobile if they are marked */
+  .mobile-hide-col {
+    display: none !important;
+  }
+
+  /* Make status select more compact on mobile */
+  .status-select {
+    padding: 2px 20px 2px 8px;
+    font-size: 0.7rem;
+  }
+  
+  .data-table tbody td {
+    padding: 12px 16px;
+  }
+}
+
+/* ── Column Resizing ── */
+.resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+  transition: background var(--transition-fast);
+  z-index: 1;
+}
+
+.resizer:hover, .resizer.isResizing {
+  background: var(--accent-primary);
+}
+
+.sortable-header {
+  position: relative;
+}
+
+/* ── Advanced Column Picker ── */
+.column-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  transition: background var(--transition-fast), transform var(--transition-fast);
+  cursor: default;
+}
+
+.column-picker-item.dragging {
+  opacity: 0.5;
+  background: var(--glass-bg-strong);
+  transform: scale(0.98);
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--text-dimmed);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.drag-handle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.column-reorder-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.reorder-btn {
+  background: none;
+  border: none;
+  color: var(--text-dimmed);
+  cursor: pointer;
+  font-size: 0.6rem;
+  padding: 2px;
+  line-height: 1;
+  transition: color var(--transition-fast);
+}
+
+.reorder-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.reorder-btn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
 .linked-task-badge .dot {
   width: 6px;
   height: 6px;
@@ -2330,6 +2511,111 @@ body {
   opacity: 1;
 }
 
+/* ── Mobile Header ── */
+.mobile-header {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
+  z-index: 150;
+  padding: 0 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobile-brand h1 {
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #3498DB, #9B59B6);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.mobile-brand span {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #3498DB, #9B59B6, #E67E22);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hamburger-btn {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.hamburger-btn:hover {
+  background: var(--bg-card-hover);
+}
+
+.mobile-close-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.mobile-close-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 190;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-default);
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.desktop-only {
+  display: flex !important;
+}
+
+.mobile-only {
+  display: none !important;
+}
+
 /* ── Responsive ── */
 /* iPad 11" horizontal ~ 1024px and below */
 @media (max-width: 1024px) {
@@ -2343,34 +2629,124 @@ body {
 
 /* Small tablets / large phones */
 @media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: block !important;
+  }
+
+  .mobile-header {
+    display: flex;
+  }
+
   .sidebar {
-    width: var(--sidebar-collapsed) !important;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 280px !important;
+    transform: translateX(-100%);
+    z-index: 200;
+    transition: transform var(--transition-default);
+    background: var(--bg-surface);
   }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .mobile-close-btn {
+    display: flex;
+    margin-left: auto;
+  }
+
   .sidebar.collapsed {
-    width: var(--sidebar-collapsed) !important;
+    width: 280px !important;
   }
+
   .sidebar .nav-label,
   .sidebar .sidebar-logo-full,
   .sidebar-section-label,
   .connection-text {
-    display: none !important;
+    display: block !important;
+    opacity: 1 !important;
   }
+
+  .sidebar.collapsed .nav-label,
+  .sidebar.collapsed .sidebar-logo-full,
+  .sidebar.collapsed .sidebar-section-label,
+  .sidebar.collapsed .connection-text {
+    display: block !important;
+    opacity: 1 !important;
+    width: auto !important;
+  }
+
   .sidebar-logo h1 {
     opacity: 1 !important;
   }
+
   .main-content {
-    margin-left: var(--sidebar-collapsed) !important;
-    padding: 16px 20px;
+    margin-left: 0 !important;
+    padding: 72px 0 32px; /* Removed side padding for full-width components */
   }
+
+  .page-header, .filter-bar {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .page-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .habits-overview {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .kanban-board {
+    height: auto !important;
+    min-height: calc(100vh - 160px);
+  }
+
+  .data-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table {
+    width: 100%;
+  }
+
+  .inbox-item {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  .triage-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .sidebar-toggle {
     display: none !important;
   }
+
   .cards-grid {
     grid-template-columns: 1fr;
   }
+
   .note-detail-body {
     flex-direction: column;
   }
+
   /* Scrollable table containers on tablets */
   .glass-panel {
     overflow-x: auto;
@@ -2384,14 +2760,96 @@ body {
   /* Modal constrained to screen */
   .modal-content {
     max-width: calc(100vw - 32px);
+    padding: 20px;
     margin: 16px;
+  }
+
+  /* ── Restore Mobile List Styles for Projects ── */
+  .projects-mobile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .project-mobile-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-decoration: none;
+    transition: background var(--transition-fast);
+  }
+
+  .project-mobile-card:hover {
+    background: var(--bg-card-hover);
+  }
+
+  .project-mobile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .project-mobile-title {
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 1.1rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .project-mobile-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .project-mobile-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .filter-select {
+    display: none !important;
+  }
+
+  .task-tabs {
+    overflow-x: auto;
+    padding-bottom: 8px;
+    mask-image: linear-gradient(to right, black 85%, transparent);
+    -webkit-mask-image: linear-gradient(to right, black 85%, transparent);
+  }
+
+  .task-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .task-status-mobile-menu {
+    margin-bottom: 20px;
+    width: 100%;
+  }
+
+  .task-status-mobile-menu .form-select {
+    width: 100%;
+    height: 48px; /* Larger tap target */
+    font-size: 1rem;
+    background: var(--glass-bg-strong);
   }
 }
 
 /* Phones */
 @media (max-width: 480px) {
   .main-content {
-    padding: 12px 16px;
+    padding: 68px 12px 24px;
   }
   /* Cards always single column */
   .cards-grid {

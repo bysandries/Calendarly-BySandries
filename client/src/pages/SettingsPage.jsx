@@ -30,6 +30,21 @@ export default function SettingsPage() {
     time_format: '12h',
     date_format: 'YYYY-MM-DD',
     theme: 'midnight-abyss',
+    default_assignee: '',
+    navigation_config: [
+      { id: '/tasks', label: 'Tasks', enabled: true },
+      { id: '/projects', label: 'Projects', enabled: true },
+      { id: '/team', label: 'Team', enabled: true },
+      { id: '/gtd', label: 'GTD Inbox', enabled: true },
+      { id: '/kanban', label: 'Kanban Board', enabled: true },
+      { id: '/notes', label: 'Extracts', enabled: true },
+      { id: '/habits', label: 'Habits', enabled: true },
+      { id: '/calendar', label: 'Calendar Tracking', enabled: true },
+      { id: '/pomodoro', label: 'Pomodoro', enabled: true },
+      { id: '/analytics', label: 'Reflection Dashboard', enabled: true },
+      { id: '/agents', label: 'Code Agents', enabled: true },
+      { id: '/settings', label: 'Settings', enabled: true }
+    ],
     palm_pillars: {
       Kindness: 'Kindness',
       Authenticity: 'Authenticity',
@@ -37,6 +52,8 @@ export default function SettingsPage() {
       Innovation: 'Innovation'
     }
   });
+
+  const [people, setPeople] = useState([]);
 
   const [envSettings, setEnvSettings] = useState({
     PORT: '3000',
@@ -56,6 +73,7 @@ export default function SettingsPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [dbProfiles, setDbProfiles] = useState([]);
+  const [draggedNavIndex, setDraggedNavIndex] = useState(null);
   
   // Decryption verification modal
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -75,70 +93,114 @@ export default function SettingsPage() {
   // Fetch settings from server on mount
   const fetchAllSettings = async () => {
     setLoading(true);
+    console.log('[Settings] Syncing local modules...');
+    
+    // Core data: Settings and People
     try {
-      // 1. Get settings, env vars, and database profiles
-      const settingsRes = await fetch('/api/settings');
-      const settingsData = await settingsRes.json();
-      
-      if (settingsData.success) {
-        if (settingsData.database) {
-          setDbSettings(prev => ({
-            ...prev,
-            ...settingsData.database,
-            palm_pillars: settingsData.database.palm_pillars || prev.palm_pillars
-          }));
-          
-          // Apply theme from settings
-          const selectedTheme = settingsData.database.theme || 'midnight-abyss';
-          applyThemeClass(selectedTheme);
-        }
-        if (settingsData.environment) {
-          setEnvSettings(settingsData.environment);
-          setEnvEdits(settingsData.environment);
-        }
-        if (settingsData.databases) {
-          setDbProfiles(settingsData.databases);
-          
-          // Set active DB statistics from active item
-          const activeDb = settingsData.databases.find(db => db.isActive);
-          if (activeDb) {
-            setDbStats(prev => ({
-              ...prev,
-              size: activeDb.size
-            }));
+      const [settingsRes, peopleRes] = await Promise.all([
+        fetch('/api/settings').catch(e => { console.error('Settings fetch failed', e); return null; }),
+        fetch('/api/people').catch(e => { console.error('People fetch failed', e); return null; })
+      ]);
+
+      if (settingsRes && settingsRes.ok) {
+        const settingsData = await settingsRes.json();
+        if (settingsData.success) {
+          if (settingsData.database) {
+            setDbSettings(prev => {
+              const base = {
+                ...prev,
+                ...settingsData.database,
+                palm_pillars: (settingsData.database.palm_pillars && typeof settingsData.database.palm_pillars === 'object') 
+                  ? settingsData.database.palm_pillars 
+                  : prev.palm_pillars,
+                default_assignee: settingsData.database.default_assignee || ''
+              };
+
+              // Merge navigation_config safely
+              if (settingsData.database.navigation_config) {
+                let saved = settingsData.database.navigation_config;
+                if (typeof saved === 'string') {
+                  try { saved = JSON.parse(saved); } catch (e) { saved = null; }
+                }
+
+                if (saved && Array.isArray(saved)) {
+                  const defaults = prev.navigation_config;
+                  const merged = [...saved];
+                  defaults.forEach(def => {
+                    if (!merged.find(m => m.id === def.id)) {
+                      merged.push(def);
+                    }
+                  });
+                  base.navigation_config = merged;
+                }
+              }
+              return base;
+            });
+            const selectedTheme = settingsData.database.theme || 'midnight-abyss';
+            applyThemeClass(selectedTheme);
+          }
+          if (settingsData.environment) {
+            setEnvSettings(settingsData.environment);
+            setEnvEdits(settingsData.environment);
+          }
+          if (settingsData.databases) {
+            setDbProfiles(settingsData.databases);
+            const activeDb = settingsData.databases.find(db => db.isActive);
+            if (activeDb) {
+              setDbStats(prev => ({ ...prev, size: activeDb.size }));
+            }
           }
         }
       }
 
-      // 2. Get git health shield status
-      const gitRes = await fetch('/api/settings/gitignore-status');
-      const gitData = await gitRes.json();
-      if (gitData.success) {
-        setGitStatus(gitData);
-      }
-
-      // 3. Get database quick integrity stats
-      const statsRes = await fetch('/api/health/integrity-check?check_only=true');
-      const statsData = await statsRes.json();
-      if (statsData.status === 'healthy' && statsData.details) {
-        setDbStats(prev => ({
-          ...prev,
-          rows: statsData.details.eventsChecked || 0,
-          integrity: 'Secure & Fully Intact'
-        }));
-      } else {
-        setDbStats(prev => ({
-          ...prev,
-          rows: 'Unknown',
-          integrity: 'Anomalies Detected / Needs Check'
-        }));
+      if (peopleRes && peopleRes.ok) {
+        const peopleData = await peopleRes.json();
+        if (Array.isArray(peopleData)) {
+          setPeople(peopleData);
+        }
       }
     } catch (err) {
-      console.error(err);
-      triggerAlert('error', 'Failed to retrieve settings from local Express server.');
+      console.error('[Settings] Core fetch error:', err);
+      triggerAlert('error', 'Failed to retrieve core settings.');
     } finally {
+      // SET LOADING TO FALSE IMMEDIATELY AFTER CORE DATA
       setLoading(false);
     }
+
+    // DEFERRED DATA: Slow checks run in background
+    fetchDeferredSettings();
+  };
+
+  const fetchDeferredSettings = async () => {
+    console.log('[Settings] Running background health checks...');
+    
+    // 1. Git health shield status
+    fetch('/api/settings/gitignore-status')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data && data.success) setGitStatus(data);
+      })
+      .catch(e => console.error('Git status fetch failed', e));
+
+    // 2. Database integrity check (The slow one)
+    fetch('/api/health/integrity-check?check_only=true')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data && data.status === 'healthy' && data.details) {
+          setDbStats(prev => ({
+            ...prev,
+            rows: data.details.eventsChecked || 0,
+            integrity: 'Secure & Fully Intact'
+          }));
+        } else {
+          setDbStats(prev => ({
+            ...prev,
+            rows: 'Unknown',
+            integrity: 'Anomalies Detected / Needs Check'
+          }));
+        }
+      })
+      .catch(e => console.error('Integrity check fetch failed', e));
   };
 
   useEffect(() => {
@@ -443,6 +505,34 @@ export default function SettingsPage() {
     }
   };
 
+  const handleBatchAssignDefault = async () => {
+    if (!dbSettings.default_assignee) {
+      triggerAlert('error', 'Please select a Default Assignee first.');
+      return;
+    }
+
+    if (!window.confirm('This will assign the default team member to ALL currently unassigned tasks and projects. Continue?')) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/settings/batch-assign-default', {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (data.success) {
+        triggerAlert('success', `${data.message} Updated ${data.details.projectsUpdated} projects and ${data.details.tasksUpdated} tasks.`);
+      } else {
+        triggerAlert('error', data.error || 'Batch assignment failed.');
+      }
+    } catch (err) {
+      triggerAlert('error', 'Network error during batch assignment.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const toggleSecretVisibility = (key) => {
     setVisibleSecrets(prev => ({
       ...prev,
@@ -454,10 +544,41 @@ export default function SettingsPage() {
     setDbSettings(prev => ({
       ...prev,
       palm_pillars: {
-        ...prev.palm_pillars,
+        ...(prev.palm_pillars || {}),
         [key]: value
       }
     }));
+  };
+
+  // ── UI Navigation Customization ──
+  const handleToggleNav = (id) => {
+    setDbSettings(prev => {
+      const newConfig = prev.navigation_config.map(item => 
+        item.id === id ? { ...item, enabled: !item.enabled } : item
+      );
+      return { ...prev, navigation_config: newConfig };
+    });
+  };
+
+  const handleNavDragStart = (e, index) => {
+    setDraggedNavIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleNavDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedNavIndex === null || draggedNavIndex === index) return;
+
+    const newConfig = [...dbSettings.navigation_config];
+    const item = newConfig.splice(draggedNavIndex, 1)[0];
+    newConfig.splice(index, 0, item);
+    
+    setDbSettings(prev => ({ ...prev, navigation_config: newConfig }));
+    setDraggedNavIndex(index);
+  };
+
+  const handleNavDragEnd = () => {
+    setDraggedNavIndex(null);
   };
 
   if (loading) {
@@ -541,6 +662,20 @@ export default function SettingsPage() {
           >
             <span className="tab-btn-icon">🎨</span>
             <span>Personalization</span>
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'ui' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ui')}
+          >
+            <span className="tab-btn-icon">📱</span>
+            <span>Interface & Navigation</span>
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'team' ? 'active' : ''}`}
+            onClick={() => setActiveTab('team')}
+          >
+            <span className="tab-btn-icon">👥</span>
+            <span>Team Settings</span>
           </button>
         </aside>
 
@@ -906,7 +1041,7 @@ export default function SettingsPage() {
                   <input 
                     type="text" 
                     className="form-input" 
-                    value={dbSettings.palm_pillars.Kindness}
+                    value={dbSettings.palm_pillars?.Kindness || ''}
                     onChange={(e) => handlePillarChange('Kindness', e.target.value)}
                   />
                 </div>
@@ -916,7 +1051,7 @@ export default function SettingsPage() {
                   <input 
                     type="text" 
                     className="form-input" 
-                    value={dbSettings.palm_pillars.Authenticity}
+                    value={dbSettings.palm_pillars?.Authenticity || ''}
                     onChange={(e) => handlePillarChange('Authenticity', e.target.value)}
                   />
                 </div>
@@ -926,7 +1061,7 @@ export default function SettingsPage() {
                   <input 
                     type="text" 
                     className="form-input" 
-                    value={dbSettings.palm_pillars.Resilience}
+                    value={dbSettings.palm_pillars?.Resilience || ''}
                     onChange={(e) => handlePillarChange('Resilience', e.target.value)}
                   />
                 </div>
@@ -936,7 +1071,7 @@ export default function SettingsPage() {
                   <input 
                     type="text" 
                     className="form-input" 
-                    value={dbSettings.palm_pillars.Innovation}
+                    value={dbSettings.palm_pillars?.Innovation || ''}
                     onChange={(e) => handlePillarChange('Innovation', e.target.value)}
                   />
                 </div>
@@ -945,6 +1080,91 @@ export default function SettingsPage() {
               <div style={{ marginTop: '30px' }}>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? 'Saving...' : 'Apply Aesthetics'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* TAB 5: UI & NAVIGATION */}
+          {activeTab === 'ui' && (
+            <form onSubmit={handleSaveDbSettings}>
+              <div className="panel-header">
+                <h2>Interface & Navigation</h2>
+                <p>Customize your main menu. Drag items to reorder and toggle visibility with switches.</p>
+              </div>
+
+              <div className="ui-config-list">
+                {dbSettings.navigation_config.map((item, index) => (
+                  <div 
+                    key={item.id}
+                    className={`ui-config-item ${draggedNavIndex === index ? 'dragging' : ''}`}
+                    draggable
+                    onDragStart={(e) => handleNavDragStart(e, index)}
+                    onDragOver={(e) => handleNavDragOver(e, index)}
+                    onDragEnd={handleNavDragEnd}
+                  >
+                    <div className="ui-item-info">
+                      <span className="ui-drag-handle">☰</span>
+                      <span className="ui-item-label">{item.label}</span>
+                    </div>
+                    
+                    <label className="switch-toggle">
+                      <input 
+                        type="checkbox" 
+                        checked={item.enabled}
+                        onChange={() => handleToggleNav(item.id)}
+                      />
+                      <span className="slider-round"></span>
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: '30px' }}>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Navigation Order'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* TAB 6: TEAM */}
+          {activeTab === 'team' && (
+            <form onSubmit={handleSaveDbSettings}>
+              <div className="panel-header">
+                <h2>Team & Assignments</h2>
+                <p>Configure default behaviors for team member assignments and collaboration.</p>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="default_assignee">Default Assignee</label>
+                <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 12px 0' }}>
+                  Select the person who will be automatically assigned to new tasks and projects if no one else is specified.
+                </p>
+                <select 
+                  id="default_assignee"
+                  className="form-select"
+                  value={dbSettings.default_assignee}
+                  onChange={(e) => setDbSettings({ ...dbSettings, default_assignee: e.target.value })}
+                >
+                  <option value="">Unassigned (None)</option>
+                  {people.map(person => (
+                    <option key={person.id} value={person.id}>{person.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginTop: '30px', display: 'flex', gap: '12px' }}>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Team Settings'}
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={handleBatchAssignDefault}
+                  disabled={saving || !dbSettings.default_assignee}
+                >
+                  🚀 Assign default to all unassigned items
                 </button>
               </div>
             </form>

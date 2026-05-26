@@ -249,6 +249,32 @@ calendarly/
 | `pomodoro_session_tasks` | Many-to-many sessions ↔ tasks |
 | `extract_resources` | Many-to-many extracts ↔ projects/tasks |
 
+### Task Page Architecture
+
+The Tasks page (`client/src/pages/TasksPage.jsx`) provides a robust, interactive interface for managing the GTD/Kanban task pipeline.
+
+#### Core Features
+- **Dynamic Views**: Organizes tasks into status-based tabs (Actionable, Waiting, Scheduled, etc.) with a mobile-responsive dropdown menu.
+- **Customizable Data Table**: 
+  - **Column Management**: Toggle visibility of columns (Urgency, Priority, Project, Assignee, ECT, etc.).
+  - **Interactive Layout**: Drag-and-drop column reordering and real-time column resizing.
+  - **Advanced Sorting**: Multi-key sorting (Status weight, Priority level, Slack/Urgency calculation).
+- **Selection & Bulk Editing**:
+  - Desktop: Supports range selection (Shift + Click) and additive selection (Cmd/Ctrl + Click).
+  - Mobile: Dedicated "Select Mode" toggle for easier multi-select on touch devices.
+  - **Slide Drawer**: Integrated `TaskDrawer.jsx` for single-task detail editing and bulk updates (status, priority, project, assignee).
+- **Inline Capture**: Quick task creation form at the top of the table.
+
+#### Component Hierarchy
+- **`TasksPage.jsx`**: Orchestrates state (selection, column config, sorting) and data fetching via `useTasks` hook.
+- **`TaskCard.jsx`**: Renders individual rows with contextual styles (priority dots, urgency badges, overdue highlighting).
+- **`TaskDrawer.jsx`**: A shared slide-out panel for modifying selected tasks. It supports single-task deep editing and bulk property updates.
+- **`TaskSearchPopover.jsx`**: (Integrated in Pomodoro/Sidebar) Provides fuzzy search and quick creation of actionable tasks.
+
+#### Logic & Data
+- **`useTasks.js`**: A custom React hook that abstracts API calls for task CRUD operations, providing centralized loading and error states.
+- **`taskMath.js`**: Utility library for calculating "Urgency" scores based on slack (due date - ECT) and formatting time durations.
+
 ---
 
 ## Quick Start

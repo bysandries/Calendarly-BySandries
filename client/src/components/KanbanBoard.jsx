@@ -36,10 +36,25 @@ export default function KanbanBoard() {
     }
   };
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   if (loading && tasks.length === 0) return <div className="skeleton-row" style={{ height: '400px' }} />;
 
   return (
-    <div className="kanban-board" style={{ display: 'flex', gap: '20px', height: 'calc(100vh - 200px)', overflowX: 'auto', paddingBottom: '20px' }}>
+    <div className="kanban-board" style={{ 
+      display: 'flex', 
+      flexDirection: isMobile ? 'column' : 'row',
+      gap: '20px', 
+      height: isMobile ? 'auto' : 'calc(100vh - 200px)', 
+      overflowX: isMobile ? 'hidden' : 'auto', 
+      paddingBottom: '20px' 
+    }}>
       {COLUMNS.map(col => (
         <div
           key={col.id}
