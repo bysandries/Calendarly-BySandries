@@ -554,6 +554,7 @@ async function seedDatabase(database) {
     { id: 'coding', name: 'Coding', color_hex: '#3498DB', description: 'Software development and programming' },
     { id: 'creative', name: 'Creative', color_hex: '#9B59B6', description: 'Creative work, writing, drawing, and media' },
     { id: 'fitness', name: 'Fitness', color_hex: '#2ECC71', description: 'Exercise and physical health' },
+    { id: 'personal-care', name: 'Personal Care', color_hex: '#FF6B9D', description: 'Therapy, wellness, and self-care' },
     { id: 'general', name: 'General', color_hex: '#95A5A6', description: 'Miscellaneous daily tasks and activities' }
   ];
 
@@ -587,6 +588,17 @@ async function seedDatabase(database) {
       phase: 'Act',
       goals_aligned: JSON.stringify(['Create digital art portfolio']),
       description: 'Focusing on creative design elements, aesthetics, and user experience.'
+    },
+    {
+      id: 'therapy-homework',
+      title: 'Therapy Homework',
+      status: 'active',
+      area: 'personal-care',
+      pillar: 'Resilience',
+      methodology: 'PALM',
+      phase: 'Act',
+      goals_aligned: JSON.stringify(['Complete therapy assignments', 'Practice coping strategies']),
+      description: 'Tasks and homework assigned during therapy sessions.'
     }
   ];
 
