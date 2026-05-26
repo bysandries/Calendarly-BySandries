@@ -329,9 +329,9 @@ body {
 }
 
 .sidebar.collapsed .nav-item {
-  justify-content: center;
-  padding: 10px 0;
-  margin: 0 10px;
+  justify-content: flex-start;
+  padding: 10px 0 10px 16px;
+  margin: 0 8px;
 }
 
 .nav-item::before {
@@ -1723,6 +1723,7 @@ body {
   font-size: 0.8rem;
   font-family: inherit;
   width: 240px;
+  max-width: 100%;
   transition: all var(--transition-fast);
 }
 
@@ -1731,6 +1732,7 @@ body {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
   width: 300px;
+  max-width: 100%;
 }
 
 .search-input::placeholder {
@@ -2745,23 +2747,28 @@ body {
     flex-direction: column;
   }
 
+  /* Scrollable table containers on tablets */
+  .glass-panel {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Filter bar wraps cleanly */
+  .filter-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  /* Modal constrained to screen */
   .modal-content {
-    width: 95%;
+    max-width: calc(100vw - 32px);
     padding: 20px;
-    margin: 10px;
+    margin: 16px;
   }
 
   /* ── Restore Mobile List Styles for Projects ── */
   .projects-mobile-list {
-    display: none;
+    display: flex;
     flex-direction: column;
     gap: 12px;
-  }
-
-  @media (max-width: 768px) {
-    .projects-mobile-list {
-      display: flex;
-    }
   }
 
   .project-mobile-card {
@@ -2843,6 +2850,139 @@ body {
 @media (max-width: 480px) {
   .main-content {
     padding: 68px 12px 24px;
+  }
+  /* Cards always single column */
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+  /* Shrink page header */
+  .page-header {
+    margin-bottom: 20px;
+  }
+  .page-header h2 {
+    font-size: 1.4rem;
+  }
+  /* Hide description to save vertical space */
+  .page-header .page-description {
+    display: none;
+  }
+  /* Tighter modal on phones */
+  .modal-content {
+    max-width: calc(100vw - 16px);
+    margin: 8px;
+    padding: 16px;
+  }
+}
+
+/* ── iPhone-specific (375px–430px) ── */
+@media (max-width: 430px) {
+  :root {
+    /* Safe area insets for notch / home indicator */
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .main-content {
+    padding: 12px 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Prevent iOS Safari zoom on input focus (font-size < 16px triggers zoom) */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Minimum touch target: 44×44px (Apple HIG) */
+  .btn {
+    min-height: 44px;
+  }
+  .icon-btn,
+  .btn-icon,
+  .sidebar-toggle,
+  .nav-item {
+    min-height: 44px;
+  }
+
+  /* Search input full width on iPhone */
+  .search-input,
+  .search-input:focus {
+    width: 100%;
+    max-width: 100%;
+  }
+  .search-wrapper {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Filter bar items wrap and fill available space */
+  .filter-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .filter-select {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  /* Modal as near-full-screen bottom card */
+  .modal-content {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92dvh;
+    margin: 0;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+
+  /* Drawers fill full width */
+  .slide-drawer-content,
+  .drawer-content {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+
+  /* Table containers scroll horizontally with momentum */
+  .glass-panel,
+  .habit-table-wrapper,
+  .agents-table-container,
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  /* Page header compact */
+  .page-header h2 {
+    font-size: 1.3rem;
+  }
+  .page-header .page-description {
+    display: none;
+  }
+
+  /* Bulk action bar stacks */
+  .bulk-action-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Prevent body pull-to-refresh interfering */
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
+@media (max-width: 375px) {
+  .main-content {
+    padding: 8px 10px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  .page-header h2 {
+    font-size: 1.2rem;
   }
 }
 
