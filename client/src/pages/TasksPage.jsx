@@ -222,7 +222,8 @@ export default function TasksPage() {
 
       {/* Tabs */}
       <div className="filter-bar">
-        <div className="task-tabs">
+        {/* Desktop Tabs */}
+        <div className="task-tabs desktop-only">
           {TASK_TABS.map(tab => {
             const count = visibleTasks.filter(t => tab.statuses.includes(t.status)).length;
             return (
@@ -238,8 +239,28 @@ export default function TasksPage() {
           })}
         </div>
 
+        {/* Mobile Selection Menu */}
+        <div className="task-status-mobile-menu mobile-only">
+          <label htmlFor="mobile-status-select" className="form-label" style={{ marginBottom: '8px', display: 'block' }}>View Status</label>
+          <select
+            id="mobile-status-select"
+            className="form-select"
+            value={activeTab}
+            onChange={(e) => setActiveTab(e.target.value)}
+          >
+            {TASK_TABS.map(tab => {
+              const count = visibleTasks.filter(t => tab.statuses.includes(t.status)).length;
+              return (
+                <option key={tab.key} value={tab.key}>
+                  {tab.label} ({count})
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
         <select
-          className="filter-select"
+          className="filter-select desktop-only"
           value={projectFilter}
           onChange={(e) => setProjectFilter(e.target.value)}
         >

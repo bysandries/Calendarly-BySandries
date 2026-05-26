@@ -2425,6 +2425,14 @@ body {
   pointer-events: auto;
 }
 
+.desktop-only {
+  display: flex !important;
+}
+
+.mobile-only {
+  display: none !important;
+}
+
 /* ── Responsive ── */
 /* iPad 11" horizontal ~ 1024px and below */
 @media (max-width: 1024px) {
@@ -2438,6 +2446,14 @@ body {
 
 /* Small tablets / large phones */
 @media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: block !important;
+  }
+
   .mobile-header {
     display: flex;
   }
@@ -2554,6 +2570,9 @@ body {
     display: none;
     flex-direction: column;
     gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .task-mobile-card {
@@ -2566,6 +2585,8 @@ body {
     align-items: center;
     text-decoration: none;
     transition: background var(--transition-fast);
+    min-width: 110%; /* Allow card to be wider than viewport */
+    flex-shrink: 0;
   }
 
   .task-mobile-card:hover {
@@ -2667,9 +2688,21 @@ body {
       mask-image: linear-gradient(to right, black 85%, transparent);
       -webkit-mask-image: linear-gradient(to right, black 85%, transparent);
     }
-    .task-tab {
+  .task-tab {
       flex-shrink: 0;
       white-space: nowrap;
+    }
+
+    .task-status-mobile-menu {
+      margin-bottom: 20px;
+      width: 100%;
+    }
+
+    .task-status-mobile-menu .form-select {
+      width: 100%;
+      height: 48px; /* Larger tap target */
+      font-size: 1rem;
+      background: var(--glass-bg-strong);
     }
   }
 }
