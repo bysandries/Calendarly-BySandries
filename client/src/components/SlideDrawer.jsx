@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { fetchAreas, fetchTasks, fetchEventTasks, linkTaskToEvent, unlinkTaskFromEvent } from '../utils/api';
 import { TASK_TABS } from '../utils/statusMap';
+import AreaPicker from './AreaPicker';
 
 
 const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged }) => {
@@ -196,10 +197,16 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
           <div className="event-details-card glass-panel" style={{ borderColor: colorHex }}>
             <div className="detail-row category-row">
               <span className="detail-label">Category</span>
-              <span className="detail-value category-badge">
-                <span className="category-dot" style={{ background: colorHex }} />
-                {selectedArea ? selectedArea.name : (formData.area || 'General')}
-              </span>
+              <AreaPicker
+                value={formData.area}
+                areas={areas}
+                onSelect={(id) => setFormData(prev => ({ ...prev, area: id }))}
+                onAreasChanged={async () => {
+                  const updated = await fetchAreas();
+                  setAreas(updated);
+                  if (onAreasChanged) await onAreasChanged();
+                }}
+              />
             </div>
 
             <div className="detail-row time-row">
