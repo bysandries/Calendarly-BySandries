@@ -10,6 +10,9 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
   const [endTime, setEndTime] = useState('10:30am');
   const [isAllDay, setIsAllDay] = useState(false);
   const [repeatOption, setRepeatOption] = useState('does-not-repeat');
+  const [repeatLimitType, setRepeatLimitType] = useState('count');
+  const [repeatCount, setRepeatCount] = useState(10);
+  const [repeatUntilDate, setRepeatUntilDate] = useState('');
   const [area, setArea] = useState('general');
   const [notes, setNotes] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -86,16 +89,30 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
 
     // Map selected repeat option to standard RFC 5545 RRULE string
     let rrule = null;
-    if (repeatOption === 'daily') {
-      rrule = 'FREQ=DAILY;INTERVAL=1';
-    } else if (repeatOption === 'weekly') {
-      const weekdayNames = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-      const dayName = weekdayNames[luxonDate.weekday % 7];
-      rrule = `FREQ=WEEKLY;BYDAY=${dayName};INTERVAL=1`;
-    } else if (repeatOption === 'monthly') {
-      rrule = 'FREQ=MONTHLY;INTERVAL=1';
-    } else if (repeatOption === 'annually') {
-      rrule = 'FREQ=YEARLY;INTERVAL=1';
+    if (repeatOption !== 'does-not-repeat' && repeatOption !== 'custom') {
+      let baseRule = '';
+      if (repeatOption === 'daily') {
+        baseRule = 'FREQ=DAILY;INTERVAL=1';
+      } else if (repeatOption === 'weekly') {
+        const weekdayNames = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+        const dayName = weekdayNames[luxonDate.weekday % 7];
+        baseRule = `FREQ=WEEKLY;BYDAY=${dayName};INTERVAL=1`;
+      } else if (repeatOption === 'monthly') {
+        baseRule = 'FREQ=MONTHLY;INTERVAL=1';
+      } else if (repeatOption === 'annually') {
+        baseRule = 'FREQ=YEARLY;INTERVAL=1';
+      }
+
+      // Append limit
+      if (repeatLimitType === 'count') {
+        baseRule += `;COUNT=${Math.max(1, parseInt(repeatCount, 10) || 1)}`;
+      } else if (repeatLimitType === 'until') {
+        const untilStr = repeatUntilDate.replace(/-/g, '');
+        if (untilStr.length === 8) {
+          baseRule += `;UNTIL=${untilStr}`;
+        }
+      }
+      rrule = baseRule;
     }
 
     onSave({
@@ -256,6 +273,47 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
             <option value="custom">Custom…</option>
           </select>
         </div>
+
+        {/* Recurring limit controls */}
+        {repeatOption !== 'does-not-repeat' && repeatOption !== 'custom' && (
+          <div className="gpop-row gpop-repeat-limit">
+            <label className="gpop-limit-label">
+              <input
+                type="radio"
+                name="repeatLimit"
+                checked={repeatLimitType === 'count'}
+                onChange={() => setRepeatLimitType('count')}
+              />
+              <span>End after</span>
+              <input
+                type="number"
+                className="gpop-limit-input"
+                min={1}
+                max={999}
+                value={repeatCount}
+                onChange={(e) => setRepeatCount(e.target.value)}
+                disabled={repeatLimitType !== 'count'}
+              />
+              <span>occurrences</span>
+            </label>
+            <label className="gpop-limit-label">
+              <input
+                type="radio"
+                name="repeatLimit"
+                checked={repeatLimitType === 'until'}
+                onChange={() => setRepeatLimitType('until')}
+              />
+              <span>End on</span>
+              <input
+                type="date"
+                className="gpop-limit-input"
+                value={repeatUntilDate}
+                onChange={(e) => setRepeatUntilDate(e.target.value)}
+                disabled={repeatLimitType !== 'until'}
+              />
+            </label>
+          </div>
+        )}
 
         {/* Area (only for events/appointments) */}
         {mode !== 'task' && (

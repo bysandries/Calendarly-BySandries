@@ -5,6 +5,7 @@ import {
   syncEventBlock, 
   clonePlan, 
   deleteEvent, 
+  updateEvent,
   fetchAreas,
   updateTask,
   fetchDailyLogsRange,
@@ -13,6 +14,7 @@ import {
 import { resolveOverlaps } from './resolveOverlaps';
 import CreationPopover from './CreationPopover';
 import SlideDrawer from '../SlideDrawer';
+import AreaPicker from '../AreaPicker';
 
 const HOUR_PX = 80;
 const SNAP_MINS = 15;
@@ -73,6 +75,10 @@ const CalendarGrid = ({ baseDate, timezone }) => {
   // Multi-select state
   const [selectedEventIds, setSelectedEventIds] = useState(new Set());
 
+  // Move/Resize scope modal state
+  const [showMoveScopeModal, setShowMoveScopeModal] = useState(false);
+  const [pendingMove, setPendingMove] = useState(null);
+
   // Ref to prevent click handler from opening drawer after shift+click mouseDown
   const shiftClickHandledRef = useRef(false);
 
@@ -98,10 +104,14 @@ const CalendarGrid = ({ baseDate, timezone }) => {
           !isEditableTarget(e.target)
         ) {
           e.preventDefault();
-          if (window.confirm(`Delete the event "${activeDrawerEvent.title}"?`)) {
+          if (activeDrawerEvent.series_id) {
+            // Show scope prompt for recurring events
+            const scope = window.confirm(
+              `Delete only this occurrence?\n\nPress OK to delete only this occurrence.\nPress Cancel to delete ALL events in this series.`
+            ) ? 'single' : 'series';
             (async () => {
               try {
-                await deleteEvent(activeDrawerEvent.id);
+                await deleteEvent(activeDrawerEvent.id, scope);
                 setIsDrawerOpen(false);
                 setActiveDrawerEvent(null);
                 setSelectedEventIds(new Set());
@@ -110,6 +120,20 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                 console.error('Error deleting event:', error);
               }
             })();
+          } else {
+            if (window.confirm(`Delete the event "${activeDrawerEvent.title}"?`)) {
+              (async () => {
+                try {
+                  await deleteEvent(activeDrawerEvent.id);
+                  setIsDrawerOpen(false);
+                  setActiveDrawerEvent(null);
+                  setSelectedEventIds(new Set());
+                  loadData();
+                } catch (error) {
+                  console.error('Error deleting event:', error);
+                }
+              })();
+            }
           }
           return;
         }
@@ -262,7 +286,16 @@ const CalendarGrid = ({ baseDate, timezone }) => {
       if (resizingState) {
         const block = events.find(ev => ev.id === resizingState.eventId);
         if (block) {
-          syncEventBlock(block).then(() => loadData());
+          if (block.series_id) {
+            setPendingMove({
+              type: 'resize',
+              block,
+              originalDuration: resizingState.originalDuration
+            });
+            setShowMoveScopeModal(true);
+          } else {
+            syncEventBlock(block).then(() => loadData());
+          }
         }
         setResizingState(null);
         return;
@@ -356,10 +389,15 @@ const CalendarGrid = ({ baseDate, timezone }) => {
   // ── Reflections Drawer ──
   const handleSaveEvent = async (id, updatedFields) => {
     try {
-      await syncEventBlock({
-        ...updatedFields,
-        id: id
-      });
+      const { scope, ...fields } = updatedFields;
+      if (scope) {
+        await updateEvent(id, { ...fields, scope });
+      } else {
+        await syncEventBlock({
+          ...fields,
+          id: id
+        });
+      }
       loadData();
       // Update active event inside drawer
       setActiveDrawerEvent(prev => prev && prev.id === id ? { ...prev, ...updatedFields } : prev);
@@ -368,13 +406,98 @@ const CalendarGrid = ({ baseDate, timezone }) => {
     }
   };
 
-  const handleDeleteEvent = async (id) => {
+  const handleDeleteEvent = async (id, scope = 'single') => {
     try {
-      await deleteEvent(id);
+      await deleteEvent(id, scope);
       setIsDrawerOpen(false);
+      setSelectedEventIds(new Set());
       loadData();
     } catch (error) {
       console.error('Error deleting event:', error);
+    }
+  };
+
+  // Quick area change from the calendar block label
+  const handleAreaChange = async (block, newAreaId) => {
+    try {
+      const newArea = areas.find(a => a.id === newAreaId);
+      if (!newArea) return;
+      await syncEventBlock({
+        id: block.id,
+        title: block.title,
+        area: newAreaId,
+        color_hex: newArea.color_hex,
+        date_string: block.date_string,
+        time_slot: block.time_slot,
+        duration_mins: block.duration_mins,
+        column_type: block.column_type,
+        notes: block.notes,
+        timezone: block.timezone || 'America/Los_Angeles'
+      });
+      loadData();
+    } catch (error) {
+      console.error('Error updating event area:', error);
+    }
+  };
+
+  // ── Move/Resize Scope Execution ──
+  const executePendingMove = async (scope) => {
+    if (!pendingMove) return;
+    setShowMoveScopeModal(false);
+
+    try {
+      if (pendingMove.type === 'drag') {
+        const { updatedEvent, block } = pendingMove;
+        if (scope === 'single') {
+          // Break away from series
+          await updateEvent(block.id, {
+            ...updatedEvent,
+            series_id: null,
+            is_series_master: 0,
+            series_index: 0,
+            series_count: 0,
+            rrule: null,
+            scope: 'single'
+          });
+        } else if (scope === 'series') {
+          await updateEvent(block.id, {
+            date_string: updatedEvent.date_string,
+            time_slot: updatedEvent.time_slot,
+            column_type: updatedEvent.column_type,
+            scope: 'series'
+          });
+        } else if (scope === 'forward') {
+          await updateEvent(block.id, {
+            date_string: updatedEvent.date_string,
+            time_slot: updatedEvent.time_slot,
+            column_type: updatedEvent.column_type,
+            scope: 'forward'
+          });
+        }
+      } else if (pendingMove.type === 'resize') {
+        const { block } = pendingMove;
+        if (scope === 'single') {
+          await updateEvent(block.id, {
+            duration_mins: block.duration_mins,
+            series_id: null,
+            is_series_master: 0,
+            series_index: 0,
+            series_count: 0,
+            rrule: null,
+            scope: 'single'
+          });
+        } else {
+          await updateEvent(block.id, {
+            duration_mins: block.duration_mins,
+            scope
+          });
+        }
+      }
+      loadData();
+    } catch (error) {
+      console.error('Error executing pending move:', error);
+    } finally {
+      setPendingMove(null);
     }
   };
 
@@ -582,6 +705,17 @@ const CalendarGrid = ({ baseDate, timezone }) => {
       column_type: laneType,
       timezone: timezone
     };
+
+    // If recurring, ask for scope before applying
+    if (block.series_id) {
+      setPendingMove({
+        type: 'drag',
+        block,
+        updatedEvent
+      });
+      setShowMoveScopeModal(true);
+      return;
+    }
 
     try {
       await syncEventBlock(updatedEvent);
@@ -798,7 +932,16 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                         }}
                         onDragEnd={handleDragEnd}
                       >
-                        <span className="block-title">{block.title}</span>
+                        <div className="block-header">
+                          <AreaPicker
+                            value={block.area}
+                            areas={areas}
+                            onSelect={(id) => handleAreaChange(block, id)}
+                            onAreasChanged={loadData}
+                            compact
+                          />
+                          <span className="block-title">{block.title}</span>
+                        </div>
                         <span className="block-time">{block.displayTimeSlot || block.time_slot}</span>
 
                         {/* Indicators Container */}
@@ -965,7 +1108,16 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                         }}
                         onDragEnd={handleDragEnd}
                       >
-                        <span className="block-title">{block.title}</span>
+                        <div className="block-header">
+                          <AreaPicker
+                            value={block.area}
+                            areas={areas}
+                            onSelect={(id) => handleAreaChange(block, id)}
+                            onAreasChanged={loadData}
+                            compact
+                          />
+                          <span className="block-title">{block.title}</span>
+                        </div>
                         <span className="block-time">{block.displayTimeSlot || block.time_slot}</span>
 
                         {/* Indicators Container */}
@@ -1101,6 +1253,47 @@ const CalendarGrid = ({ baseDate, timezone }) => {
         onDelete={handleDeleteEvent}
         onAreasChanged={loadData}
       />
+
+      {/* Move / Resize Scope Modal */}
+      {showMoveScopeModal && pendingMove && (
+        <>
+          <div className="modal-overlay" onClick={() => setShowMoveScopeModal(false)} />
+          <div className="scope-modal glass-panel">
+            <h3>Apply move to series?</h3>
+            <p>This event is part of a recurring series.</p>
+            <div className="scope-modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => executePendingMove('single')}
+              >
+                Only this occurrence
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => executePendingMove('series')}
+              >
+                All events in this series
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => executePendingMove('forward')}
+              >
+                This and all future events
+              </button>
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => { setShowMoveScopeModal(false); setPendingMove(null); }}
+            >
+              Cancel
+            </button>
+          </div>
+        </>
+      )}
 
       {/* Premium Daily Note Editor Overlay */}
       {editingLogDate && (

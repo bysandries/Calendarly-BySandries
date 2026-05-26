@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { fetchAreas, fetchTasks, fetchEventTasks, linkTaskToEvent, unlinkTaskFromEvent } from '../utils/api';
 import { TASK_TABS } from '../utils/statusMap';
-import AreaPicker from './AreaPicker';
+
 
 const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged }) => {
   const [formData, setFormData] = useState({
@@ -18,6 +18,8 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
   const [taskSearch, setTaskSearch] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [showTaskSearch, setShowTaskSearch] = useState(false);
+  const [saveScope, setSaveScope] = useState('single');
+  const [showDeleteScopeModal, setShowDeleteScopeModal] = useState(false);
 
   // Get actionable statuses from TASK_TABS
   const actionableStatuses = TASK_TABS.find(tab => tab.key === 'actionable')?.statuses || [];
@@ -58,11 +60,21 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
     }
   }, [event]);
 
-  // Global escape key listener
+  // Ref to always call the latest handleSave from the keyboard listener
+  const handleSaveRef = useRef(() => {});
+
+  // Global keyboard listener: Escape closes, Enter saves (unless in notes textarea)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (isOpen && e.key === 'Escape') {
+      if (!isOpen) return;
+      if (e.key === 'Escape') {
         onClose();
+      }
+      if (e.key === 'Enter') {
+        // Allow newline in the notes textarea; save from any other field
+        if (document.activeElement?.tagName === 'TEXTAREA') return;
+        e.preventDefault();
+        handleSaveRef.current();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -72,14 +84,20 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
   if (!isOpen || !event) return null;
 
   const handleSave = () => {
-    onSave(event.id, {
+    const payload = {
       ...event,
       ...formData,
       color_hex: colorHex
-    });
+    };
+    // If this event is part of a series, pass the selected scope
+    if (event.series_id) {
+      payload.scope = saveScope;
+    }
+    onSave(event.id, payload);
     setIsEditing(false);
     onClose();
   };
+  handleSaveRef.current = handleSave;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -124,11 +142,21 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
     }
   };
 
-  const handleDelete = () => {
-    if (window.confirm(`Are you sure you want to delete the event "${event.title}"?`)) {
-      onDelete(event.id);
-      onClose();
+  const handleDeleteClick = () => {
+    if (event.series_id) {
+      setShowDeleteScopeModal(true);
+    } else {
+      if (window.confirm(`Delete the event "${event.title}"?`)) {
+        onDelete(event.id, 'single');
+        onClose();
+      }
     }
+  };
+
+  const confirmDeleteWithScope = (scope) => {
+    onDelete(event.id, scope);
+    setShowDeleteScopeModal(false);
+    onClose();
   };
 
   // Only show tasks that are ACTIONABLE and NOT already linked
@@ -166,61 +194,47 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
         {/* Body */}
         <div className="drawer-body">
           <div className="event-details-card glass-panel" style={{ borderColor: colorHex }}>
-            <div className="detail-row">
-              <span className="detail-label">Track:</span>
-              <span className="detail-value text-uppercase">{event.column_type}</span>
-            </div>
-            
-            <div className="detail-row">
-              <span className="detail-label">Category:</span>
-              <AreaPicker
-                value={formData.area}
-                areas={areas}
-                onSelect={(id) => setFormData(prev => ({ ...prev, area: id }))}
-                onAreasChanged={async () => {
-                  const updated = await fetchAreas();
-                  setAreas(updated);
-                  if (onAreasChanged) await onAreasChanged();
-                }}
-              />
+            <div className="detail-row category-row">
+              <span className="detail-label">Category</span>
+              <span className="detail-value category-badge">
+                <span className="category-dot" style={{ background: colorHex }} />
+                {selectedArea ? selectedArea.name : (formData.area || 'General')}
+              </span>
             </div>
 
-            <div className="detail-row">
-              <span className="detail-label">Time Slot:</span>
-              <input
-                type="time"
-                className="form-input"
-                name="time_slot"
-                value={formData.time_slot}
-                onChange={handleChange}
-                style={{ width: 'auto', height: 'auto', padding: '2px 8px', fontSize: '0.8rem' }}
-              />
-            </div>
-
-            <div className="detail-row">
-              <span className="detail-label">End Time:</span>
-              <input
-                type="time"
-                className="form-input"
-                name="end_time"
-                value={formData.end_time || ''}
-                onChange={handleChange}
-                style={{ width: 'auto', height: 'auto', padding: '2px 8px', fontSize: '0.8rem' }}
-              />
-            </div>
-
-            <div className="detail-row">
-              <span className="detail-label">Duration:</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <input 
-                  type="number" 
-                  className="form-input" 
-                  name="duration_mins" 
-                  value={formData.duration_mins} 
+            <div className="detail-row time-row">
+              <div className="time-field">
+                <span className="detail-label">Start</span>
+                <input
+                  type="time"
+                  className="form-input"
+                  name="time_slot"
+                  value={formData.time_slot}
                   onChange={handleChange}
-                  style={{ width: '60px', height: 'auto', padding: '2px 8px', fontSize: '0.8rem' }}
                 />
-                <span className="detail-value" style={{ fontSize: '0.8rem' }}>mins</span>
+              </div>
+              <div className="time-field">
+                <span className="detail-label">End</span>
+                <input
+                  type="time"
+                  className="form-input"
+                  name="end_time"
+                  value={formData.end_time || ''}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="time-field">
+                <span className="detail-label">Duration</span>
+                <div className="duration-wrap">
+                  <input
+                    type="number"
+                    className="form-input"
+                    name="duration_mins"
+                    value={formData.duration_mins}
+                    onChange={handleChange}
+                  />
+                  <span className="detail-unit">min</span>
+                </div>
               </div>
             </div>
 
@@ -233,7 +247,7 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
           {/* Linked Tasks Section */}
           <div className="linked-tasks-container glass-panel" style={{ marginTop: '16px', padding: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Linked Tasks</h4>
+              <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)' }}>Linked Tasks</h4>
               <button 
                 className="btn btn-ghost btn-sm" 
                 onClick={() => setShowTaskSearch(!showTaskSearch)}
@@ -254,7 +268,7 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
                 />
                 <div style={{ maxHeight: '150px', overflowY: 'auto', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)' }}>
                   {filteredAvailable.length === 0 ? (
-                    <div style={{ padding: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>No actionable tasks found</div>
+                    <div style={{ padding: '8px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>No actionable tasks found</div>
                   ) : (
                     filteredAvailable.map(task => (
                       <div 
@@ -283,7 +297,7 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
             <div className="linked-tasks-list">
               {linkedTasks.length === 0 ? (
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>
-                  No tasks linked to this {event.column_type} block.
+                  <span style={{ fontSize: '0.9rem' }}>No tasks linked to this {event.column_type} block.</span>
                 </div>
               ) : (
                 linkedTasks.map(task => (
@@ -301,7 +315,7 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
                         borderRadius: '50%', 
                         background: task.status === '07 - Done' ? 'var(--accent-success)' : 'var(--accent-primary)' 
                       }} />
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{task.title}</span>
+                        <span style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>{task.title}</span>
                     </div>
                     <button 
                       className="btn-icon btn-sm" 
@@ -350,25 +364,98 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
           </div>
         </div>
 
+        {/* Save Scope (only for recurring events) */}
+        {event.series_id && (
+          <div className="save-scope-section">
+            <span className="save-scope-label">Apply changes to:</span>
+            <div className="save-scope-options">
+              <label className={`save-scope-option ${saveScope === 'single' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="saveScope"
+                  value="single"
+                  checked={saveScope === 'single'}
+                  onChange={() => setSaveScope('single')}
+                />
+                This occurrence only
+              </label>
+              <label className={`save-scope-option ${saveScope === 'series' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="saveScope"
+                  value="series"
+                  checked={saveScope === 'series'}
+                  onChange={() => setSaveScope('series')}
+                />
+                All events in this series
+              </label>
+              <label className={`save-scope-option ${saveScope === 'forward' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="saveScope"
+                  value="forward"
+                  checked={saveScope === 'forward'}
+                  onChange={() => setSaveScope('forward')}
+                />
+                This and all future events
+              </label>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="drawer-footer">
-          <button 
-            type="button" 
-            className="btn btn-danger btn-delete" 
-            onClick={handleDelete}
+          <button
+            type="button"
+            className="btn btn-danger btn-delete"
+            onClick={handleDeleteClick}
             style={{ marginRight: 'auto' }}
           >
             Delete Event
           </button>
-          
+
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          
+
           <button type="button" className="btn btn-primary" onClick={handleSave}>
             Save
           </button>
         </div>
+
+        {/* Delete Scope Modal */}
+        {showDeleteScopeModal && (
+          <>
+            <div className="modal-overlay" onClick={() => setShowDeleteScopeModal(false)} />
+            <div className="scope-modal glass-panel">
+              <h3>Delete Occurrence or Series?</h3>
+              <p>This event is part of a recurring series.</p>
+              <div className="scope-modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => confirmDeleteWithScope('single')}
+                >
+                  Delete only this occurrence
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => confirmDeleteWithScope('series')}
+                >
+                  Delete all events in this series
+                </button>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setShowDeleteScopeModal(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
 
       </div>
     </div>
