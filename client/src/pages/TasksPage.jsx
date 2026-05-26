@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
 import { fetchAreas } from '../utils/api';
@@ -544,6 +545,22 @@ export default function TasksPage() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && !error && sortedTasks.length > 0 && (
+        <div className="tasks-mobile-list">
+          {sortedTasks.map(task => (
+            <Link key={task.id} to={`/tasks/${task.id}`} className="task-mobile-card">
+              <div className="task-mobile-info">
+                <span className="task-mobile-title">{task.title}</span>
+                <span className="task-mobile-date">
+                  {task.date_due ? `Due: ${formatDate(task.date_due)}` : 'No due date'}
+                </span>
+              </div>
+              <div className="task-mobile-arrow">›</div>
+            </Link>
+          ))}
         </div>
       )}
 

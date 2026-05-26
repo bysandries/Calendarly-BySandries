@@ -13,6 +13,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import SecretUploadPage from './pages/SecretUploadPage';
 import AgentsPage from './pages/AgentsPage';
 import HabitsPage from './pages/HabitsPage';
+import TaskDetailPage from './pages/TaskDetailPage';
 import { IconMenu } from './components/Layout/NavIcons';
 
 function MainLayout() {
@@ -55,6 +56,7 @@ function MainLayout() {
       <main className="main-content">
         <Routes>
           <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/tasks/:id" element={<TaskDetailPage />} />
           <Route path="/gtd" element={<GTDPage />} />
           <Route path="/kanban" element={<KanbanPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
