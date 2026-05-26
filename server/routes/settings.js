@@ -81,6 +81,15 @@ router.get('/', async (req, res) => {
       }
     }
 
+    // Parse navigation config safely
+    if (dbSettings.navigation_config) {
+      try {
+        dbSettings.navigation_config = JSON.parse(dbSettings.navigation_config);
+      } catch (_) {
+        dbSettings.navigation_config = null;
+      }
+    }
+
     // Get sanitized environment variables
     const envSettings = {
       PORT: process.env.PORT || '3000',
