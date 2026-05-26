@@ -87,7 +87,7 @@ export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, o
   if (!isOpen) return null;
 
   return (
-    <div className={`slide-drawer-wrapper ${isOpen ? 'open' : ''}`}>
+    <div className={`slide-drawer-wrapper ${isOpen ? 'open' : ''} no-backdrop`}>
       <div className="drawer-backdrop" onClick={onClose} />
       <div className="drawer-content glass-panel">
         <div className="drawer-header">

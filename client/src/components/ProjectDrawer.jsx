@@ -23,9 +23,11 @@ const EMPTY_FORM = {
   end_date: '',
 };
 
-export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAreasChanged }) {
-  const isOpen = project !== null;
-  const isCreate = isOpen && !project?.id;
+export default function ProjectDrawer({ projects = [], onSave, onDelete, onClose, onAreasChanged }) {
+  const isOpen = projects.length > 0;
+  const isBulk = projects.length > 1;
+  const isCreate = projects.length === 1 && !projects[0]?.id;
+  const firstProject = projects[0] || {};
 
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [goalsInput, setGoalsInput] = useState('');
@@ -50,25 +52,41 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
     if (isCreate) {
       setFormData(EMPTY_FORM);
       setGoalsInput('');
-    } else {
+    } else if (!isBulk) {
       setFormData({
-        title: project.title || '',
-        status: project.status || 'active',
-        area: project.area || 'general',
-        pillar: project.pillar || 'Innovation',
-        phase: project.phase || 'Plan',
-        methodology: project.methodology || 'PALM',
-        goals_aligned: project.goals_aligned || [],
-        description: project.description || '',
-        person_id: project.person_id || '',
-        due_date: project.due_date || '',
-        start_date: project.start_date || '',
-        end_date: project.end_date || '',
+        title: firstProject.title || '',
+        status: firstProject.status || 'active',
+        area: firstProject.area || 'general',
+        pillar: firstProject.pillar || 'Innovation',
+        phase: firstProject.phase || 'Plan',
+        methodology: firstProject.methodology || 'PALM',
+        goals_aligned: firstProject.goals_aligned || [],
+        description: firstProject.description || '',
+        person_id: firstProject.person_id || '',
+        due_date: firstProject.due_date || '',
+        start_date: firstProject.start_date || '',
+        end_date: firstProject.end_date || '',
       });
-      setGoalsInput((project.goals_aligned || []).join(', '));
+      setGoalsInput((firstProject.goals_aligned || []).join(', '));
+    } else {
+      // Bulk mode: reset form to "no change" markers where appropriate
+      setFormData({
+        status: '', // empty means no change
+        area: '',
+        pillar: '',
+        phase: '',
+        methodology: '',
+        goals_aligned: [],
+        description: '',
+        person_id: '',
+        due_date: '',
+        start_date: '',
+        end_date: '',
+      });
+      setGoalsInput('');
     }
     setError('');
-  }, [project]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projects, isOpen, isCreate, isBulk]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Escape key
   useEffect(() => {
@@ -123,11 +141,11 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
   };
 
   const handleAssignToProject = async () => {
-    if (!project?.id || assignSelected.size === 0) return;
+    if (!firstProject?.id || assignSelected.size === 0) return;
     setAssignBusy(true);
     try {
       for (const taskId of assignSelected) {
-        await updateTask(taskId, { project_id: project.id });
+        await updateTask(taskId, { project_id: firstProject.id });
       }
       setAssignSelected(new Set());
       await fetchUnassignedTasks(assignSearch);
@@ -142,7 +160,7 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
   }
 
   async function handleSave() {
-    if (!formData.title.trim()) {
+    if (!isBulk && !formData.title.trim()) {
       setError('Title is required');
       return;
     }
@@ -150,13 +168,34 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
     setError('');
     try {
       const goals = goalsInput.split(',').map(s => s.trim()).filter(Boolean);
-      const data = { ...formData, goals_aligned: goals };
+      
+      const updates = { ...formData };
+      if (goals.length > 0) updates.goals_aligned = goals;
 
-      const result = isCreate
-        ? await apiCreate(data)
-        : await apiUpdate(project.id, data);
+      if (isBulk) {
+        // Remove empty fields to avoid overwriting with empty values in bulk mode
+        if (!updates.status) delete updates.status;
+        if (!updates.area) delete updates.area;
+        if (!updates.pillar) delete updates.pillar;
+        if (!updates.phase) delete updates.phase;
+        if (!updates.methodology) delete updates.methodology;
+        if (!updates.person_id) delete updates.person_id;
+        if (!updates.due_date) delete updates.due_date;
+        if (!updates.start_date) delete updates.start_date;
+        if (!updates.end_date) delete updates.end_date;
+        if (!updates.description) delete updates.description;
+        if (goals.length === 0) delete updates.goals_aligned;
+      }
 
-      onSave(result);
+      if (isCreate) {
+        const result = await apiCreate({ ...updates, goals_aligned: goals });
+        onSave(result);
+      } else {
+        for (const p of projects) {
+          await apiUpdate(p.id, updates);
+        }
+        onSave(null);
+      }
     } catch (e) {
       setError(e.message || 'Could not save project');
     } finally {
@@ -170,29 +209,33 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
     if (onAreasChanged) await onAreasChanged();
   }
 
-  // Computed stats (only in edit mode, data comes from parent project prop)
-  const total = project?.total_tasks ?? 0;
-  const done = project?.complete_tasks ?? 0;
-  const pct = calcProgression(done, total);
-  const importance = calcImportance(total);
-  const remainingMins = project?.remaining_estimated_minutes ?? 0;
-  const pomodoroMins = project?.pomodoro_minutes ?? 0;
+  // Computed stats (only in single edit mode)
+  const total = !isBulk ? firstProject?.total_tasks ?? 0 : 0;
+  const done = !isBulk ? firstProject?.complete_tasks ?? 0 : 0;
+  const pct = !isBulk ? calcProgression(done, total) : null;
+  const importance = !isBulk ? calcImportance(total) : null;
+  const remainingMins = !isBulk ? firstProject?.remaining_estimated_minutes ?? 0 : 0;
+  const pomodoroMins = !isBulk ? firstProject?.pomodoro_minutes ?? 0 : 0;
 
   return (
-    <div className={`slide-drawer-wrapper ${isOpen ? 'open' : ''}`}>
+    <div className={`slide-drawer-wrapper ${isOpen ? 'open' : ''} no-backdrop`}>
       <div className="drawer-backdrop" onClick={onClose} />
       <div className="drawer-content glass-panel">
 
         {/* Header */}
         <div className="drawer-header">
           <div style={{ flex: 1, minWidth: 0 }}>
-            <input
-              className="inline-edit"
-              value={formData.title}
-              onChange={(e) => set('title', e.target.value)}
-              placeholder="Project title…"
-              style={{ fontSize: '1.2rem', fontWeight: 700, width: '100%' }}
-            />
+            {isBulk ? (
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Editing {projects.length} Projects</h2>
+            ) : (
+              <input
+                className="inline-edit"
+                value={formData.title}
+                onChange={(e) => set('title', e.target.value)}
+                placeholder="Project title…"
+                style={{ fontSize: '1.2rem', fontWeight: 700, width: '100%' }}
+              />
+            )}
           </div>
           <button className="btn-close-drawer" type="button" onClick={onClose}>×</button>
         </div>
@@ -207,9 +250,10 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
             <div className="detail-row">
               <span className="detail-label">Status</span>
               <ProjectStatusBadge
-                status={formData.status}
+                status={formData.status || (isBulk ? '' : 'active')}
                 onChange={(s) => set('status', s)}
               />
+              {isBulk && !formData.status && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '8px' }}>(No Change)</span>}
             </div>
 
             <div className="detail-row">
@@ -219,6 +263,7 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
                 areas={areas}
                 onSelect={(id) => set('area', id)}
                 onAreasChanged={handleAreasChanged}
+                placeholder={isBulk ? '(No Change)' : 'Select Area'}
               />
             </div>
 
@@ -227,6 +272,7 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
               <PersonPicker
                 value={formData.person_id}
                 onSelect={(id) => set('person_id', id)}
+                placeholder={isBulk ? '(No Change)' : 'Unassigned'}
               />
             </div>
           </div>
@@ -242,6 +288,7 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
                   type="date"
                   value={formData.start_date}
                   onChange={(e) => set('start_date', e.target.value)}
+                  placeholder={isBulk ? '(No Change)' : ''}
                 />
               </div>
               <div className="form-group">
@@ -251,6 +298,7 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
                   type="date"
                   value={formData.end_date}
                   onChange={(e) => set('end_date', e.target.value)}
+                  placeholder={isBulk ? '(No Change)' : ''}
                 />
               </div>
               <div className="form-group">
@@ -260,6 +308,7 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
                   type="date"
                   value={formData.due_date}
                   onChange={(e) => set('due_date', e.target.value)}
+                  placeholder={isBulk ? '(No Change)' : ''}
                 />
               </div>
             </div>
@@ -269,6 +318,16 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
           <div className="project-drawer-section">
             <div className="drawer-section-title">PALM Phase</div>
             <div className="palm-pill-grid">
+              {isBulk && (
+                <button
+                  type="button"
+                  className={`palm-phase ${!formData.phase ? 'active' : ''}`}
+                  onClick={() => set('phase', '')}
+                  style={{ fontSize: '0.7rem' }}
+                >
+                  (No Change)
+                </button>
+              )}
               {PALM_PHASES.map(phase => (
                 <button
                   key={phase}
@@ -283,6 +342,16 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
 
             <div className="drawer-section-title" style={{ marginTop: '14px' }}>Pillar</div>
             <div className="palm-pill-grid">
+              {isBulk && (
+                <button
+                  type="button"
+                  className={`palm-phase ${!formData.pillar ? 'active' : ''}`}
+                  onClick={() => set('pillar', '')}
+                  style={{ fontSize: '0.7rem' }}
+                >
+                  (No Change)
+                </button>
+              )}
               {PILLARS.map(pillar => (
                 <button
                   key={pillar}
@@ -305,23 +374,25 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
                 className="form-input"
                 value={goalsInput}
                 onChange={(e) => setGoalsInput(e.target.value)}
-                placeholder="Build MVP, Ship v1, …"
+                placeholder={isBulk ? '(No Change)' : "Build MVP, Ship v1, …"}
               />
             </div>
-            <div className="form-group">
-              <label className="form-label">Description</label>
-              <textarea
-                className="form-textarea"
-                value={formData.description}
-                onChange={(e) => set('description', e.target.value)}
-                placeholder="Project description…"
-                rows={3}
-              />
-            </div>
+            {!isBulk && (
+              <div className="form-group">
+                <label className="form-label">Description</label>
+                <textarea
+                  className="form-textarea"
+                  value={formData.description}
+                  onChange={(e) => set('description', e.target.value)}
+                  placeholder="Project description…"
+                  rows={3}
+                />
+              </div>
+            )}
           </div>
 
           {/* Section: Stats (read-only, edit mode only) */}
-          {!isCreate && (
+          {!isCreate && !isBulk && (
             <div className="project-drawer-section">
               <div className="drawer-section-title">Progress</div>
               <div className="project-drawer-stats">
@@ -361,10 +432,10 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
                       'importance-medium': '#E67E22',
                       'importance-high': '#E74C3C',
                       'importance-critical': '#8E44AD',
-                    }[importance.cssClass] || 'var(--text-dimmed)',
+                    }[importance?.cssClass] || 'var(--text-dimmed)',
                     fontWeight: 600,
                   }}>
-                    {importance.label}
+                    {importance?.label || '—'}
                   </span>
                 </div>
                 {remainingMins > 0 && (
@@ -384,7 +455,7 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
           )}
 
           {/* Section: Assign Unassigned Tasks (edit mode only) */}
-          {!isCreate && (
+          {!isCreate && !isBulk && (
             <div className="project-drawer-section">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <div className="drawer-section-title" style={{ marginBottom: 0 }}>Assign Tasks</div>
@@ -489,10 +560,10 @@ export default function ProjectDrawer({ project, onSave, onDelete, onClose, onAr
               type="button"
               className="btn btn-danger btn-delete"
               style={{ marginRight: 'auto' }}
-              onClick={() => onDelete(project)}
+              onClick={() => onDelete(isBulk ? projects : firstProject)}
               disabled={busy}
             >
-              {project?.status === 'archived' ? 'Delete' : 'Archive'}
+              {isBulk ? 'Archive All' : (firstProject?.status === 'archived' ? 'Delete' : 'Archive')}
             </button>
           )}
           <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>
