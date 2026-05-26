@@ -28,6 +28,13 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState('active');
   const [drawerProject, setDrawerProject] = useState(null); // null=closed, {}=create, project=edit
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Unassigned tasks panel
   const [showUnassigned, setShowUnassigned] = useState(false);
@@ -131,22 +138,24 @@ export default function ProjectsPage() {
             </button>
           ))}
         </div>
-        <button
-          className={`filter-pill ${showUnassigned ? 'active' : ''}`}
-          onClick={() => setShowUnassigned(v => !v)}
-          style={{ marginLeft: 'auto' }}
-        >
-          Unassigned Tasks
-          {unassignedCount > 0 && (
-            <span style={{ marginLeft: '5px', opacity: 0.7, fontSize: '0.7rem' }}>
-              {unassignedCount}
-            </span>
-          )}
-        </button>
+        {isMobile && (
+          <button
+            className={`filter-pill ${showUnassigned ? 'active' : ''}`}
+            onClick={() => setShowUnassigned(v => !v)}
+            style={{ marginLeft: 'auto' }}
+          >
+            Unassigned Tasks
+            {unassignedCount > 0 && (
+              <span style={{ marginLeft: '5px', opacity: 0.7, fontSize: '0.7rem' }}>
+                {unassignedCount}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
-      {/* Unassigned Tasks Panel */}
-      {showUnassigned && (
+      {/* Unassigned Tasks Panel - Mobile only or hidden as requested */}
+      {showUnassigned && isMobile && (
         <div className="glass-panel" style={{ marginBottom: '20px', padding: '16px 20px' }}>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>
             <input

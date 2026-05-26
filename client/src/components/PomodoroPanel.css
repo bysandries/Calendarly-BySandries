@@ -35,6 +35,28 @@
   width: 400px;
 }
 
+.pomodoro-panel.mobile-view {
+  position: relative;
+  width: 100% !important;
+  height: 100% !important;
+  right: 0;
+  top: 0;
+  background: transparent;
+  backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+  z-index: 1;
+}
+
+.pomodoro-panel.mobile-view .pomodoro-panel-content {
+  padding: 0;
+  height: 100%;
+}
+
+.pomodoro-panel.mobile-view .pomodoro-timer-area {
+  margin: 20px 0;
+}
+
 .pomodoro-panel-toggle {
   width: 48px;
   flex-shrink: 0;

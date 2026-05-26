@@ -17,8 +17,8 @@ const ACTIONABLE_STATUSES = [
   '04 - Delegate It',
 ];
 
-export default function PomodoroPanel({ timezone }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export default function PomodoroPanel({ timezone, isMobileView = false }) {
+  const [isExpanded, setIsExpanded] = useState(isMobileView);
   const [areas, setAreas] = useState([]);
   const { tasks, loading: tasksLoading, refetch: refetchTasks } = useTasks();
   const { projects } = useProjects();
@@ -108,27 +108,29 @@ export default function PomodoroPanel({ timezone }) {
   const timerColor = selectedTaskEnriched ? getAreaColor(selectedTaskEnriched) : '#3498DB';
 
   return (
-    <div className={`pomodoro-panel ${isExpanded ? 'expanded' : 'collapsed'}`}>
+    <div className={`pomodoro-panel ${isExpanded ? 'expanded' : 'collapsed'} ${isMobileView ? 'mobile-view' : ''}`}>
       {/* Toggle Tab */}
-      <button
-        type="button"
-        className="pomodoro-panel-toggle"
-        onClick={() => setIsExpanded(prev => !prev)}
-        title={isExpanded ? 'Collapse Focus Panel' : 'Open Focus Panel'}
-      >
-        {isActive && !isExpanded ? (
-          <span className="pomodoro-panel-toggle-active" style={{ background: timerColor }} />
-        ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            {isExpanded ? (
-              <path d="M9 18l6-6-6-6" />
-            ) : (
-              <path d="M15 18l-6-6 6-6" />
-            )}
-          </svg>
-        )}
-        {!isExpanded && <span className="pomodoro-panel-toggle-label">Focus</span>}
-      </button>
+      {!isMobileView && (
+        <button
+          type="button"
+          className="pomodoro-panel-toggle"
+          onClick={() => setIsExpanded(prev => !prev)}
+          title={isExpanded ? 'Collapse Focus Panel' : 'Open Focus Panel'}
+        >
+          {isActive && !isExpanded ? (
+            <span className="pomodoro-panel-toggle-active" style={{ background: timerColor }} />
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              {isExpanded ? (
+                <path d="M9 18l6-6-6-6" />
+              ) : (
+                <path d="M15 18l-6-6 6-6" />
+              )}
+            </svg>
+          )}
+          {!isExpanded && <span className="pomodoro-panel-toggle-label">Focus</span>}
+        </button>
+      )}
 
       {/* Panel Content */}
       {isExpanded && (
