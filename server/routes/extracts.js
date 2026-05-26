@@ -189,6 +189,67 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// GET /api/extracts/:id/links — all linked extracts (both directions)
+router.get('/:id/links', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const db = await getDbConnection();
+    const linked = await db.all(`
+      SELECT e.* FROM extracts e
+      INNER JOIN extract_links el ON el.target_id = e.id
+      WHERE el.source_id = ?
+      UNION
+      SELECT e.* FROM extracts e
+      INNER JOIN extract_links el ON el.source_id = e.id
+      WHERE el.target_id = ?
+    `, [id, id]);
+    res.json(linked);
+  } catch (error) {
+    console.error('Error fetching extract links:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/extracts/:id/links — add a link between two extracts
+router.post('/:id/links', async (req, res) => {
+  const { id } = req.params;
+  const { target_id } = req.body;
+
+  if (!target_id) return res.status(400).json({ error: 'target_id required' });
+  if (id === target_id) return res.status(400).json({ error: 'Cannot link an extract to itself' });
+
+  try {
+    const db = await getDbConnection();
+    // Normalize order so (A,B) and (B,A) map to the same row
+    const [src, tgt] = id < target_id ? [id, target_id] : [target_id, id];
+    await db.run(
+      'INSERT OR IGNORE INTO extract_links (source_id, target_id) VALUES (?, ?)',
+      [src, tgt]
+    );
+    res.json({ message: 'Link added', source_id: src, target_id: tgt });
+  } catch (error) {
+    console.error('Error adding extract link:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/extracts/:id/links/:targetId — remove a link
+router.delete('/:id/links/:targetId', async (req, res) => {
+  const { id, targetId } = req.params;
+  try {
+    const db = await getDbConnection();
+    await db.run(
+      `DELETE FROM extract_links
+       WHERE (source_id = ? AND target_id = ?) OR (source_id = ? AND target_id = ?)`,
+      [id, targetId, targetId, id]
+    );
+    res.json({ message: 'Link removed' });
+  } catch (error) {
+    console.error('Error removing extract link:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/extracts/:id/resources — link a project or task
 router.post('/:id/resources', async (req, res) => {
   const { id } = req.params;

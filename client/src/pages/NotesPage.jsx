@@ -4,7 +4,7 @@ import { useNotes } from '../hooks/useNotes';
 import { useExtracts } from '../hooks/useExtracts';
 import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
-import { fetchAreas } from '../utils/api';
+import { fetchAreas, fetchExtractLinks, addExtractLink, removeExtractLink } from '../utils/api';
 
 const HIGHLIGHT_COLORS = [
   { hex: '#F1C40F', label: 'Yellow' },
@@ -52,6 +52,9 @@ export default function NotesPage() {
     tags: '', created_at: '', highlight_color: '', note_id: '', resource_ids: [],
   });
   const [showCreateExtractForm, setShowCreateExtractForm] = useState(false);
+  const [extractLinks, setExtractLinks] = useState([]);
+  const [linksLoading, setLinksLoading] = useState(false);
+  const [linkSearch, setLinkSearch] = useState('');
 
   useEffect(() => {
     fetchAreas().then(setAreas).catch(() => {});
@@ -73,6 +76,16 @@ export default function NotesPage() {
     const timer = setTimeout(() => refetchExtracts(filters), 300);
     return () => clearTimeout(timer);
   }, [extractSearch]);
+
+  // Fetch Zettelkasten links when selected extract changes
+  useEffect(() => {
+    if (!selectedExtract) { setExtractLinks([]); return; }
+    setLinksLoading(true);
+    fetchExtractLinks(selectedExtract.id)
+      .then(setExtractLinks)
+      .catch(() => setExtractLinks([]))
+      .finally(() => setLinksLoading(false));
+  }, [selectedExtract?.id]);
 
   const uniqueTypes = [...new Set(notes.map(n => n.type).filter(Boolean))];
 
@@ -132,6 +145,7 @@ export default function NotesPage() {
       resource_ids: extract.resources || [],
     });
     setIsEditingExtract(false);
+    setLinkSearch('');
   };
 
   const handleSaveExtract = async () => {
@@ -199,6 +213,26 @@ export default function NotesPage() {
     }
   };
 
+  const handleAddLink = async (targetId) => {
+    try {
+      await addExtractLink(selectedExtract.id, targetId);
+      const links = await fetchExtractLinks(selectedExtract.id);
+      setExtractLinks(links);
+      setLinkSearch('');
+    } catch (err) {
+      alert('Failed to add link: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const handleRemoveLink = async (targetId) => {
+    try {
+      await removeExtractLink(selectedExtract.id, targetId);
+      setExtractLinks(prev => prev.filter(e => e.id !== targetId));
+    } catch (err) {
+      alert('Failed to remove link: ' + (err.message || 'Unknown error'));
+    }
+  };
+
   // Helper for create-form resource management
   const addCreateResource = (resource) => {
     setExtractEditData(prev => ({
@@ -218,6 +252,14 @@ export default function NotesPage() {
 
   const getProjectTitle = (id) => projects.find(p => p.id === id)?.title || id;
   const getTaskTitle = (id) => tasks.find(t => t.id === id)?.title || id;
+
+  const linkedIds = new Set([selectedExtract?.id, ...extractLinks.map(e => e.id)]);
+  const linkCandidates = linkSearch.trim()
+    ? extracts.filter(e => !linkedIds.has(e.id) && (
+        (e.content?.toLowerCase().includes(linkSearch.toLowerCase())) ||
+        (e.bibliography?.toLowerCase().includes(linkSearch.toLowerCase()))
+      )).slice(0, 8)
+    : [];
 
   const currentLoading = activeTab === 'notes' ? notesLoading : extractsLoading;
   const currentError = activeTab === 'notes' ? notesError : extractsError;
@@ -426,7 +468,7 @@ export default function NotesPage() {
           className="note-detail-overlay"
           onClick={(e) => { if (e.target === e.currentTarget) setSelectedExtract(null); }}
         >
-          <div className="note-detail-panel">
+          <div className="note-detail-panel" style={{ maxWidth: '1200px' }}>
             <div className="note-detail-header">
               <h3>Extract</h3>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -512,120 +554,198 @@ export default function NotesPage() {
             )}
 
             <div className="note-detail-body">
-              {isEditingExtract ? (
-                <>
-                  <div className="note-editor-pane">
-                    <textarea
-                      className="note-editor-textarea"
-                      value={extractEditData.content}
-                      onChange={(e) => setExtractEditData(prev => ({ ...prev, content: e.target.value }))}
-                      placeholder="Paste or write the extract..."
-                    />
-                  </div>
-                  <div className="note-preview-pane">
-                    <div className="markdown-body">
-                      <ReactMarkdown>
-                        {extractEditData.content || '*No content yet*'}
-                      </ReactMarkdown>
+              {/* Main content area */}
+              <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>
+                {isEditingExtract ? (
+                  <>
+                    <div className="note-editor-pane">
+                      <textarea
+                        className="note-editor-textarea"
+                        value={extractEditData.content}
+                        onChange={(e) => setExtractEditData(prev => ({ ...prev, content: e.target.value }))}
+                        placeholder="Paste or write the extract..."
+                      />
                     </div>
-                  </div>
-                </>
-              ) : (
-                <div className="note-preview-pane" style={{ flex: '1' }}>
-                  {selectedExtract.bibliography && (
-                    <div className="extract-bibliography" style={{ marginBottom: '12px' }}>
-                      {selectedExtract.bibliography}
-                    </div>
-                  )}
-                  {selectedExtract.chapter_section && (
-                    <span className="extract-chapter-badge" style={{ marginBottom: '12px', display: 'inline-block' }}>
-                      {selectedExtract.chapter_section}
-                    </span>
-                  )}
-                  {selectedExtract.position && (
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '16px' }}>
-                      Position: {selectedExtract.position}
-                    </div>
-                  )}
-                  {parseTags(selectedExtract.tags).length > 0 && (
-                    <div style={{ marginBottom: '16px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {parseTags(selectedExtract.tags).map((tag, i) => (
-                        <span key={i} className="tag-pill">{tag}</span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="markdown-body">
-                    <ReactMarkdown>
-                      {selectedExtract.content || '*No content*'}
-                    </ReactMarkdown>
-                  </div>
-
-                  {/* Resources */}
-                  {selectedExtract.resources && selectedExtract.resources.length > 0 && (
-                    <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--glass-border)' }}>
-                      <h4 style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Linked Resources</h4>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {selectedExtract.resources.map((res, i) => (
-                          <span key={i} className="resource-badge">
-                            {res.project_id ? (
-                              <>📁 {getProjectTitle(res.project_id)}</>
-                            ) : (
-                              <>✓ {getTaskTitle(res.task_id)}</>
-                            )}
-                            <button
-                              className="resource-remove"
-                              onClick={() => handleRemoveResource(selectedExtract.id, { project_id: res.project_id, task_id: res.task_id })}
-                              title="Unlink"
-                            >
-                              ✕
-                            </button>
-                          </span>
-                        ))}
+                    <div className="note-preview-pane">
+                      <div className="markdown-body">
+                        <ReactMarkdown>
+                          {extractEditData.content || '*No content yet*'}
+                        </ReactMarkdown>
                       </div>
                     </div>
-                  )}
+                  </>
+                ) : (
+                  <div className="note-preview-pane" style={{ flex: '1' }}>
+                    {selectedExtract.bibliography && (
+                      <div className="extract-bibliography" style={{ marginBottom: '12px' }}>
+                        {selectedExtract.bibliography}
+                      </div>
+                    )}
+                    {selectedExtract.chapter_section && (
+                      <span className="extract-chapter-badge" style={{ marginBottom: '12px', display: 'inline-block' }}>
+                        {selectedExtract.chapter_section}
+                      </span>
+                    )}
+                    {selectedExtract.position && (
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '16px' }}>
+                        Position: {selectedExtract.position}
+                      </div>
+                    )}
+                    {parseTags(selectedExtract.tags).length > 0 && (
+                      <div style={{ marginBottom: '16px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {parseTags(selectedExtract.tags).map((tag, i) => (
+                          <span key={i} className="tag-pill">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="markdown-body">
+                      <ReactMarkdown>
+                        {selectedExtract.content || '*No content*'}
+                      </ReactMarkdown>
+                    </div>
 
-                  {/* Add Resource */}
-                  <div style={{ marginTop: '16px' }}>
-                    <label className="form-label" style={{ fontSize: '0.8rem' }}>Link to project</label>
-                    <select
-                      className="form-select"
-                      value=""
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          handleAddResource(selectedExtract.id, { project_id: e.target.value });
-                          e.target.value = '';
-                        }
-                      }}
-                      style={{ minWidth: '200px' }}
-                    >
-                      <option value="">Select project...</option>
-                      {projects.map(p => (
-                        <option key={p.id} value={p.id}>{p.title}</option>
-                      ))}
-                    </select>
+                    {/* Resources */}
+                    {selectedExtract.resources && selectedExtract.resources.length > 0 && (
+                      <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--glass-border)' }}>
+                        <h4 style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Linked Resources</h4>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {selectedExtract.resources.map((res, i) => (
+                            <span key={i} className="resource-badge">
+                              {res.project_id ? (
+                                <>📁 {getProjectTitle(res.project_id)}</>
+                              ) : (
+                                <>✓ {getTaskTitle(res.task_id)}</>
+                              )}
+                              <button
+                                className="resource-remove"
+                                onClick={() => handleRemoveResource(selectedExtract.id, { project_id: res.project_id, task_id: res.task_id })}
+                                title="Unlink"
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Add Resource */}
+                    <div style={{ marginTop: '16px' }}>
+                      <label className="form-label" style={{ fontSize: '0.8rem' }}>Link to project</label>
+                      <select
+                        className="form-select"
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleAddResource(selectedExtract.id, { project_id: e.target.value });
+                            e.target.value = '';
+                          }
+                        }}
+                        style={{ minWidth: '200px' }}
+                      >
+                        <option value="">Select project...</option>
+                        {projects.map(p => (
+                          <option key={p.id} value={p.id}>{p.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ marginTop: '12px' }}>
+                      <label className="form-label" style={{ fontSize: '0.8rem' }}>Link to task</label>
+                      <select
+                        className="form-select"
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleAddResource(selectedExtract.id, { task_id: e.target.value });
+                            e.target.value = '';
+                          }
+                        }}
+                        style={{ minWidth: '200px' }}
+                      >
+                        <option value="">Select task...</option>
+                        {tasks.map(t => (
+                          <option key={t.id} value={t.id}>{t.title}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <div style={{ marginTop: '12px' }}>
-                    <label className="form-label" style={{ fontSize: '0.8rem' }}>Link to task</label>
-                    <select
-                      className="form-select"
-                      value=""
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          handleAddResource(selectedExtract.id, { task_id: e.target.value });
-                          e.target.value = '';
-                        }
-                      }}
-                      style={{ minWidth: '200px' }}
-                    >
-                      <option value="">Select task...</option>
-                      {tasks.map(t => (
-                        <option key={t.id} value={t.id}>{t.title}</option>
-                      ))}
-                    </select>
-                  </div>
+                )}
+              </div>
+
+              {/* Zettelkasten links side panel */}
+              <div className="extract-links-panel">
+                <div className="extract-links-header">
+                  <span>Linked Extracts</span>
+                  {extractLinks.length > 0 && (
+                    <span className="extract-links-count">{extractLinks.length}</span>
+                  )}
                 </div>
-              )}
+
+                <div className="extract-links-search-wrap">
+                  <input
+                    className="form-input"
+                    style={{ fontSize: '0.78rem', padding: '6px 10px' }}
+                    placeholder="Search to link..."
+                    value={linkSearch}
+                    onChange={(e) => setLinkSearch(e.target.value)}
+                  />
+                  {linkCandidates.length > 0 && (
+                    <div className="link-candidates-dropdown">
+                      {linkCandidates.map(e => (
+                        <div
+                          key={e.id}
+                          className="link-candidate-item"
+                          onClick={() => handleAddLink(e.id)}
+                        >
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)', marginBottom: '2px' }}>
+                            {(e.content || '').slice(0, 80)}{(e.content?.length || 0) > 80 ? '…' : ''}
+                          </div>
+                          {e.bibliography && (
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{e.bibliography}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {linkSearch.trim() && linkCandidates.length === 0 && (
+                    <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', paddingTop: '6px' }}>
+                      No matching extracts
+                    </div>
+                  )}
+                </div>
+
+                <div className="extract-links-list">
+                  {linksLoading ? (
+                    <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.78rem' }}>Loading...</div>
+                  ) : extractLinks.length === 0 ? (
+                    <div style={{ padding: '12px 8px', color: 'var(--text-dimmed)', fontSize: '0.73rem', textAlign: 'center', marginTop: '8px' }}>
+                      No linked extracts yet.<br />Search above to connect ideas.
+                    </div>
+                  ) : (
+                    extractLinks.map(linked => (
+                      <div
+                        key={linked.id}
+                        className="extract-link-item"
+                        onClick={() => openExtractDetail(linked)}
+                      >
+                        <div className="extract-link-content">
+                          {(linked.content || 'Untitled').slice(0, 100)}{(linked.content?.length || 0) > 100 ? '…' : ''}
+                        </div>
+                        {linked.bibliography && (
+                          <div className="extract-link-biblio">{linked.bibliography}</div>
+                        )}
+                        <button
+                          className="extract-link-remove"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveLink(linked.id); }}
+                          title="Remove link"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
