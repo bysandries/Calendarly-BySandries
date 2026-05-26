@@ -4,6 +4,7 @@ import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
 import { fetchAreas } from '../utils/api';
 import ProjectPicker from '../components/ProjectPicker';
+import TaskCard from '../components/TaskCard';
 import { getStatusInfo, GTD_STATUSES, TASK_TABS, PRIORITY_COLORS, getNextPriority } from '../utils/statusMap';
 import { formatDuration, calcDaysLeft, formatDaysLeft, calcUrgency, formatIsoDateShort } from '../lib/taskMath';
 
@@ -13,13 +14,83 @@ export default function TasksPage() {
   const [areas, setAreas] = useState([]);
   const [projectFilter, setProjectFilter] = useState('');
   const [activeTab, setActiveTab] = useState('actionable');
-  const [editingTitle, setEditingTitle] = useState(null);
-  const [editingEct, setEditingEct] = useState(null);
-  const [editingDueDate, setEditingDueDate] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', project_id: '', priority: 0, estimated_minutes: '' });
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [visibleColumns, setVisibleColumns] = useState({
+    urgency: true,
+    status: true,
+    priority: true,
+    title: true,
+    project: true,
+    ect: true,
+    date_due: true,
+    days_left: true,
+    notes: false,
+    actions: true,
+  });
+  const [columnOrder, setColumnOrder] = useState([
+    'urgency', 'status', 'priority', 'title', 'project', 'ect', 'date_due', 'days_left', 'notes', 'actions'
+  ]);
+  const [columnWidths, setColumnWidths] = useState({
+    urgency: 100,
+    status: 130,
+    priority: 80,
+    title: 300,
+    project: 180,
+    ect: 90,
+    date_due: 130,
+    days_left: 90,
+    notes: 40,
+    actions: 60,
+  });
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const resizingColumn = useRef(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!resizingColumn.current) return;
+      const { key, startX, startWidth } = resizingColumn.current;
+      const deltaX = e.clientX - startX;
+      setColumnWidths(prev => ({
+        ...prev,
+        [key]: Math.max(50, startWidth + deltaX)
+      }));
+    };
+
+    const handleMouseUp = () => {
+      resizingColumn.current = null;
+      document.body.style.cursor = 'default';
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  const handleResizeStart = (e, key) => {
+    e.preventDefault();
+    resizingColumn.current = {
+      key,
+      startX: e.clientX,
+      startWidth: columnWidths[key]
+    };
+    document.body.style.cursor = 'col-resize';
+  };
+
+  const moveColumn = (index, direction) => {
+    const newOrder = [...columnOrder];
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= newOrder.length) return;
+    const temp = newOrder[index];
+    newOrder[index] = newOrder[targetIndex];
+    newOrder[targetIndex] = temp;
+    setColumnOrder(newOrder);
+  };
   const titleInputRef = useRef(null);
 
   useEffect(() => {
@@ -44,26 +115,6 @@ export default function TasksPage() {
     return area || null;
   };
 
-  const handlePriorityCycle = async (task) => {
-    const next = getNextPriority(task.priority);
-    await updateTask(task.id, { priority: next });
-  };
-
-  const handleTitleBlur = async (task, newTitle) => {
-    setEditingTitle(null);
-    if (newTitle && newTitle !== task.title) {
-      await updateTask(task.id, { title: newTitle });
-    }
-  };
-
-  const handleTitleKeyDown = (e, task) => {
-    if (e.key === 'Enter') {
-      e.target.blur();
-    } else if (e.key === 'Escape') {
-      setEditingTitle(null);
-    }
-  };
-
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!newTask.title.trim()) return;
@@ -77,23 +128,6 @@ export default function TasksPage() {
     });
     setNewTask({ title: '', project_id: '', priority: 0, estimated_minutes: '' });
     setShowCreateForm(false);
-  };
-
-  const handleEctBlur = async (task, raw) => {
-    setEditingEct(null);
-    const minutes = parseInt(raw, 10);
-    const next = Number.isFinite(minutes) && minutes > 0 ? minutes : 0;
-    if (next !== (task.estimated_minutes || 0)) {
-      await updateTask(task.id, { estimated_minutes: next });
-    }
-  };
-
-  const handleDueDateChange = async (task, value) => {
-    setEditingDueDate(null);
-    const next = value || null;
-    if (next !== (task.date_due || null)) {
-      await updateTask(task.id, { date_due: next });
-    }
   };
 
   const toggleSelect = (id) => {
@@ -123,17 +157,6 @@ export default function TasksPage() {
       await updateTask(id, { status: newStatus });
     }
     clearSelection();
-  };
-
-  const isOverdue = (dateStr) => {
-    if (!dateStr) return false;
-    return new Date(dateStr) < new Date(new Date().toDateString());
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   const visibleTasks = tasks.filter(t => t.status !== '00 - Not Actionable');
@@ -367,10 +390,66 @@ export default function TasksPage() {
         </div>
       ) : (
         <div className="glass-panel data-table-wrapper">
-          <table className="data-table">
+          <div className="mobile-hide" style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px' }}>
+            <div style={{ position: 'relative' }}>
+              <button
+                className="btn-icon"
+                onClick={() => setShowColumnPicker(!showColumnPicker)}
+                title="Toggle Columns"
+              >
+                ⚙️
+              </button>
+              {showColumnPicker && (
+                <div className="glass-panel glass-panel-strong" style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: '100%',
+                  zIndex: 200,
+                  padding: '16px',
+                  minWidth: '240px',
+                  boxShadow: 'var(--shadow-xl)',
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Manage Columns</div>
+                  <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    {columnOrder.map((col, index) => (
+                      <div key={col} className="column-picker-item">
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns[col]}
+                          onChange={(e) => setVisibleColumns(prev => ({ ...prev, [col]: e.target.checked }))}
+                        />
+                        <span style={{ fontSize: '0.85rem', color: visibleColumns[col] ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                          {col.charAt(0).toUpperCase() + col.slice(1).replace('_', ' ')}
+                        </span>
+                        <div className="column-reorder-btns">
+                          <button
+                            className="reorder-btn"
+                            onClick={() => moveColumn(index, -1)}
+                            disabled={index === 0}
+                            title="Move Up"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            className="reorder-btn"
+                            onClick={() => moveColumn(index, 1)}
+                            disabled={index === columnOrder.length - 1}
+                            title="Move Down"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <table className="data-table" style={{ tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th style={{ width: '40px' }}>
+                <th className="mobile-hide-col" style={{ width: '40px' }}>
                   <input
                     type="checkbox"
                     className="task-checkbox"
@@ -379,209 +458,56 @@ export default function TasksPage() {
                     title="Select all"
                   />
                 </th>
-                <th className="sortable-header" style={{ width: '100px' }} onClick={() => handleSort('urgency')}>Urgency <SortIndicator columnKey="urgency" /></th>
-                <th className="sortable-header" style={{ width: '130px' }} onClick={() => handleSort('status')}>Status <SortIndicator columnKey="status" /></th>
-                <th className="sortable-header" style={{ width: '60px' }} onClick={() => handleSort('priority')}>Priority <SortIndicator columnKey="priority" /></th>
-                <th className="sortable-header" onClick={() => handleSort('title')}>Title <SortIndicator columnKey="title" /></th>
-                <th className="sortable-header" style={{ width: '180px' }} onClick={() => handleSort('project')}>Project <SortIndicator columnKey="project" /></th>
-                <th className="sortable-header" style={{ width: '90px' }} onClick={() => handleSort('ect')}>ECT <SortIndicator columnKey="ect" /></th>
-                <th className="sortable-header" style={{ width: '130px' }} onClick={() => handleSort('date_due')}>Due Date <SortIndicator columnKey="date_due" /></th>
-                <th className="sortable-header" style={{ width: '90px' }} onClick={() => handleSort('days_left')}>Days Left <SortIndicator columnKey="days_left" /></th>
-                <th style={{ width: '40px' }}></th>
-                <th style={{ width: '40px' }}></th>
+                {columnOrder.map(col => {
+                  if (!visibleColumns[col]) return null;
+                  
+                  const label = col.charAt(0).toUpperCase() + col.slice(1).replace('_', ' ');
+                  const isSortable = ['urgency', 'status', 'priority', 'title', 'project', 'ect', 'date_due', 'days_left'].includes(col);
+                  const desktopOnly = col !== 'title'; // User wants ONLY task name and due date (due date will be in subtext)
+                  const headerClass = (isSortable ? "sortable-header " : "") + (desktopOnly ? "desktop-only-cell" : "");
+                  
+                  return (
+                    <th
+                      key={col}
+                      className={headerClass}
+                      style={{ width: columnWidths[col] }}
+                      onClick={isSortable ? () => handleSort(col) : undefined}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>
+                          {label} {isSortable && <SortIndicator columnKey={col} />}
+                        </span>
+                        <div
+                          className="resizer"
+                          onMouseDown={(e) => handleResizeStart(e, col)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {sortedTasks.map(task => {
-                const statusInfo = getStatusInfo(task.status);
-                const projectTitle = getProjectTitle(task.project_id);
-                const projectArea = getProjectArea(task.project_id);
-                const daysLeft = calcDaysLeft(task.date_due);
-                const urgency = calcUrgency(daysLeft, task.estimated_minutes);
-                const urgencyTitle = [
-                  `Received: ${formatIsoDateShort(task.received_date)}`,
-                  `Finished: ${formatIsoDateShort(task.finished_date)}`,
-                  urgency.daysNeeded != null ? `Days needed: ${urgency.daysNeeded}` : null,
-                  urgency.slack != null ? `Slack: ${urgency.slack}d` : null,
-                ].filter(Boolean).join('\n');
-
-                return (
-                  <tr key={task.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        className="task-checkbox"
-                        checked={selectedTaskIds.has(task.id)}
-                        onChange={() => toggleSelect(task.id)}
-                      />
-                    </td>
-                    <td>
-                      <span className={`urgency-badge ${urgency.cssClass}`} title={urgencyTitle}>
-                        {urgency.label}
-                      </span>
-                    </td>
-                    <td>
-                      <select
-                        className={`status-select ${statusInfo.cssClass}`}
-                        value={task.status || '01 - Inbox'}
-                        onChange={(e) => updateTask(task.id, { status: e.target.value })}
-                        title="Change status"
-                      >
-                        {GTD_STATUSES.map(s => (
-                          <option key={s} value={s}>
-                            {getStatusInfo(s).label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      <div
-                        className="priority-dots"
-                        onClick={() => handlePriorityCycle(task)}
-                        title={`Priority: ${task.priority}/3 — Click to cycle`}
-                      >
-                        {[1, 2, 3].map(level => (
-                          <div
-                            key={level}
-                            className={`priority-dot ${level <= task.priority ? 'filled' : ''}`}
-                            style={level <= task.priority ? { background: PRIORITY_COLORS[task.priority] } : {}}
-                          />
-                        ))}
-                      </div>
-                    </td>
-                    <td>
-                      <Link
-                        to={`/tasks/${task.id}`}
-                        className="cell-truncate project-title-link"
-                        style={{ display: 'block', fontWeight: 500 }}
-                        title="View details"
-                      >
-                        {task.title}
-                      </Link>
-                    </td>
-                    <td>
-                      {projectTitle ? (
-                        <span className="cell-project-badge">
-                          {projectArea && (
-                            <span
-                              className="color-swatch"
-                              style={{ background: projectArea.color_hex }}
-                            />
-                          )}
-                          {projectTitle}
-                        </span>
-                      ) : (
-                        <ProjectPicker
-                          projects={projects}
-                          onSelect={(projectId) => updateTask(task.id, { project_id: projectId })}
-                          onCreate={async (title) => {
-                            const p = await createProject({
-                              title,
-                              status: 'active',
-                              area: 'general',
-                              pillar: 'Innovation',
-                              phase: 'Plan',
-                              methodology: 'PALM',
-                            });
-                            await updateTask(task.id, { project_id: p.id });
-                          }}
-                        />
-                      )}
-                    </td>
-                    <td>
-                      {editingEct === task.id ? (
-                        <input
-                          type="number"
-                          min="0"
-                          step="5"
-                          className="inline-edit-compact"
-                          defaultValue={task.estimated_minutes || ''}
-                          autoFocus
-                          onBlur={(e) => handleEctBlur(task, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') e.target.blur();
-                            else if (e.key === 'Escape') setEditingEct(null);
-                          }}
-                        />
-                      ) : (
-                        <span
-                          className="ect-cell"
-                          onClick={() => setEditingEct(task.id)}
-                          title="Click to edit estimated completion time (minutes)"
-                        >
-                          {formatDuration(task.estimated_minutes)}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {editingDueDate === task.id ? (
-                        <input
-                          type="date"
-                          className="inline-edit-compact"
-                          defaultValue={task.date_due || ''}
-                          autoFocus
-                          onBlur={(e) => handleDueDateChange(task, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') e.target.blur();
-                            else if (e.key === 'Escape') setEditingDueDate(null);
-                          }}
-                        />
-                      ) : (
-                        <span
-                          className={isOverdue(task.date_due) ? 'overdue' : ''}
-                          onClick={() => setEditingDueDate(task.id)}
-                          style={{ cursor: 'pointer' }}
-                          title="Click to edit due date"
-                        >
-                          {formatDate(task.date_due)}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`days-left-cell ${daysLeft !== null && daysLeft < 0 ? 'overdue' : ''}`}>
-                        {formatDaysLeft(daysLeft)}
-                      </span>
-                    </td>
-                    <td>
-                      {task.notes && (
-                        <span className="notes-indicator" title={task.notes}>📝</span>
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        className="btn-icon"
-                        onClick={() => {
-                          if (confirm('Delete this task?')) deleteTask(task.id);
-                        }}
-                        title="Delete task"
-                      >
-                        ✕
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {sortedTasks.map(task => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  viewMode="desktop"
+                  visibleColumns={visibleColumns}
+                  columnOrder={columnOrder}
+                  columnWidths={columnWidths}
+                  isSelected={selectedTaskIds.has(task.id)}
+                  onToggleSelect={toggleSelect}
+                  onUpdateTask={updateTask}
+                  onDeleteTask={deleteTask}
+                  projects={projects}
+                  areas={areas}
+                  createProject={createProject}
+                />
+              ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {!loading && !error && sortedTasks.length > 0 && (
-        <div 
-          className="tasks-mobile-list" 
-          style={{ '--status-color': STATUS_COLORS[activeTab] }}
-        >
-          {sortedTasks.map(task => (
-            <Link key={task.id} to={`/tasks/${task.id}`} className="task-mobile-card">
-              <div className="task-mobile-info">
-                <span className="task-mobile-title">{task.title}</span>
-                <span className="task-mobile-date">
-                  {task.date_due ? `Due: ${formatDate(task.date_due)}` : 'No due date'}
-                </span>
-              </div>
-              <div className="task-mobile-arrow">›</div>
-            </Link>
-          ))}
         </div>
       )}
 
