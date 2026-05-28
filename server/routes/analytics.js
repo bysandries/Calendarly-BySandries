@@ -11,14 +11,18 @@ function formatDate(date) {
 router.get('/weekly-report', async (req, res) => {
   let { start_date, end_date } = req.query;
 
-  // Default range: last 7 days ending on the session reference date May 24, 2026 if not specified
+  // Default range: current week (Mon–Sun)
   if (!start_date || !end_date) {
-    const defaultEnd = new Date('2026-05-24T12:00:00Z');
-    const defaultStart = new Date(defaultEnd);
-    defaultStart.setDate(defaultEnd.getDate() - 6); // 7 days total
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sun,1=Mon,...
+    const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
 
-    if (!start_date) start_date = formatDate(defaultStart);
-    if (!end_date) end_date = formatDate(defaultEnd);
+    if (!start_date) start_date = formatDate(monday);
+    if (!end_date) end_date = formatDate(sunday);
   }
 
   console.log(`[Analytics] Generating report from ${start_date} to ${end_date}`);

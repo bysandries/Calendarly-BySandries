@@ -12,6 +12,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const isDev = process.env.NODE_ENV !== 'production';
 
+// Trust nginx reverse proxy — needed for express-rate-limit to read correct client IP
+app.set('trust proxy', 1);
+
 // Security headers (ECC: web/security.md)
 app.use(helmet({
   contentSecurityPolicy: {

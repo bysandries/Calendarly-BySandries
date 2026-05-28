@@ -179,6 +179,10 @@
   stroke: var(--accent-primary);
   filter: drop-shadow(0 0 4px rgba(52, 152, 219, 0.5));
 }
+.kpi-card.events .kpi-radial-fill {
+  stroke: #F39C12;
+  filter: drop-shadow(0 0 4px rgba(243, 156, 18, 0.5));
+}
 
 .project-phases-summary {
   display: grid;
