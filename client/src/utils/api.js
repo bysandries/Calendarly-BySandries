@@ -174,3 +174,7 @@ export const deletePerson = (id) => api.delete(`/people/${id}`);
 export const fetchOpenCodeSessions = () => api.get('/opencode/sessions');
 export const fetchOpenCodeStats = () => api.get('/opencode/stats');
 export const syncOpenCode = () => api.get('/opencode/sync');
+
+// ── Personal Care Dashboard ──
+
+export const fetchPersonalCareSummary = () => api.get('/personal-care/summary');

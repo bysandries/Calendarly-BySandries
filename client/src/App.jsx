@@ -15,6 +15,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import SecretUploadPage from './pages/SecretUploadPage';
 import AgentsPage from './pages/AgentsPage';
 import HabitsPage from './pages/HabitsPage';
+import PersonalCarePage from './pages/PersonalCarePage';
 import TaskDetailPage from './pages/TaskDetailPage';
 import PomodoroPage from './pages/PomodoroPage';
 import { IconMenu } from './components/Layout/NavIcons';
@@ -72,6 +73,7 @@ function MainLayout() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/agents" element={<AgentsPage />} />
           <Route path="/habits" element={<HabitsPage />} />
+          <Route path="/personal-care" element={<PersonalCarePage />} />
           <Route path="/pomodoro" element={<PomodoroPage />} />
           <Route path="/secret-upload" element={<SecretUploadPage />} />
           <Route path="*" element={<Navigate to="/gtd" replace />} />

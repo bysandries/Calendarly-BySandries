@@ -45,6 +45,7 @@ export default function NotesPage() {
     refetch: refetchExtracts,
   } = useExtracts();
   const [extractSearch, setExtractSearch] = useState('');
+  const [extractTagFilter, setExtractTagFilter] = useState('');
   const [selectedExtract, setSelectedExtract] = useState(null);
   const [isEditingExtract, setIsEditingExtract] = useState(false);
   const [extractEditData, setExtractEditData] = useState({
@@ -73,9 +74,10 @@ export default function NotesPage() {
   useEffect(() => {
     const filters = {};
     if (extractSearch) filters.search = extractSearch;
+    if (extractTagFilter) filters.tags = extractTagFilter;
     const timer = setTimeout(() => refetchExtracts(filters), 300);
     return () => clearTimeout(timer);
-  }, [extractSearch]);
+  }, [extractSearch, extractTagFilter]);
 
   // Fetch Zettelkasten links when selected extract changes
   useEffect(() => {
@@ -283,6 +285,16 @@ export default function NotesPage() {
                 onChange={(e) => setExtractSearch(e.target.value)}
               />
             </div>
+            {['therapy', 'goal', 'session'].map(tag => (
+              <button
+                key={tag}
+                className={`filter-btn${extractTagFilter === tag ? ' active' : ''}`}
+                onClick={() => setExtractTagFilter(prev => prev === tag ? '' : tag)}
+                style={extractTagFilter === tag ? { borderColor: '#FF6B9D', color: '#FF6B9D' } : {}}
+              >
+                {tag}
+              </button>
+            ))}
           </div>
 
           {/* Extracts Grid */}
