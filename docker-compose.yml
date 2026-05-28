@@ -6,7 +6,7 @@ services:
     platform: linux/amd64
     container_name: calendarly-backend
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - db-data:/data
       - ./server/backups:/usr/src/app/backups
@@ -17,6 +17,16 @@ services:
     environment:
       - DATABASE_PATH=/data/calendarly.db
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - app-net
 
   frontend:
     build:
@@ -32,7 +42,17 @@ services:
     environment:
       - VITE_BACKEND_URL=http://backend:3000
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - app-net
 
 volumes:
   db-data:
     driver: local
+
+networks:
+  app-net:
+    driver: bridge
