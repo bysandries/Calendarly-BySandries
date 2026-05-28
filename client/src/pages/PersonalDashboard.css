@@ -1,0 +1,282 @@
+/* ============================================================
+   Personal Care Dashboard — pink-accent overrides on top of
+   Analytics.css patterns (kpi-grid, kpi-card, dashboard-*)
+   ============================================================ */
+
+.pd-page-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.pd-accent-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #FF6B9D;
+  box-shadow: 0 0 12px #FF6B9D66;
+  flex-shrink: 0;
+}
+
+/* KPI card accent stripe */
+.pd-kpi-card {
+  border-top: 2px solid #FF6B9D44;
+  transition: border-color var(--transition-default), transform var(--transition-default);
+}
+.pd-kpi-card:hover {
+  border-top-color: #FF6B9D;
+}
+
+/* Radial gauge fills */
+.pd-sleep-fill {
+  stroke: #3498DB;
+  filter: drop-shadow(0 0 4px rgba(52, 152, 219, 0.5));
+}
+.pd-build-fill {
+  stroke: #2ECC71;
+  filter: drop-shadow(0 0 4px rgba(46, 204, 113, 0.5));
+}
+.pd-quit-fill {
+  stroke: #9B59B6;
+  filter: drop-shadow(0 0 4px rgba(155, 89, 182, 0.5));
+}
+.pd-projects-fill {
+  stroke: #FF6B9D;
+  filter: drop-shadow(0 0 4px rgba(255, 107, 157, 0.5));
+}
+
+/* Skeleton placeholder grid */
+.pd-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+/* Badge in panel header */
+.pd-stat-badge {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Link in panel header */
+.pd-panel-link {
+  font-size: 12px;
+  color: #FF6B9D;
+  text-decoration: none;
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+.pd-panel-link:hover { opacity: 0.75; }
+
+/* ── Sleep Sparkline ─────────────────────────────────────── */
+.pd-sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 140px;
+  padding-bottom: 4px;
+}
+
+.pd-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+
+.pd-bar-track {
+  flex: 1;
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px 4px 0 0;
+  overflow: visible;
+}
+
+.pd-bar-fill {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.4s ease;
+  position: absolute;
+  bottom: 0;
+}
+
+.pd-goal-line {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.25);
+  border-top: 1px dashed rgba(255, 255, 255, 0.25);
+  pointer-events: none;
+}
+
+.pd-bar-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.pd-bar-val {
+  font-size: 9px;
+  color: var(--text-dimmed);
+  text-align: center;
+}
+
+/* ── Therapy Session Hero ────────────────────────────────── */
+.pd-session-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 0 4px;
+}
+
+.pd-session-countdown {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #FF6B9D;
+  line-height: 1;
+}
+
+.pd-session-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pd-session-meta {
+  font-size: 0.78rem;
+  color: var(--text-dimmed);
+}
+
+.pd-session-notes {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  border-left: 2px solid #FF6B9D44;
+  padding-left: 10px;
+}
+
+/* ── Habit Balance Panel ─────────────────────────────────── */
+.pd-habit-grid {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.pd-habit-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+}
+
+.pd-habit-divider {
+  width: 1px;
+  background: var(--glass-border);
+  margin: 8px 0;
+}
+
+.pd-habit-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.pd-habit-count {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.pd-habit-desc {
+  font-size: 11px;
+  color: var(--text-dimmed);
+}
+
+.pd-habit-bar-track {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.pd-habit-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.pd-habit-pct {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ── Goals List ──────────────────────────────────────────── */
+.pd-goals-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pd-goal-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.pd-goal-status {
+  font-size: 1rem;
+  line-height: 1.3;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.pd-goal-content {
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Project Cards ───────────────────────────────────────── */
+.pd-project-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+.pd-project-card:hover {
+  background: rgba(255, 107, 157, 0.04);
+  border-color: rgba(255, 107, 157, 0.2);
+}
+
+/* ── Layout overrides ────────────────────────────────────── */
+.pd-main-grid {
+  grid-template-columns: 3fr 2fr;
+}
+
+.pd-lower-grid {
+  grid-template-columns: 3fr 2fr;
+}
+
+@media (max-width: 1024px) {
+  .pd-main-grid,
+  .pd-lower-grid {
+    grid-template-columns: 1fr;
+  }
+}
