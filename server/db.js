@@ -525,6 +525,7 @@ async function initDatabase(forceReset = false) {
 
   await migratePeople(database);
   await seedDatabase(database);
+  await migratePersonalCare(database);
   console.log('Database initialization completed.');
 }
 
@@ -558,6 +559,32 @@ async function migratePeople(database) {
     }
     
     await database.run('UPDATE projects SET person_id = ? WHERE id = ?', [person.id, p.id]);
+  }
+}
+
+async function migratePersonalCare(database) {
+  const area = await database.get("SELECT id FROM areas WHERE id = 'personal-care'");
+  if (!area) {
+    await database.run(
+      "INSERT INTO areas (id, name, color_hex, description) VALUES (?, ?, ?, ?)",
+      ['personal-care', 'Personal Care', '#FF6B9D', 'Therapy, wellness, and self-care']
+    );
+    console.log('Migration: added personal-care area');
+  }
+
+  const project = await database.get("SELECT id FROM projects WHERE id = 'therapy-homework'");
+  if (!project) {
+    await database.run(
+      `INSERT INTO projects (id, title, status, area, pillar, methodology, phase, goals_aligned, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        'therapy-homework', 'Therapy Homework', 'active', 'personal-care',
+        'Resilience', 'PALM', 'Act',
+        JSON.stringify(['Complete therapy assignments', 'Practice coping strategies']),
+        'Tasks and homework assigned during therapy sessions.'
+      ]
+    );
+    console.log('Migration: added therapy-homework project');
   }
 }
 

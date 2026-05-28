@@ -12,6 +12,7 @@ import {
   IconUsers,
   IconAgents,
   IconHabits,
+  IconHeart,
   IconSettings,
 
   IconChevronLeft,
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { to: '/kanban', icon: IconKanban, label: 'Kanban Board' },
   { to: '/notes', icon: IconExtracts, label: 'Extracts' },
   { to: '/habits', icon: IconHabits, label: 'Habits' },
+  { to: '/personal-care', icon: IconHeart, label: 'Personal Care' },
   { to: '/calendar', icon: IconCalendar, label: 'Calendar Tracking' },
   { to: '/pomodoro', icon: IconClock, label: 'Pomodoro', mobileOnly: true },
   { to: '/analytics', icon: IconAnalytics, label: 'Reflection Dashboard' },

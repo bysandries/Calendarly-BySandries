@@ -4,17 +4,54 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const { initDatabase } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const isDev = process.env.NODE_ENV !== 'production';
+
+// Security headers (ECC: web/security.md)
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+    },
+  },
+  hsts: { maxAge: 31536000, includeSubDomains: true },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+}));
 
 // Enable CORS
 app.use(cors({
-  origin: '*', // Allows development tools and various frontends to connect
+  origin: isDev ? '*' : (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean),
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-upload-password']
 }));
+
+// Rate limiting (ECC: rate limiting on all endpoints)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: { error: 'Upload limit reached, please try again later.' },
+});
+app.use('/api/', apiLimiter);
+app.use('/api/upload', uploadLimiter);
 
 // Body parser middleware
 app.use(express.json({ limit: '50mb' }));
@@ -44,6 +81,7 @@ const opencodeRouter = require('./routes/opencode');
 const codeAgentsRouter = require('./routes/codeAgents');
 const habitsRouter = require('./routes/habits');
 const habitLogsRouter = require('./routes/habit-logs');
+const personalCareRouter = require('./routes/personalCare');
 
 // Mount routes
 app.use('/api/events', eventsRouter);
@@ -63,6 +101,7 @@ app.use('/api/opencode', opencodeRouter);
 app.use('/api/code-agents', codeAgentsRouter);
 app.use('/api/habits', habitsRouter);
 app.use('/api/habit-logs', habitLogsRouter);
+app.use('/api/personal-care', personalCareRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -1,4 +1,4 @@
-FROM node:20-bullseye
+FROM --platform=linux/amd64 node:20-bullseye
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends libssl1.1 && \

@@ -19,6 +19,8 @@
     "decompress-unzip": "^4.0.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
     "multer": "^2.0.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^6.0.1"
