@@ -1,28 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchPersonalCareSummary } from '../utils/api';
-import { formatDuration } from '../lib/taskMath';
+import '../components/Analytics.css';
+import './PersonalDashboard.css';
 
-const PERSONAL_CARE_ACCENT = '#FF6B9D';
+const ACCENT  = '#FF6B9D';
+const STROKE  = 188.5; // 2π × r=30
 
-// ── Shared helpers ──────────────────────────────────────────────────────────
-function formatDateLong(dateString) {
-  if (!dateString) return '';
-  const [y, m, d] = dateString.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+function getDashoffset(pct) {
+  const p = Math.min(Math.max(pct, 0), 100);
+  return STROKE - (p / 100) * STROKE;
 }
 
-function truncate(text, n) {
-  if (!text) return '';
-  return text.length > n ? text.slice(0, n).trimEnd() + '…' : text;
-}
-
-function parseGoalStatus(tags) {
-  const t = (tags || '').toLowerCase();
-  if (t.includes('status:done') || t.includes('done'))   return { icon: '✓', color: '#2ECC71', label: 'Done' };
-  if (t.includes('status:wip')  || t.includes('wip'))    return { icon: '◔', color: '#F1C40F', label: 'In progress' };
-  return { icon: '○', color: 'var(--text-dimmed)', label: 'Open' };
+function fmtDur(mins) {
+  if (!mins) return '0m';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`;
 }
 
 function sleepColor(minutes, goal) {
@@ -32,361 +26,420 @@ function sleepColor(minutes, goal) {
   return 'var(--text-dimmed)';
 }
 
-// ── Card chrome ─────────────────────────────────────────────────────────────
-function WidgetCard({ title, action, children }) {
+function goalStatus(tags) {
+  const t = (tags || '').toLowerCase();
+  if (t.includes('status:done') || t.includes('done')) return { icon: '✓', color: '#2ECC71', label: 'Done' };
+  if (t.includes('status:wip')  || t.includes('wip'))  return { icon: '◔', color: '#F1C40F', label: 'WIP' };
+  return { icon: '○', color: 'var(--text-dimmed)', label: 'Open' };
+}
+
+// ── KPI helpers ───────────────────────────────────────────────────────────────
+function KpiGauge({ pct, fillClass }) {
   return (
-    <div
-      className="glass-panel"
-      style={{
-        padding: '18px 20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        minHeight: '180px',
-        borderTop: `2px solid ${PERSONAL_CARE_ACCENT}`,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-        <h3 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          {title}
-        </h3>
-        {action}
-      </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {children}
-      </div>
+    <div className="kpi-gauge-container">
+      <svg width="72" height="72" className="kpi-radial-svg">
+        <circle cx="36" cy="36" r="30" className="kpi-radial-bg" />
+        <circle cx="36" cy="36" r="30" className={`kpi-radial-fill ${fillClass}`}
+          strokeDasharray={STROKE} strokeDashoffset={getDashoffset(pct)} />
+        <text x="36" y="36" className="kpi-radial-text">{pct}%</text>
+      </svg>
     </div>
   );
 }
 
-function EmptyMessage({ children }) {
+// ── KPI Cards ─────────────────────────────────────────────────────────────────
+function SleepKPI({ sleep }) {
+  const avg  = sleep?.avg_minutes  || 0;
+  const goal = sleep?.goal_minutes || 420;
+  const pct  = goal > 0 ? Math.min(Math.round((avg / goal) * 100), 100) : 0;
+  const col  = sleepColor(avg, goal);
   return (
-    <div style={{ fontSize: '0.82rem', color: 'var(--text-dimmed)', fontStyle: 'italic' }}>
-      {children}
+    <div className="kpi-card pd-kpi-card">
+      <div className="kpi-details">
+        <span className="kpi-title">Sleep Score</span>
+        <span className="kpi-value" style={{ fontSize: '26px' }}>{avg > 0 ? fmtDur(avg) : '—'}</span>
+        <span className="kpi-subtext">7-day avg / {fmtDur(goal)} goal</span>
+        <span className="kpi-subtext" style={{ fontSize: '11px', marginTop: '4px' }}>
+          Alignment: <strong style={{ color: col }}>{pct}%</strong>
+        </span>
+      </div>
+      <KpiGauge pct={pct} fillClass="pd-sleep-fill" />
     </div>
   );
 }
 
-// ── Widgets ─────────────────────────────────────────────────────────────────
-function NextSessionWidget({ data }) {
-  if (!data) {
-    return (
-      <WidgetCard
-        title="Next Therapy Session"
-        action={<Link to="/calendar" style={{ fontSize: '0.75rem', color: PERSONAL_CARE_ACCENT, textDecoration: 'none' }}>Schedule →</Link>}
-      >
-        <EmptyMessage>
-          No upcoming session. Create a calendar event with area "personal-care" to populate this widget.
-        </EmptyMessage>
-      </WidgetCard>
-    );
-  }
-
-  // Compute relative label.
-  const [y, m, d] = data.date_string.split('-').map(Number);
-  const [hh, mm] = (data.time_slot || '00:00').split(':').map(Number);
-  const eventDate = new Date(y, m - 1, d, hh, mm);
-  const today = new Date();
-  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const startOfEvent = new Date(y, m - 1, d);
-  const dayDiff = Math.round((startOfEvent - startOfToday) / (1000 * 60 * 60 * 24));
-
-  let relative;
-  if (dayDiff === 0)      relative = `Today, ${data.time_slot}`;
-  else if (dayDiff === 1) relative = `Tomorrow, ${data.time_slot}`;
-  else if (dayDiff > 0)   relative = `In ${dayDiff} days`;
-  else                    relative = 'Past';
-
+function BuildKPI({ ratio }) {
+  const pct   = ratio?.weekly_completion?.build_pct ?? 0;
+  const count = ratio?.build ?? 0;
   return (
-    <WidgetCard
-      title="Next Therapy Session"
-      action={<Link to="/calendar" style={{ fontSize: '0.75rem', color: PERSONAL_CARE_ACCENT, textDecoration: 'none' }}>Calendar →</Link>}
-    >
-      <div style={{ fontSize: '1.5rem', fontWeight: 700, color: PERSONAL_CARE_ACCENT }}>{relative}</div>
-      <div style={{ fontSize: '0.92rem', color: 'var(--text-primary)', fontWeight: 500 }}>{data.title}</div>
-      <div style={{ fontSize: '0.76rem', color: 'var(--text-dimmed)' }}>
-        {formatDateLong(data.date_string)} · {data.time_slot} · {formatDuration(data.duration_mins)}
+    <div className="kpi-card pd-kpi-card">
+      <div className="kpi-details">
+        <span className="kpi-title">Build Habits</span>
+        <span className="kpi-value" style={{ fontSize: '26px' }}>{count} active</span>
+        <span className="kpi-subtext">Habits to reinforce</span>
+        <span className="kpi-subtext" style={{ fontSize: '11px', marginTop: '4px' }}>
+          Week completion: <strong style={{ color: '#2ECC71' }}>{pct}%</strong>
+        </span>
       </div>
-      {data.notes && (
-        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-          {truncate(data.notes, 120)}
-        </p>
-      )}
-    </WidgetCard>
+      <KpiGauge pct={pct} fillClass="pd-build-fill" />
+    </div>
   );
 }
 
-function SleepPerformanceWidget({ data }) {
-  if (!data) return null;
-  const { avg_minutes: avg, goal_minutes: goal, daily } = data;
-  const color = sleepColor(avg, goal);
-  const label =
-    avg >= goal ? 'On goal' :
-    avg >= 300  ? 'Below goal' :
-    avg > 0     ? 'Critical' :
-                  'No data';
+function QuitKPI({ ratio }) {
+  const pct   = ratio?.weekly_completion?.quit_pct ?? 0;
+  const count = ratio?.quit ?? 0;
+  return (
+    <div className="kpi-card pd-kpi-card">
+      <div className="kpi-details">
+        <span className="kpi-title">Quit Habits</span>
+        <span className="kpi-value" style={{ fontSize: '26px' }}>{count} active</span>
+        <span className="kpi-subtext">Habits to break</span>
+        <span className="kpi-subtext" style={{ fontSize: '11px', marginTop: '4px' }}>
+          Avoidance rate: <strong style={{ color: '#9B59B6' }}>{pct}%</strong>
+        </span>
+      </div>
+      <KpiGauge pct={pct} fillClass="pd-quit-fill" />
+    </div>
+  );
+}
 
-  const max = Math.max(goal, ...daily.map(d => d.minutes), 60);
-  const ratioPct = goal > 0 ? Math.round((avg / goal) * 100) : 0;
+function ProjectsKPI({ projects }) {
+  const withTasks = projects.filter(p => p.total_tasks > 0);
+  const avgPct = withTasks.length
+    ? Math.round(withTasks.reduce((s, p) => s + Math.round((p.complete_tasks / p.total_tasks) * 100), 0) / withTasks.length)
+    : 0;
+  return (
+    <div className="kpi-card pd-kpi-card">
+      <div className="kpi-details">
+        <span className="kpi-title">Care Projects</span>
+        <span className="kpi-value" style={{ fontSize: '26px' }}>{projects.length}</span>
+        <span className="kpi-subtext">Personal-care projects</span>
+        <span className="kpi-subtext" style={{ fontSize: '11px', marginTop: '4px' }}>
+          Avg completion: <strong style={{ color: ACCENT }}>{avgPct}%</strong>
+        </span>
+      </div>
+      <KpiGauge pct={avgPct} fillClass="pd-projects-fill" />
+    </div>
+  );
+}
+
+// ── Panels ────────────────────────────────────────────────────────────────────
+function SleepSparklinePanel({ sleep }) {
+  if (!sleep) return null;
+  const { avg_minutes: avg, goal_minutes: goal, daily = [] } = sleep;
+  const max = Math.max(goal || 0, ...daily.map(d => d.minutes), 60);
+  const col = sleepColor(avg, goal);
 
   return (
-    <WidgetCard
-      title="Sleep — 7-Day Average"
-      action={<span style={{ fontSize: '0.7rem', color, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>{label}</span>}
-    >
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-        <div style={{ fontSize: '1.7rem', fontWeight: 700, color }}>
-          {avg > 0 ? formatDuration(avg) : '—'}
+    <div className="dashboard-panel">
+      <div className="panel-header">
+        <div>
+          <h3 className="panel-title">Sleep — 7-Day Trend</h3>
+          <p className="panel-subtitle">Daily rest logged vs {fmtDur(goal)} goal</p>
         </div>
-        <div style={{ fontSize: '0.78rem', color: 'var(--text-dimmed)' }}>
-          / {formatDuration(goal)} goal · {ratioPct}%
-        </div>
+        <span className="pd-stat-badge" style={{ color: col }}>avg {avg > 0 ? fmtDur(avg) : '—'}</span>
       </div>
 
-      {/* Sparkline */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '52px', marginTop: 'auto' }}>
+      <div className="pd-sparkline">
         {daily.map(d => {
-          const h = max > 0 ? (d.minutes / max) * 100 : 0;
-          const bg = sleepColor(d.minutes, goal);
+          const h   = max > 0 ? (d.minutes / max) * 100 : 0;
+          const bg  = sleepColor(d.minutes, goal);
+          const day = d.date_id
+            ? new Date(d.date_id + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })
+            : '';
           return (
-            <div
-              key={d.date_id}
-              style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}
-              title={`${d.date_id}: ${d.minutes > 0 ? formatDuration(d.minutes) : 'no data'}`}
-            >
-              <div style={{
-                width: '100%',
-                height: `${Math.max(h, 2)}%`,
-                background: d.minutes > 0 ? bg : 'rgba(255,255,255,0.06)',
-                borderRadius: '2px 2px 0 0',
-              }} />
+            <div key={d.date_id} className="pd-bar-col"
+              title={`${d.date_id}: ${d.minutes > 0 ? fmtDur(d.minutes) : 'no data'}`}>
+              <div className="pd-bar-track">
+                <div className="pd-bar-fill"
+                  style={{ height: `${Math.max(h, 2)}%`, background: d.minutes > 0 ? bg : 'rgba(255,255,255,0.06)' }} />
+                {goal > 0 && (
+                  <div className="pd-goal-line" style={{ bottom: `${Math.min((goal / max) * 100, 98)}%` }} />
+                )}
+              </div>
+              <span className="pd-bar-label">{day}</span>
+              <span className="pd-bar-val">{d.minutes > 0 ? fmtDur(d.minutes) : '–'}</span>
             </div>
           );
         })}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-dimmed)' }}>
-        <span>{daily[0]?.date_id.slice(5)}</span>
-        <span>{daily[daily.length - 1]?.date_id.slice(5)}</span>
-      </div>
-    </WidgetCard>
+    </div>
   );
 }
 
-function PreviousGoalsWidget({ data }) {
-  if (!data || data.length === 0) {
+function NextSessionPanel({ session }) {
+  if (!session) {
     return (
-      <WidgetCard title="Previous Session Goals">
-        <EmptyMessage>
-          Tag extracts with both <code>therapy</code> and <code>goal</code> to track session goals here. Add <code>status:done</code>, <code>status:wip</code>, or leave blank for open.
-        </EmptyMessage>
-      </WidgetCard>
+      <div className="dashboard-panel">
+        <div className="panel-header">
+          <div>
+            <h3 className="panel-title">Next Therapy Session</h3>
+            <p className="panel-subtitle">Upcoming session from calendar</p>
+          </div>
+          <Link to="/calendar" className="pd-panel-link">Schedule →</Link>
+        </div>
+        <div className="no-analytics-data">
+          <span className="no-data-icon">🗓</span>
+          <span>No upcoming session. Add a calendar event in the personal-care area.</span>
+        </div>
+      </div>
     );
   }
 
-  return (
-    <WidgetCard
-      title="Previous Session Goals"
-      action={<Link to="/notes" style={{ fontSize: '0.75rem', color: PERSONAL_CARE_ACCENT, textDecoration: 'none' }}>Extracts →</Link>}
-    >
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {data.map(g => {
-          const status = parseGoalStatus(g.tags);
-          return (
-            <li key={g.id} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-              <span
-                title={status.label}
-                style={{ fontSize: '1rem', color: status.color, lineHeight: 1.2, flexShrink: 0, marginTop: '1px' }}
-              >
-                {status.icon}
-              </span>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                {truncate(g.content, 110)}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-    </WidgetCard>
-  );
-}
+  const [y, m, d] = session.date_string.split('-').map(Number);
+  const today      = new Date();
+  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startEvent = new Date(y, m - 1, d);
+  const dayDiff    = Math.round((startEvent - startToday) / 86400000);
 
-function RatioBlock({ label, count, color, pct }) {
+  const relative =
+    dayDiff === 0 ? 'Today'
+    : dayDiff === 1 ? 'Tomorrow'
+    : dayDiff > 1   ? `In ${dayDiff} days`
+    : 'Past';
+
+  const dateLabel = startEvent.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
   return (
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-        {label}
+    <div className="dashboard-panel">
+      <div className="panel-header">
+        <div>
+          <h3 className="panel-title">Next Therapy Session</h3>
+          <p className="panel-subtitle">Upcoming session from calendar</p>
+        </div>
+        <Link to="/calendar" className="pd-panel-link">Calendar →</Link>
       </div>
-      <div style={{ fontSize: '1.7rem', fontWeight: 700, color, lineHeight: 1.1, marginTop: '2px' }}>{count}</div>
-      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-        Week: {pct === null ? '—' : `${pct}%`}
-      </div>
-      <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', marginTop: '4px', overflow: 'hidden' }}>
-        {pct !== null && (
-          <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width 0.3s ease' }} />
+
+      <div className="pd-session-hero">
+        <div className="pd-session-countdown">{relative}</div>
+        <div className="pd-session-title">{session.title}</div>
+        <div className="pd-session-meta">
+          {dateLabel} · {session.time_slot} · {fmtDur(session.duration_mins)}
+        </div>
+        {session.notes && (
+          <p className="pd-session-notes">{session.notes}</p>
         )}
       </div>
     </div>
   );
 }
 
-function HabitRatioWidget({ data }) {
-  if (!data) return null;
-  const { build, quit, weekly_completion: wc } = data;
-  const noHabits = build === 0 && quit === 0;
+function HabitBalancePanel({ ratio }) {
+  if (!ratio) return null;
+  const { build, quit, weekly_completion: wc } = ratio;
 
   return (
-    <WidgetCard
-      title="Habit Balance"
-      action={<Link to="/habits" style={{ fontSize: '0.75rem', color: PERSONAL_CARE_ACCENT, textDecoration: 'none' }}>Habits →</Link>}
-    >
-      {noHabits ? (
-        <EmptyMessage>No active habits yet. Create build or quit habits to see weekly progress.</EmptyMessage>
+    <div className="dashboard-panel">
+      <div className="panel-header">
+        <div>
+          <h3 className="panel-title">Habit Balance</h3>
+          <p className="panel-subtitle">This week's build vs quit performance</p>
+        </div>
+        <Link to="/habits" className="pd-panel-link">Habits →</Link>
+      </div>
+
+      {build === 0 && quit === 0 ? (
+        <div className="no-analytics-data">
+          <span className="no-data-icon">🌱</span>
+          <span>No active habits yet. Create build or quit habits to track weekly stats.</span>
+        </div>
       ) : (
-        <>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <RatioBlock label="Build" count={build} color="#2ECC71" pct={wc.build_pct} />
-            <RatioBlock label="Quit"  count={quit}  color="#9B59B6" pct={wc.quit_pct} />
+        <div className="pd-habit-grid">
+          <div className="pd-habit-block">
+            <div className="pd-habit-label">Build</div>
+            <div className="pd-habit-count" style={{ color: '#2ECC71' }}>{build}</div>
+            <div className="pd-habit-desc">habits to reinforce</div>
+            <div className="pd-habit-bar-track">
+              <div className="pd-habit-bar-fill" style={{ width: `${wc.build_pct ?? 0}%`, background: '#2ECC71' }} />
+            </div>
+            <div className="pd-habit-pct">{wc.build_pct ?? 0}% this week</div>
           </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-dimmed)', marginTop: 'auto' }}>
-            Build = ≥1 log per day · Quit = 0 logs per day
+          <div className="pd-habit-divider" />
+          <div className="pd-habit-block">
+            <div className="pd-habit-label">Quit</div>
+            <div className="pd-habit-count" style={{ color: '#9B59B6' }}>{quit}</div>
+            <div className="pd-habit-desc">habits to break</div>
+            <div className="pd-habit-bar-track">
+              <div className="pd-habit-bar-fill" style={{ width: `${wc.quit_pct ?? 0}%`, background: '#9B59B6' }} />
+            </div>
+            <div className="pd-habit-pct">{wc.quit_pct ?? 0}% avoidance</div>
           </div>
-        </>
+        </div>
       )}
-    </WidgetCard>
+    </div>
   );
 }
 
-function PersonalCareProjectsWidget({ data }) {
-  if (!data || data.length === 0) {
-    return (
-      <WidgetCard
-        title="Personal Care Projects"
-        action={<Link to="/projects" style={{ fontSize: '0.75rem', color: PERSONAL_CARE_ACCENT, textDecoration: 'none' }}>Projects →</Link>}
-      >
-        <EmptyMessage>No projects in the personal-care area yet.</EmptyMessage>
-      </WidgetCard>
-    );
-  }
-
+function GoalsPanel({ goals }) {
   return (
-    <WidgetCard
-      title="Personal Care Projects"
-      action={<Link to="/projects" style={{ fontSize: '0.75rem', color: PERSONAL_CARE_ACCENT, textDecoration: 'none' }}>All →</Link>}
-    >
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {data.map(p => {
-          const pct = p.total_tasks ? Math.round((p.complete_tasks / p.total_tasks) * 100) : 0;
-          return (
-            <li key={p.id}>
-              <Link
-                to={`/projects/${p.id}`}
-                style={{
-                  display: 'block',
-                  textDecoration: 'none',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid var(--glass-border)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--text-primary)' }}>
-                    {p.title}
-                  </span>
-                  <span style={{ fontSize: '0.68rem', color: 'var(--text-dimmed)', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+    <div className="dashboard-panel">
+      <div className="panel-header">
+        <div>
+          <h3 className="panel-title">Session Goals</h3>
+          <p className="panel-subtitle">Therapy goals tracked via tagged Extracts</p>
+        </div>
+        <Link to="/notes" className="pd-panel-link">Extracts →</Link>
+      </div>
+
+      {goals.length === 0 ? (
+        <div className="no-analytics-data">
+          <span className="no-data-icon">🎯</span>
+          <span>Tag extracts with <code>therapy</code> + <code>goal</code> to track session goals here.</span>
+        </div>
+      ) : (
+        <ul className="pd-goals-list">
+          {goals.map(g => {
+            const s = goalStatus(g.tags);
+            return (
+              <li key={g.id} className="pd-goal-item">
+                <span className="pd-goal-status" style={{ color: s.color }} title={s.label}>{s.icon}</span>
+                <span className="pd-goal-content">
+                  {g.content?.length > 120 ? g.content.slice(0, 120) + '…' : g.content}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function CareProjectsPanel({ projects }) {
+  return (
+    <div className="dashboard-panel">
+      <div className="panel-header">
+        <div>
+          <h3 className="panel-title">Care Projects</h3>
+          <p className="panel-subtitle">Personal-care project milestones</p>
+        </div>
+        <Link to="/projects" className="pd-panel-link">All →</Link>
+      </div>
+
+      {projects.length === 0 ? (
+        <div className="no-analytics-data">
+          <span className="no-data-icon">◆</span>
+          <span>No personal-care projects yet.</span>
+        </div>
+      ) : (
+        <div className="project-progress-list">
+          {projects.map(p => {
+            const pct = p.total_tasks > 0
+              ? Math.round((p.complete_tasks / p.total_tasks) * 100)
+              : 0;
+            return (
+              <Link key={p.id} to={`/projects/${p.id}`} className="project-progress-card pd-project-card">
+                <div className="proj-card-top">
+                  <span className="proj-card-title">{p.title}</span>
+                  <span className={`proj-card-badge ${(p.phase || 'plan').toLowerCase()}-phase`}>
                     {p.phase}
                   </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                  <div style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: PERSONAL_CARE_ACCENT }} />
-                  </div>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                    {p.complete_tasks}/{p.total_tasks} · {pct}%
-                  </span>
+                <div className="proj-progress-stats">
+                  <span>Tasks</span>
+                  <span>{p.complete_tasks} / {p.total_tasks} ({pct}%)</span>
+                </div>
+                <div className="proj-progress-bar-container">
+                  <div className="proj-progress-bar-fill" style={{
+                    width: `${pct}%`,
+                    background: pct === 100
+                      ? 'linear-gradient(90deg,#2ECC71,#27AE60)'
+                      : `linear-gradient(90deg,${ACCENT},#C0395E)`,
+                  }} />
+                </div>
+                <div className="proj-card-footer">
+                  <span>Pillar: <strong>{p.pillar}</strong></span>
+                  <span>Est: <strong>{Math.round((p.total_estimated_minutes || 0) / 60)}h</strong></span>
                 </div>
               </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </WidgetCard>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
-// ── Page ────────────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function PersonalCarePage() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError]     = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     fetchPersonalCareSummary()
-      .then(data => { if (!cancelled) { setSummary(data); setLoading(false); } })
-      .catch(err  => { if (!cancelled) { setError(err.message || 'Failed to load'); setLoading(false); } });
+      .then(d  => { if (!cancelled) { setSummary(d);          setLoading(false); } })
+      .catch(e => { if (!cancelled) { setError(e.message||'Failed to load'); setLoading(false); } });
     return () => { cancelled = true; };
   }, []);
 
+  const {
+    next_session,
+    sleep_7d,
+    previous_goals        = [],
+    habit_ratio,
+    personal_care_projects = [],
+  } = summary || {};
+
   return (
-    <div>
+    <div className="page-container">
       <div className="page-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{
-            width: '10px',
-            height: '10px',
-            borderRadius: '50%',
-            background: PERSONAL_CARE_ACCENT,
-            boxShadow: `0 0 12px ${PERSONAL_CARE_ACCENT}66`,
-          }} />
+        <h2 className="pd-page-title">
+          <span className="pd-accent-dot" />
           Personal Care
         </h2>
         <p className="page-description">
-          Therapy progress, sleep, habits, and personal-care projects in one place.
+          Sleep, habits, therapy progress, and personal-care projects at a glance.
         </p>
       </div>
 
       {error && (
-        <div className="glass-panel" style={{ padding: '20px', marginBottom: '16px', color: 'var(--accent-danger)' }}>
-          Failed to load: {error}
+        <div className="dashboard-panel" style={{ marginBottom: '24px', borderColor: 'var(--accent-danger)' }}>
+          <div style={{ color: 'var(--accent-danger)', textAlign: 'center', padding: '16px' }}>
+            Failed to load: {error}
+          </div>
         </div>
       )}
 
+      {/* KPI row */}
       {loading ? (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '16px',
-            marginBottom: '24px',
-          }}
-        >
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="glass-panel" style={{ padding: '20px', minHeight: '180px' }}>
-              <div className="skeleton" style={{ width: '60%', height: '14px', marginBottom: '12px' }} />
-              <div className="skeleton skeleton-row" />
-              <div className="skeleton skeleton-row" />
+        <div className="pd-skeleton-grid">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="kpi-card pd-kpi-card">
+              <div className="kpi-details" style={{ gap: '10px', flex: 1 }}>
+                <div className="skeleton" style={{ width: '55%', height: '11px' }} />
+                <div className="skeleton" style={{ width: '40%', height: '28px' }} />
+                <div className="skeleton" style={{ width: '75%', height: '10px' }} />
+              </div>
+              <div className="skeleton" style={{ width: '72px', height: '72px', borderRadius: '50%' }} />
             </div>
           ))}
         </div>
-      ) : summary && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '16px',
-            marginBottom: '24px',
-          }}
-        >
-          <NextSessionWidget          data={summary.next_session} />
-          <SleepPerformanceWidget     data={summary.sleep_7d} />
-          <PreviousGoalsWidget        data={summary.previous_goals} />
-          <HabitRatioWidget           data={summary.habit_ratio} />
-          <PersonalCareProjectsWidget data={summary.personal_care_projects} />
+      ) : (
+        <div className="kpi-grid">
+          <SleepKPI    sleep={sleep_7d} />
+          <BuildKPI    ratio={habit_ratio} />
+          <QuitKPI     ratio={habit_ratio} />
+          <ProjectsKPI projects={personal_care_projects} />
         </div>
       )}
+
+      {/* Row 1 panels */}
+      <div className="dashboard-grid pd-main-grid" style={{ marginTop: '24px' }}>
+        <SleepSparklinePanel sleep={sleep_7d} />
+        <NextSessionPanel    session={next_session} />
+      </div>
+
+      {/* Row 2 panels */}
+      <div className="dashboard-grid pd-lower-grid" style={{ marginTop: '24px' }}>
+        <CareProjectsPanel projects={personal_care_projects} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <HabitBalancePanel ratio={habit_ratio} />
+          <GoalsPanel        goals={previous_goals} />
+        </div>
+      </div>
     </div>
   );
 }
