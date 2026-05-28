@@ -2,10 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { fetchWeeklyReport } from '../utils/api';
 import './Analytics.css';
 
+function currentWeekBounds() {
+  const today = new Date();
+  const day = today.getDay(); // 0=Sun,1=Mon,...
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + diffToMonday);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = (d) => d.toISOString().split('T')[0];
+  return { start: fmt(monday), end: fmt(sunday) };
+}
+
 export default function Analytics() {
-  // Reference date range based on session context: May 18, 2026 - May 24, 2026
-  const [startDate, setStartDate] = useState('2026-05-18');
-  const [endDate, setEndDate] = useState('2026-05-24');
+  const week = currentWeekBounds();
+  const [startDate, setStartDate] = useState(week.start);
+  const [endDate, setEndDate] = useState(week.end);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
@@ -57,31 +69,30 @@ export default function Analytics() {
 
   const { areaHours = [], sleep = {}, tasks = {}, events = {}, projects = [] } = data || {};
 
-  // Find max hours to scale comparison bars correctly
   const maxHours = Math.max(
     ...areaHours.flatMap(a => [a.planned_hours, a.measured_hours]),
-    1 // Fallback to prevent divide-by-zero
+    1
   );
 
-  // Group projects by phase for the Phase KPI card
   const phaseCounts = projects.reduce((acc, p) => {
     const ph = p.phase || 'Plan';
     acc[ph] = (acc[ph] || 0) + 1;
     return acc;
   }, { Plan: 0, Act: 0, Measure: 0, Learn: 0, Ignored: 0 });
 
-  // Calculate task completion percentage
   const taskCompletionPercentage = tasks.planned_due_count > 0
     ? Math.min(Math.round((tasks.completed_count / tasks.planned_due_count) * 100), 100)
     : (tasks.completed_count > 0 ? 100 : 0);
 
-  // Dashoffset calculation for SVG radial circular gauges (radius = 30, circumference = 2 * PI * r = ~188.5)
   const strokeDasharray = 188.5;
-  
   const getDashoffset = (percent) => {
     const pct = Math.min(Math.max(percent, 0), 100);
     return strokeDasharray - (pct / 100) * strokeDasharray;
   };
+
+  const eventEfficiency = events.planned_hours > 0
+    ? Math.min(Math.round((events.measured_hours / events.planned_hours) * 100), 200)
+    : (events.measured_hours > 0 ? 100 : 0);
 
   return (
     <div className="analytics-container">
@@ -168,7 +179,33 @@ export default function Analytics() {
           </div>
         </div>
 
-        {/* KPI 3: Projects Phase Count */}
+        {/* KPI 3: Calendar Utilisation */}
+        <div className="kpi-card events">
+          <div className="kpi-details">
+            <span className="kpi-title">Calendar Utilisation</span>
+            <span className="kpi-value">{events.measured_hours}h / {events.planned_hours}h</span>
+            <span className="kpi-subtext">Measured vs planned event hours</span>
+            <span className="kpi-subtext" style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              Utilisation: <strong>{eventEfficiency}%</strong>
+            </span>
+          </div>
+          <div className="kpi-gauge-container">
+            <svg width="72" height="72" className="kpi-radial-svg">
+              <circle cx="36" cy="36" r="30" className="kpi-radial-bg" />
+              <circle
+                cx="36"
+                cy="36"
+                r="30"
+                className="kpi-radial-fill"
+                strokeDasharray={strokeDasharray}
+                strokeDashoffset={getDashoffset(Math.min(eventEfficiency, 100))}
+              />
+              <text x="36" y="36" className="kpi-radial-text">{Math.min(eventEfficiency, 100)}%</text>
+            </svg>
+          </div>
+        </div>
+
+        {/* KPI 4: Projects Phase Count */}
         <div className="kpi-card projects-phases">
           <div className="kpi-details">
             <span className="kpi-title">PALM Projects</span>
@@ -234,7 +271,6 @@ export default function Analytics() {
 
                 return (
                   <div className="chart-row" key={area.area_id}>
-                    {/* Area Name Header */}
                     <div className="chart-label">
                       <span
                         className="chart-area-dot"
@@ -242,10 +278,7 @@ export default function Analytics() {
                       />
                       <span className="chart-area-name" title={area.area_name}>{area.area_name}</span>
                     </div>
-
-                    {/* Dual Horizontal Bars */}
                     <div className="chart-bars-container">
-                      {/* Planned Bar */}
                       <div className="chart-bar-lane">
                         <div
                           className="chart-bar-fill plan"
@@ -257,8 +290,6 @@ export default function Analytics() {
                           <span className="chart-value-tooltip">{area.planned_hours.toFixed(1)}h</span>
                         </div>
                       </div>
-
-                      {/* Measured Bar */}
                       <div className="chart-bar-lane">
                         <div
                           className="chart-bar-fill measure"
