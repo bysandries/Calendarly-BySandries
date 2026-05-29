@@ -5,7 +5,7 @@ const { getDbConnection } = require('../db');
 const PERSONAL_CARE_AREA = 'personal-care';
 const SLEEP_AREA = 'sleep';
 const SLEEP_GOAL_MINUTES = 7 * 60; // 420
-const SLEEP_LOOKBACK_DAYS = 7;
+const WEEK_DAYS = 7;
 const GOALS_LIMIT = 5;
 
 // Mirror of TASK_STATS_JOIN in routes/projects.js, scoped to a single area.
@@ -55,13 +55,46 @@ function shiftDateId(dateId, deltaDays) {
   return todayDateId(dt);
 }
 
+function getWeekDays(todayDateId, firstDayOfWeek) {
+  const parts = todayDateId.split('-');
+  const d = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+  const day = d.getUTCDay();
+
+  let diffToStart = 0;
+  if (firstDayOfWeek === 'monday') {
+    diffToStart = day === 0 ? -6 : 1 - day;
+  } else {
+    diffToStart = -day;
+  }
+
+  const startDay = new Date(d);
+  startDay.setUTCDate(d.getUTCDate() + diffToStart);
+
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const nd = new Date(startDay);
+    nd.setUTCDate(startDay.getUTCDate() + i);
+    days.push(nd.toISOString().split('T')[0]);
+  }
+  return days;
+}
+
 // GET /api/personal-care/summary
 // One-shot read used by the Personal Care dashboard.
 router.get('/summary', async (req, res) => {
   try {
     const db = await getDbConnection();
     const today = todayDateId();
-    const weekStart = shiftDateId(today, -(SLEEP_LOOKBACK_DAYS - 1));
+
+    // Read first_day_of_week setting to align the week.
+    const fowRow = await db.get("SELECT value FROM settings WHERE key = 'first_day_of_week'");
+    const firstDayOfWeek = (fowRow && fowRow.value) || 'sunday';
+
+    // Allow a specific week to be requested via ?week_start=YYYY-MM-DD.
+    const weekRef = req.query.week_start || today;
+    const weekDays = getWeekDays(weekRef, firstDayOfWeek);
+    const weekStart = weekDays[0];
+    const weekEnd = weekDays[6];
 
     // 1. Next personal-care calendar event (plan column, today or later).
     const nextSession = await db.get(
@@ -73,23 +106,23 @@ router.get('/summary', async (req, res) => {
       [PERSONAL_CARE_AREA, today]
     );
 
-    // 2. Sleep — 7-day rolling window from the measure column.
+    // 2. Sleep — current week aligned with first_day_of_week setting.
     const sleepRows = await db.all(
       `SELECT date_string AS date_id, SUM(duration_mins) AS minutes
        FROM events
        WHERE area = ? AND column_type = 'measure'
          AND date_string >= ? AND date_string <= ?
        GROUP BY date_string`,
-      [SLEEP_AREA, weekStart, today]
+      [SLEEP_AREA, weekStart, weekEnd]
     );
     const sleepByDate = new Map(sleepRows.map(r => [r.date_id, r.minutes || 0]));
     const sleepDaily = [];
-    for (let i = 0; i < SLEEP_LOOKBACK_DAYS; i++) {
-      const dateId = shiftDateId(weekStart, i);
+    for (let i = 0; i < WEEK_DAYS; i++) {
+      const dateId = weekDays[i];
       sleepDaily.push({ date_id: dateId, minutes: sleepByDate.get(dateId) || 0 });
     }
     const sleepTotal = sleepDaily.reduce((sum, d) => sum + d.minutes, 0);
-    const sleepAvg = Math.round(sleepTotal / SLEEP_LOOKBACK_DAYS);
+    const sleepAvg = Math.round(sleepTotal / WEEK_DAYS);
 
     // 3. Previous-session goals — extracts tagged with both "therapy" and "goal".
     const previousGoals = await db.all(
@@ -101,30 +134,27 @@ router.get('/summary', async (req, res) => {
       [GOALS_LIMIT]
     );
 
-    // 4a. Habit build/quit counts (non-archived).
-    const habitCounts = await db.all(
-      `SELECT goal_type, COUNT(*) AS count
-       FROM habits
-       WHERE COALESCE(is_archived, 0) = 0
-       GROUP BY goal_type`
-    );
-    const buildCount = (habitCounts.find(r => r.goal_type === 'build')?.count) || 0;
-    const quitCount  = (habitCounts.find(r => r.goal_type === 'quit')?.count)  || 0;
-
-    // 4b. Weekly completion across the 7-day window.
+    // 4. Weekly completion across the 7-day window.
     //   - build habits: (habit, day) cells with at least one log → "completed"
     //   - quit habits:  (habit, day) cells with zero logs → "completed"
     const activeHabits = await db.all(
-      `SELECT id, goal_type FROM habits WHERE COALESCE(is_archived, 0) = 0`
+      `SELECT id, goal_type FROM habits
+       WHERE COALESCE(is_archived, 0) = 0
+         AND date(created_at) <= ?`,
+      [weekEnd]
     );
     const logRows = await db.all(
       `SELECT habit_id, date_id, SUM(count) AS total
        FROM habit_logs
        WHERE date_id >= ? AND date_id <= ?
        GROUP BY habit_id, date_id`,
-      [weekStart, today]
+      [weekStart, weekEnd]
     );
+    const habitsWithLogsThisWeek = new Set(logRows.filter(r => r.total > 0).map(r => r.habit_id));
     const loggedSet = new Set(logRows.filter(r => r.total > 0).map(r => `${r.habit_id}|${r.date_id}`));
+
+    const buildCount = activeHabits.filter(h => h.goal_type === 'build' && habitsWithLogsThisWeek.has(h.id)).length;
+    const quitCount  = activeHabits.filter(h => h.goal_type === 'quit').length;
 
     const days = sleepDaily.map(d => d.date_id);
     let buildSlots = 0, buildHit = 0, quitSlots = 0, quitHit = 0;
@@ -140,8 +170,8 @@ router.get('/summary', async (req, res) => {
         }
       }
     }
-    const buildPct = buildSlots ? Math.round((buildHit / buildSlots) * 100) : null;
-    const quitPct  = quitSlots  ? Math.round((quitHit  / quitSlots)  * 100) : null;
+    const buildPct = buildSlots ? Math.round((buildHit / buildSlots) * 100) : 100;
+    const quitPct  = quitSlots  ? Math.round((quitHit  / quitSlots)  * 100) : 100;
 
     // 5. Personal-care projects with task stats.
     const projectRows = await db.all(PROJECTS_WITH_STATS, [PERSONAL_CARE_AREA]);
@@ -153,7 +183,7 @@ router.get('/summary', async (req, res) => {
     res.json({
       generated_at: new Date().toISOString(),
       today,
-      window: { start: weekStart, end: today, days: SLEEP_LOOKBACK_DAYS },
+      window: { start: weekStart, end: weekEnd, days: WEEK_DAYS, first_day_of_week: firstDayOfWeek },
       next_session: nextSession || null,
       sleep_7d: {
         goal_minutes: SLEEP_GOAL_MINUTES,

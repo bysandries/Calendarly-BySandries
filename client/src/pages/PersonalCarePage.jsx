@@ -34,14 +34,14 @@ function goalStatus(tags) {
 }
 
 // ── KPI helpers ───────────────────────────────────────────────────────────────
-function KpiGauge({ pct, fillClass }) {
+function KpiGauge({ pct, fillClass, empty }) {
   return (
     <div className="kpi-gauge-container">
       <svg width="72" height="72" className="kpi-radial-svg">
         <circle cx="36" cy="36" r="30" className="kpi-radial-bg" />
         <circle cx="36" cy="36" r="30" className={`kpi-radial-fill ${fillClass}`}
-          strokeDasharray={STROKE} strokeDashoffset={getDashoffset(pct)} />
-        <text x="36" y="36" className="kpi-radial-text">{pct}%</text>
+          strokeDasharray={STROKE} strokeDashoffset={empty ? STROKE : getDashoffset(pct)} />
+        <text x="36" y="36" className="kpi-radial-text" fill={empty ? 'var(--text-dimmed)' : undefined}>{empty ? '—' : `${pct}%`}</text>
       </svg>
     </div>
   );
@@ -51,25 +51,27 @@ function KpiGauge({ pct, fillClass }) {
 function SleepKPI({ sleep }) {
   const avg  = sleep?.avg_minutes  || 0;
   const goal = sleep?.goal_minutes || 420;
-  const pct  = goal > 0 ? Math.min(Math.round((avg / goal) * 100), 100) : 0;
+  const hasData = sleep?.daily?.some(d => d.minutes > 0);
+  const pct  = hasData && goal > 0 ? Math.min(Math.round((avg / goal) * 100), 100) : 0;
   const col  = sleepColor(avg, goal);
   return (
     <div className="kpi-card pd-kpi-card">
       <div className="kpi-details">
         <span className="kpi-title">Sleep Score</span>
-        <span className="kpi-value" style={{ fontSize: '26px' }}>{avg > 0 ? fmtDur(avg) : '—'}</span>
-        <span className="kpi-subtext">7-day avg / {fmtDur(goal)} goal</span>
+        <span className="kpi-value" style={{ fontSize: '26px' }}>{hasData ? fmtDur(avg) : '—'}</span>
+        <span className="kpi-subtext">Weekly avg / {fmtDur(goal)} goal</span>
         <span className="kpi-subtext" style={{ fontSize: '11px', marginTop: '4px' }}>
-          Alignment: <strong style={{ color: col }}>{pct}%</strong>
+          Alignment: <strong style={{ color: col }}>{hasData ? `${pct}%` : '—'}</strong>
         </span>
       </div>
-      <KpiGauge pct={pct} fillClass="pd-sleep-fill" />
+      <KpiGauge pct={pct} fillClass="pd-sleep-fill" empty={!hasData} />
     </div>
   );
 }
 
 function BuildKPI({ ratio }) {
-  const pct   = ratio?.weekly_completion?.build_pct ?? 0;
+  const hasHabits = (ratio?.build ?? 0) > 0;
+  const pct   = ratio?.weekly_completion?.build_pct ?? 100;
   const count = ratio?.build ?? 0;
   return (
     <div className="kpi-card pd-kpi-card">
@@ -78,16 +80,17 @@ function BuildKPI({ ratio }) {
         <span className="kpi-value" style={{ fontSize: '26px' }}>{count} active</span>
         <span className="kpi-subtext">Habits to reinforce</span>
         <span className="kpi-subtext" style={{ fontSize: '11px', marginTop: '4px' }}>
-          Week completion: <strong style={{ color: '#2ECC71' }}>{pct}%</strong>
+          Week completion: <strong style={{ color: '#2ECC71' }}>{hasHabits ? `${pct}%` : '—'}</strong>
         </span>
       </div>
-      <KpiGauge pct={pct} fillClass="pd-build-fill" />
+      <KpiGauge pct={pct} fillClass="pd-build-fill" empty={!hasHabits} />
     </div>
   );
 }
 
 function QuitKPI({ ratio }) {
-  const pct   = ratio?.weekly_completion?.quit_pct ?? 0;
+  const hasHabits = (ratio?.quit ?? 0) > 0;
+  const pct   = ratio?.weekly_completion?.quit_pct ?? 100;
   const count = ratio?.quit ?? 0;
   return (
     <div className="kpi-card pd-kpi-card">
@@ -96,10 +99,10 @@ function QuitKPI({ ratio }) {
         <span className="kpi-value" style={{ fontSize: '26px' }}>{count} active</span>
         <span className="kpi-subtext">Habits to break</span>
         <span className="kpi-subtext" style={{ fontSize: '11px', marginTop: '4px' }}>
-          Avoidance rate: <strong style={{ color: '#9B59B6' }}>{pct}%</strong>
+          Avoidance rate: <strong style={{ color: '#9B59B6' }}>{hasHabits ? `${pct}%` : '—'}</strong>
         </span>
       </div>
-      <KpiGauge pct={pct} fillClass="pd-quit-fill" />
+      <KpiGauge pct={pct} fillClass="pd-quit-fill" empty={!hasHabits} />
     </div>
   );
 }
@@ -128,14 +131,35 @@ function ProjectsKPI({ projects }) {
 function SleepSparklinePanel({ sleep }) {
   if (!sleep) return null;
   const { avg_minutes: avg, goal_minutes: goal, daily = [] } = sleep;
+  const hasData = daily.some(d => d.minutes > 0);
   const max = Math.max(goal || 0, ...daily.map(d => d.minutes), 60);
   const col = sleepColor(avg, goal);
+
+  if (!hasData) {
+    return (
+      <div className="dashboard-panel">
+        <div className="panel-header">
+          <div>
+            <h3 className="panel-title">Sleep — Weekly Trend</h3>
+            <p className="panel-subtitle">Daily rest logged vs {fmtDur(goal)} goal</p>
+          </div>
+        </div>
+        <div className="no-analytics-data">
+          <span className="no-data-icon">😴</span>
+          <span>No sleep data logged for this week.</span>
+          <Link to="/calendar" className="pd-panel-link" style={{ marginTop: '8px', display: 'inline-block' }}>
+            Log sleep in Calendar →
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-panel">
       <div className="panel-header">
         <div>
-          <h3 className="panel-title">Sleep — 7-Day Trend</h3>
+          <h3 className="panel-title">Sleep — Weekly Trend</h3>
           <p className="panel-subtitle">Daily rest logged vs {fmtDur(goal)} goal</p>
         </div>
         <span className="pd-stat-badge" style={{ color: col }}>avg {avg > 0 ? fmtDur(avg) : '—'}</span>
@@ -362,18 +386,34 @@ function CareProjectsPanel({ projects }) {
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
+function weekLabel(weekStart, weekEnd) {
+  if (!weekStart || !weekEnd) return '';
+  const opts = { month: 'short', day: 'numeric' };
+  const s = new Date(weekStart + 'T12:00:00').toLocaleDateString('en-US', opts);
+  const e = new Date(weekEnd   + 'T12:00:00').toLocaleDateString('en-US', { ...opts, year: 'numeric' });
+  return `${s} – ${e}`;
+}
+
 export default function PersonalCarePage() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    fetchPersonalCareSummary()
-      .then(d  => { if (!cancelled) { setSummary(d);          setLoading(false); } })
-      .catch(e => { if (!cancelled) { setError(e.message||'Failed to load'); setLoading(false); } });
+    const offset = weekOffset;
+    const today = new Date();
+    const target = new Date(today);
+    target.setDate(target.getDate() + offset * 7);
+    const weekStart = target.toISOString().split('T')[0];
+
+    setLoading(true);
+    fetchPersonalCareSummary(weekStart)
+      .then(d  => { if (!cancelled && weekOffset === offset) { setSummary(d); setLoading(false); } })
+      .catch(e => { if (!cancelled && weekOffset === offset) { setError(e.message||'Failed to load'); setLoading(false); } });
     return () => { cancelled = true; };
-  }, []);
+  }, [weekOffset]);
 
   const {
     next_session,
@@ -400,6 +440,22 @@ export default function PersonalCarePage() {
           <div style={{ color: 'var(--accent-danger)', textAlign: 'center', padding: '16px' }}>
             Failed to load: {error}
           </div>
+        </div>
+      )}
+
+      {/* Week selector */}
+      {summary && (
+        <div className="pd-week-selector">
+          <button className="pd-week-btn" onClick={() => setWeekOffset(prev => prev - 1)} disabled={loading}>
+            ‹ Prev Week
+          </button>
+          <span className="pd-week-label">
+            {weekLabel(summary.window?.start, summary.window?.end)}
+            {weekOffset === 0 ? <span className="pd-week-current-badge">Current</span> : null}
+          </span>
+          <button className="pd-week-btn" onClick={() => setWeekOffset(prev => Math.min(prev + 1, 0))} disabled={loading || weekOffset >= 0}>
+            Next Week ›
+          </button>
         </div>
       )}
 
