@@ -104,3 +104,6 @@ graphify-out/
 # ─── Upload temp directory ─────────────────────────────────
 .tmp-uploads/
 server/opencode-cache/*
+
+# OpenCode runtime history
+.opencode/
