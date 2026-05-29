@@ -274,6 +274,62 @@
   grid-template-columns: 3fr 2fr;
 }
 
+/* ── Week Selector ─────────────────────────────────────────── */
+.pd-week-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 10px 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+}
+
+.pd-week-btn {
+  background: rgba(255, 107, 157, 0.12);
+  color: #FF6B9D;
+  border: 1px solid rgba(255, 107, 157, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pd-week-btn:hover:not(:disabled) {
+  background: rgba(255, 107, 157, 0.25);
+}
+
+.pd-week-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pd-week-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 200px;
+  justify-content: center;
+}
+
+.pd-week-current-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(255, 107, 157, 0.15);
+  color: #FF6B9D;
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
 @media (max-width: 1024px) {
   .pd-main-grid,
   .pd-lower-grid {

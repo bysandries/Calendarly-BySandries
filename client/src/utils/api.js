@@ -177,4 +177,7 @@ export const syncOpenCode = () => api.get('/opencode/sync');
 
 // ── Personal Care Dashboard ──
 
-export const fetchPersonalCareSummary = () => api.get('/personal-care/summary');
+export const fetchPersonalCareSummary = (weekStart) => {
+  const params = weekStart ? { week_start: weekStart } : {};
+  return api.get('/personal-care/summary', params);
+};
