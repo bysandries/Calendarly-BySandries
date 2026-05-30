@@ -4,6 +4,7 @@ const { open } = require('sqlite');
 const migration002 = require('./migrations/002_therapy_journal');
 const migration003 = require('./migrations/003_therapy_linked_data');
 const migration004 = require('./migrations/004_archive_quick_entries');
+const migration005 = require('./migrations/005_personal_goals');
 
 const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, 'calendarly.db');
 
@@ -532,6 +533,7 @@ async function initDatabase(forceReset = false) {
   await migration002.migrate(database);
   await migration003.migrate(database);
   await migration004.migrate(database);
+  await migration005.migrate(database);
   console.log('Database initialization completed.');
 }
 
