@@ -128,79 +128,135 @@ function WellbeingPanel({ state }) {
   );
 }
 
-// ── Sleep picker modal ────────────────────────────────────────────────────────
+// ── Sleep calendar picker ──────────────────────────────────────────────────────
+const CAL_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function toYM(dateId) {
+  // returns { year, month } from a YYYY-MM-DD or YYYY-MM string
+  const [y, m] = dateId.split('-').map(Number);
+  return { year: y, month: m };
+}
+
+function calendarCells(year, month) {
+  const firstDow  = new Date(year, month - 1, 1).getDay(); // 0=Sun
+  const daysInMon = new Date(year, month, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMon; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
 function SleepPicker({ entryDate, linked, onSave, onClose }) {
-  const defaultStart = offsetDate(entryDate || new Date().toISOString().split('T')[0], -14);
-  const defaultEnd   = entryDate || new Date().toISOString().split('T')[0];
-  const [start, setStart]   = useState(defaultStart);
-  const [end,   setEnd]     = useState(defaultEnd);
-  const [rows,  setRows]    = useState([]);
-  const [picked, setPicked] = useState(new Set(linked.map(l => l.date_id)));
+  const base = entryDate || new Date().toISOString().split('T')[0];
+  const [ym, setYm]         = useState(toYM(base));
+  const [sleepMap, setSleepMap] = useState({}); // date_id → minutes (accumulated across months)
+  const [picked, setPicked]  = useState(new Set(linked.map(l => l.date_id)));
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async () => {
+  // Load sleep data whenever the visible month changes
+  useEffect(() => {
+    const { year, month } = ym;
+    const start = `${year}-${String(month).padStart(2, '0')}-01`;
+    const last  = new Date(year, month, 0).getDate();
+    const end   = `${year}-${String(month).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
     setLoading(true);
-    try {
-      const data = await fetchAvailableSleep({ start, end });
-      setRows(data);
-    } finally { setLoading(false); }
-  }, [start, end]);
+    fetchAvailableSleep({ start, end })
+      .then(rows => setSleepMap(prev => {
+        const next = { ...prev };
+        rows.forEach(r => { next[r.date_id] = r.minutes; });
+        return next;
+      }))
+      .finally(() => setLoading(false));
+  }, [ym]);
 
-  useEffect(() => { load(); }, [load]);
+  // Seed already-linked nights into the map so they show correctly if in another month
+  useEffect(() => {
+    setSleepMap(prev => {
+      const next = { ...prev };
+      linked.forEach(l => { if (!(l.date_id in next)) next[l.date_id] = l.minutes; });
+      return next;
+    });
+  }, [linked]);
 
-  const toggle = (date_id) => setPicked(prev => {
-    const n = new Set(prev);
-    n.has(date_id) ? n.delete(date_id) : n.add(date_id);
-    return n;
+  const prevMonth = () => setYm(({ year, month }) => {
+    const d = new Date(year, month - 2, 1);
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  });
+  const nextMonth = () => setYm(({ year, month }) => {
+    const d = new Date(year, month, 1);
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
   });
 
-  const handleSave = () => {
-    const linkedItems = rows.filter(r => picked.has(r.date_id));
-    // Also keep any picked items that aren't in current rows (different date range)
-    const existing = linked.filter(l => picked.has(l.date_id) && !rows.find(r => r.date_id === l.date_id));
-    onSave([...linkedItems, ...existing]);
+  const toggle = (dateId) => {
+    if (!sleepMap[dateId]) return;
+    setPicked(prev => { const n = new Set(prev); n.has(dateId) ? n.delete(dateId) : n.add(dateId); return n; });
   };
+
+  const handleSave = () => {
+    const items = Array.from(picked)
+      .map(dateId => ({ date_id: dateId, minutes: sleepMap[dateId] || 0 }))
+      .filter(i => i.minutes > 0);
+    onSave(items);
+  };
+
+  const { year, month } = ym;
+  const cells = calendarCells(year, month);
+  const monthLabel = new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
     <div className="tj-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="tj-modal">
+      <div className="tj-modal" style={{ maxWidth: 460 }}>
         <div className="tj-modal-header">
           <span className="tj-modal-title">Link Sleep Nights</span>
           <button type="button" className="tj-modal-close" onClick={onClose}>×</button>
         </div>
 
-        <div className="tj-picker-range">
-          <span>From</span>
-          <input type="date" value={start} onChange={e => setStart(e.target.value)} />
-          <span>to</span>
-          <input type="date" value={end} onChange={e => setEnd(e.target.value)} />
+        {/* Month nav */}
+        <div className="tj-cal-nav">
+          <button type="button" className="tj-cal-nav-btn" onClick={prevMonth}>‹</button>
+          <span className="tj-cal-month-label">{monthLabel}</span>
+          <button type="button" className="tj-cal-nav-btn" onClick={nextMonth}>›</button>
         </div>
 
-        {loading ? (
-          <p style={{ fontSize: 13, color: 'var(--text-dimmed)', textAlign: 'center', padding: 20 }}>Loading…</p>
-        ) : rows.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--text-dimmed)', textAlign: 'center', padding: 20 }}>
-            No sleep data recorded in this range. Log sleep in the Calendar (sleep area, measure column).
-          </p>
-        ) : (
-          <div className="tj-picker-list">
-            {rows.map(r => {
-              const isPicked = picked.has(r.date_id);
-              const col = sleepColor(r.minutes);
-              return (
-                <div key={r.date_id} className={`tj-picker-item${isPicked ? ' picked' : ''}`} onClick={() => toggle(r.date_id)}>
-                  <div className="tj-picker-check">{isPicked ? '✓' : ''}</div>
-                  <div className="tj-picker-label">{fmtDate(r.date_id)}</div>
-                  <div className="tj-picker-val" style={{ color: col }}>{fmtDur(r.minutes)}</div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {/* Calendar grid */}
+        <div className="tj-cal-grid">
+          {CAL_DAYS.map(d => <div key={d} className="tj-cal-day-header">{d}</div>)}
+          {cells.map((day, i) => {
+            if (!day) return <div key={i} className="tj-cal-cell empty" />;
+            const dateId = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            const mins    = sleepMap[dateId];
+            const hasData = !!mins;
+            const isPicked = picked.has(dateId);
+            return (
+              <div key={i}
+                className={`tj-cal-cell${hasData ? ' has-data' : ' no-data'}${isPicked ? ' picked' : ''}`}
+                onClick={() => toggle(dateId)}
+                title={hasData ? `${fmtDate(dateId)}: ${fmtDur(mins)}` : fmtDate(dateId)}
+              >
+                <span className="tj-cal-day-num">{day}</span>
+                {hasData
+                  ? <span className="tj-cal-sleep-val" style={{ color: sleepColor(mins) }}>{fmtDur(mins)}</span>
+                  : <span className="tj-cal-sleep-empty">—</span>
+                }
+              </div>
+            );
+          })}
+        </div>
 
-        <div className="tj-form-footer" style={{ marginTop: 16 }}>
+        {loading && <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-dimmed)', margin: '6px 0 0' }}>Loading…</p>}
+
+        <p className="tj-cal-selected-count">
+          {picked.size > 0
+            ? `${picked.size} night${picked.size !== 1 ? 's' : ''} selected`
+            : 'Click a night with sleep data to select it'}
+        </p>
+
+        <div className="tj-form-footer">
           <button type="button" className="tj-btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="button" className="tj-btn-primary" onClick={handleSave}>Save ({picked.size} selected)</button>
+          <button type="button" className="tj-btn-primary" onClick={handleSave} disabled={picked.size === 0}>
+            Save ({picked.size} selected)
+          </button>
         </div>
       </div>
     </div>

@@ -18,6 +18,7 @@ import HabitsPage from './pages/HabitsPage';
 import PersonalCarePage from './pages/PersonalCarePage';
 import TherapyJournalPage from './pages/TherapyJournalPage';
 import TherapyEntryDetailPage from './pages/TherapyEntryDetailPage';
+import TherapyEntryNewPage from './pages/TherapyEntryNewPage';
 import TaskDetailPage from './pages/TaskDetailPage';
 import PomodoroPage from './pages/PomodoroPage';
 import { IconMenu } from './components/Layout/NavIcons';
@@ -77,6 +78,7 @@ function MainLayout() {
           <Route path="/habits" element={<HabitsPage />} />
           <Route path="/personal-care" element={<PersonalCarePage />} />
           <Route path="/personal-care/journal" element={<TherapyJournalPage />} />
+          <Route path="/personal-care/journal/new" element={<TherapyEntryNewPage />} />
           <Route path="/personal-care/journal/:id" element={<TherapyEntryDetailPage />} />
           <Route path="/pomodoro" element={<PomodoroPage />} />
           <Route path="/secret-upload" element={<SecretUploadPage />} />
