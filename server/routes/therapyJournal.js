@@ -53,6 +53,7 @@ router.get('/entries', async (req, res) => {
       reply_drafts: e.reply_drafts ? JSON.parse(e.reply_drafts) : [],
       linked_sleep: e.linked_sleep ? JSON.parse(e.linked_sleep) : [],
       linked_habits: e.linked_habits ? JSON.parse(e.linked_habits) : [],
+      dimension_assessments: e.dimension_assessments ? JSON.parse(e.dimension_assessments) : {},
     })));
   } catch (err) {
     console.error('therapy GET /entries:', err);
@@ -91,6 +92,7 @@ router.get('/entries/:id', async (req, res) => {
       reply_drafts: entry.reply_drafts ? JSON.parse(entry.reply_drafts) : [],
       linked_sleep: entry.linked_sleep ? JSON.parse(entry.linked_sleep) : [],
       linked_habits: entry.linked_habits ? JSON.parse(entry.linked_habits) : [],
+      dimension_assessments: entry.dimension_assessments ? JSON.parse(entry.dimension_assessments) : {},
       patterns,
       goals,
       questions,
@@ -115,6 +117,7 @@ router.post('/entries', async (req, res) => {
       actions_taken = [],
       reply_drafts = [],
       notes_to_self,
+      dimension_assessments = {},
       patterns = [],
       goals = [],
       questions = [],
@@ -124,8 +127,9 @@ router.post('/entries', async (req, res) => {
     await db.run(`
       INSERT INTO therapy_entries
         (id, entry_date, session_date, session_label, context, therapist_summary,
-         narrative, state, actions_taken, reply_drafts, notes_to_self)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         narrative, state, actions_taken, reply_drafts, notes_to_self,
+         dimension_assessments)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       id, entry_date, session_date || null, session_label || null,
       context || null, therapist_summary || null, narrative || null,
@@ -133,6 +137,7 @@ router.post('/entries', async (req, res) => {
       JSON.stringify(actions_taken),
       JSON.stringify(reply_drafts),
       notes_to_self || null,
+      JSON.stringify(dimension_assessments),
     ]);
 
     for (const p of patterns) {
@@ -173,6 +178,7 @@ router.post('/entries', async (req, res) => {
       state: created.state ? JSON.parse(created.state) : null,
       actions_taken: JSON.parse(created.actions_taken || '[]'),
       reply_drafts: JSON.parse(created.reply_drafts || '[]'),
+      dimension_assessments: created.dimension_assessments ? JSON.parse(created.dimension_assessments) : {},
     });
   } catch (err) {
     console.error('therapy POST /entries:', err);
@@ -188,6 +194,7 @@ router.patch('/entries/:id', async (req, res) => {
       'therapist_summary', 'narrative', 'state',
       'actions_taken', 'reply_drafts', 'notes_to_self',
       'linked_sleep', 'linked_habits', 'is_archived',
+      'dimension_assessments',
     ];
     const sets = [], vals = [];
     for (const key of allowed) {
@@ -208,6 +215,7 @@ router.patch('/entries/:id', async (req, res) => {
       reply_drafts: JSON.parse(updated.reply_drafts || '[]'),
       linked_sleep: updated.linked_sleep ? JSON.parse(updated.linked_sleep) : [],
       linked_habits: updated.linked_habits ? JSON.parse(updated.linked_habits) : [],
+      dimension_assessments: updated.dimension_assessments ? JSON.parse(updated.dimension_assessments) : {},
     });
   } catch (err) {
     console.error('therapy PATCH /entries/:id:', err);
@@ -440,12 +448,12 @@ router.get('/quick-entries', async (req, res) => {
 router.post('/quick-entries', async (req, res) => {
   try {
     const db = await getDbConnection();
-    const { topic = 'general', title, description } = req.body;
+    const { topic = 'general', title, description, entry_date, entry_time } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: 'title is required' });
     const id = newId('qje');
     await db.run(
-      'INSERT INTO quick_journal_entries (id, topic, title, description) VALUES (?, ?, ?, ?)',
-      [id, topic, title.trim(), description?.trim() || null]
+      'INSERT INTO quick_journal_entries (id, topic, title, description, entry_date, entry_time) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, topic, title.trim(), description?.trim() || null, entry_date || null, entry_time || null]
     );
     res.status(201).json(await db.get('SELECT * FROM quick_journal_entries WHERE id = ?', [id]));
   } catch (err) {
@@ -457,12 +465,14 @@ router.post('/quick-entries', async (req, res) => {
 router.patch('/quick-entries/:id', async (req, res) => {
   try {
     const db = await getDbConnection();
-    const { title, description, topic, is_archived } = req.body;
+    const { title, description, topic, is_archived, entry_date, entry_time } = req.body;
     const sets = [], vals = [];
     if (title       !== undefined) { sets.push('title = ?');       vals.push(title); }
     if (description !== undefined) { sets.push('description = ?'); vals.push(description); }
     if (topic       !== undefined) { sets.push('topic = ?');       vals.push(topic); }
     if (is_archived !== undefined) { sets.push('is_archived = ?'); vals.push(is_archived ? 1 : 0); }
+    if (entry_date  !== undefined) { sets.push('entry_date = ?');  vals.push(entry_date); }
+    if (entry_time  !== undefined) { sets.push('entry_time = ?');  vals.push(entry_time); }
     if (!sets.length) return res.status(400).json({ error: 'No valid fields' });
     vals.push(req.params.id);
     await db.run(`UPDATE quick_journal_entries SET ${sets.join(', ')} WHERE id = ?`, vals);
