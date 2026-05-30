@@ -768,9 +768,14 @@ export default function PersonalCarePage() {
 
       {/* Goals row — 4 widgets */}
       <div style={{ marginTop: '24px' }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: '14px', fontWeight: 600, color: 'var(--text-dimmed)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
-          Goals
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-dimmed)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+            Goals
+          </h3>
+          <Link to="/personal-care/goals" style={{ fontSize: '11px', color: 'var(--text-dimmed)', textDecoration: 'none', flexShrink: 0 }}>
+            Goal history →
+          </Link>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px' }}>
           {['personal', 'short_term', 'medium_term', 'long_term'].map(scope => (
             <GoalsWidget
