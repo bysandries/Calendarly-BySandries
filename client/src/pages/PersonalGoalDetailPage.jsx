@@ -49,6 +49,13 @@ function fmtDate(d) {
   });
 }
 
+function fmtDateTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts.includes('T') ? ts : ts + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+    ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
 function statusBadge(status) {
   if (status === 'completed') return { label: 'Completed', color: '#2ECC71' };
   if (status === 'archived')  return { label: 'Archived',  color: 'var(--text-dimmed)' };
@@ -369,9 +376,9 @@ export default function PersonalGoalDetailPage() {
                   {archiveHistory.map((ts, i) => (
                     <span key={i} style={{
                       fontSize: '11px', background: 'var(--surface-2)', border: '1px solid var(--border)',
-                      borderRadius: '4px', padding: '2px 8px', color: 'var(--text-dimmed)',
+                      borderRadius: '4px', padding: '2px 8px', color: 'var(--text-dimmed)', whiteSpace: 'nowrap',
                     }}>
-                      #{i + 1} — {fmtDate(ts.split(' ')[0])}
+                      #{i + 1} — {fmtDateTime(ts)}
                     </span>
                   ))}
                 </div>
@@ -386,9 +393,9 @@ export default function PersonalGoalDetailPage() {
                   {activationHistory.map((ts, i) => (
                     <span key={i} style={{
                       fontSize: '11px', background: 'rgba(46,204,113,.08)', border: '1px solid rgba(46,204,113,.2)',
-                      borderRadius: '4px', padding: '2px 8px', color: '#2ECC71',
+                      borderRadius: '4px', padding: '2px 8px', color: '#2ECC71', whiteSpace: 'nowrap',
                     }}>
-                      #{i + 1} — {fmtDate(ts.split(' ')[0])}
+                      #{i + 1} — {fmtDateTime(ts)}
                     </span>
                   ))}
                 </div>
