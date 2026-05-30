@@ -19,6 +19,14 @@ const SCOPE_LABELS = {
   long_term:   'Long Term (1 Year)',
 };
 
+function loadCustomScopeLabels() {
+  try {
+    const raw = localStorage.getItem('scope_labels');
+    if (raw) return { ...SCOPE_LABELS, ...JSON.parse(raw) };
+  } catch {}
+  return { ...SCOPE_LABELS };
+}
+
 const SCOPE_COLORS = {
   personal:    '#FF6B9D',
   short_term:  '#3498DB',
@@ -69,6 +77,7 @@ export default function PersonalGoalDetailPage() {
 
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [scopeLabels, setScopeLabels] = useState(loadCustomScopeLabels);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -195,7 +204,7 @@ export default function PersonalGoalDetailPage() {
 
   const badge     = statusBadge(goal.status);
   const scopeCol  = SCOPE_COLORS[goal.scope] || '#FF6B9D';
-  const scopeLabel = SCOPE_LABELS[goal.scope] || goal.scope;
+  const scopeLabel = scopeLabels[goal.scope] || goal.scope;
   const archiveHistory = goal.archive_history || [];
 
   return (

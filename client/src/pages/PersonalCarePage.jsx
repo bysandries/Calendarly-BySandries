@@ -445,6 +445,20 @@ const SCOPE_META = {
   long_term:   { label: 'Long Term (1 Year)',        color: '#2ECC71', icon: '◆' },
 };
 
+const STORAGE_KEY = 'scope_labels';
+
+function loadScopeLabels() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {};
+}
+
+function saveScopeLabels(labels) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(labels));
+}
+
 function GoalRow({ goal, onArchive, onUpdate }) {
   const meta = SCOPE_META[goal.scope] || SCOPE_META.personal;
   const [editing, setEditing] = useState(false);
@@ -517,12 +531,15 @@ function GoalRow({ goal, onArchive, onUpdate }) {
   );
 }
 
-function GoalsWidget({ scope, goals, onAdd, onArchive, onUpdate, loading }) {
+function GoalsWidget({ scope, goals, onAdd, onArchive, onUpdate, onRename, scopeLabel, loading }) {
   const meta  = SCOPE_META[scope];
+  const label = scopeLabel || meta.label;
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft]     = useState('');
   const [saving, setSaving]   = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
 
   const activeGoals = goals.filter(g => g.status !== 'archived' && (showCompleted || g.status !== 'completed'));
 
@@ -543,7 +560,35 @@ function GoalsWidget({ scope, goals, onAdd, onArchive, onUpdate, loading }) {
     <div className="dashboard-panel" style={{ borderTop: `2px solid ${meta.color}44` }}>
       <div className="panel-header">
         <div>
-          <h3 className="panel-title" style={{ color: meta.color }}>{meta.icon} {meta.label}</h3>
+          {editingTitle ? (
+            <input
+              autoFocus
+              value={titleDraft}
+              onChange={e => setTitleDraft(e.target.value)}
+              onBlur={() => {
+                const trimmed = titleDraft.trim();
+                if (trimmed && trimmed !== label) onRename(scope, trimmed);
+                setEditingTitle(false);
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Escape') {
+                  const trimmed = titleDraft.trim();
+                  if (trimmed && trimmed !== label) onRename(scope, trimmed);
+                  setEditingTitle(false);
+                }
+              }}
+              style={{
+                fontSize: '14px', fontWeight: 700, background: 'var(--surface-2)',
+                border: '1px solid var(--border)', borderRadius: '4px',
+                padding: '3px 8px', color: 'var(--text-primary)', outline: 'none', width: '100%',
+              }}
+            />
+          ) : (
+            <h3 className="panel-title" style={{ color: meta.color, cursor: 'pointer' }}
+              onDoubleClick={() => { setTitleDraft(label); setEditingTitle(true); }}
+              title="Double-click to rename"
+            >{meta.icon} {label}</h3>
+          )}
           <p className="panel-subtitle">
             {activeGoals.length} active goal{activeGoals.length !== 1 ? 's' : ''}
             {' · '}
@@ -629,6 +674,7 @@ export default function PersonalCarePage() {
 
   const [goals, setGoals]           = useState([]);
   const [goalsLoading, setGoalsLoading] = useState(true);
+  const [scopeLabels, setScopeLabels] = useState(loadScopeLabels);
 
   useEffect(() => {
     let cancelled = false;
@@ -668,6 +714,12 @@ export default function PersonalCarePage() {
     const updated = await updateGoal(id, data);
     setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updated } : g));
   }, []);
+
+  const handleRenameScope = useCallback((scope, label) => {
+    const next = { ...scopeLabels, [scope]: label };
+    setScopeLabels(next);
+    saveScopeLabels(next);
+  }, [scopeLabels]);
 
   const {
     next_session,
@@ -728,6 +780,8 @@ export default function PersonalCarePage() {
               onAdd={handleAddGoal}
               onArchive={handleArchiveGoal}
               onUpdate={handleUpdateGoal}
+              onRename={handleRenameScope}
+              scopeLabel={scopeLabels[scope]}
               loading={goalsLoading}
             />
           ))}
