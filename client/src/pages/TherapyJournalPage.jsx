@@ -1,7 +1,5 @@
-import { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTherapyJournal } from '../hooks/useTherapyJournal';
-import { EntryForm } from './TherapyEntryForm';
 import './TherapyJournal.css';
 
 function fmtDate(d) {
@@ -45,19 +43,7 @@ function MiniDots({ value, max, colorFn }) {
 
 export default function TherapyJournalPage() {
   const navigate = useNavigate();
-  const { entries, loading, error, createEntry } = useTherapyJournal();
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving]     = useState(false);
-
-  const handleSave = useCallback(async (data) => {
-    setSaving(true);
-    try {
-      const entry = await createEntry(data);
-      navigate(`/personal-care/journal/${entry.id}`);
-    } finally {
-      setSaving(false);
-    }
-  }, [createEntry, navigate]);
+  const { entries, loading, error } = useTherapyJournal();
 
   return (
     <div className="tj-page">
@@ -66,7 +52,7 @@ export default function TherapyJournalPage() {
         <span className="tj-topbar-sep">|</span>
         <span className="tj-topbar-title">Therapy Journal</span>
         <div className="tj-topbar-actions">
-          <button className="tj-btn-primary" onClick={() => setShowForm(true)}>+ New Entry</button>
+          <button className="tj-btn-primary" onClick={() => navigate('/personal-care/journal/new')}>+ New Entry</button>
         </div>
       </div>
 
@@ -79,7 +65,7 @@ export default function TherapyJournalPage() {
           <div className="tj-empty">
             <span className="tj-empty-icon">📓</span>
             <span>No entries yet. Create your first one.</span>
-            <button className="tj-btn-primary" onClick={() => setShowForm(true)}>+ New Entry</button>
+            <button className="tj-btn-primary" onClick={() => navigate('/personal-care/journal/new')}>+ New Entry</button>
           </div>
         ) : (
           <div className="tj-list-grid">
@@ -142,13 +128,6 @@ export default function TherapyJournalPage() {
         )}
       </div>
 
-      {showForm && (
-        <EntryForm
-          onSave={handleSave}
-          onClose={() => setShowForm(false)}
-          saving={saving}
-        />
-      )}
     </div>
   );
 }
