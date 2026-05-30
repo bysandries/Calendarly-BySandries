@@ -26,6 +26,7 @@ router.get('/', async (req, res) => {
     const goals = rows.map(g => ({
       ...g,
       archive_history: JSON.parse(g.archive_history || '[]'),
+      activation_history: JSON.parse(g.activation_history || '[]'),
     }));
     res.json(goals);
   } catch (err) {
@@ -49,7 +50,7 @@ router.post('/', async (req, res) => {
       [id, title.trim(), scope, context, creationDate, ts, ts]
     );
     const goal = await db.get('SELECT * FROM personal_goals WHERE id = ?', [id]);
-    res.status(201).json({ ...goal, archive_history: JSON.parse(goal.archive_history || '[]') });
+    res.status(201).json({ ...goal, archive_history: JSON.parse(goal.archive_history || '[]'), activation_history: JSON.parse(goal.activation_history || '[]') });
   } catch (err) {
     console.error('POST /personal-goals error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -69,6 +70,7 @@ router.get('/:id', async (req, res) => {
     res.json({
       ...goal,
       archive_history: JSON.parse(goal.archive_history || '[]'),
+      activation_history: JSON.parse(goal.activation_history || '[]'),
       links,
     });
   } catch (err) {
@@ -106,7 +108,7 @@ router.put('/:id', async (req, res) => {
       ]
     );
     const updated = await db.get('SELECT * FROM personal_goals WHERE id = ?', [req.params.id]);
-    res.json({ ...updated, archive_history: JSON.parse(updated.archive_history || '[]') });
+    res.json({ ...updated, archive_history: JSON.parse(updated.archive_history || '[]'), activation_history: JSON.parse(updated.activation_history || '[]') });
   } catch (err) {
     console.error('PUT /personal-goals/:id error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -121,24 +123,26 @@ router.post('/:id/archive', async (req, res) => {
     if (!goal) return res.status(404).json({ error: 'Goal not found' });
 
     const ts = now();
-    let newStatus, newArchivedAt, history;
+    let newStatus, newArchivedAt, history, activationHistory;
 
     if (goal.status === 'archived') {
-      newStatus     = 'active';
-      newArchivedAt = goal.archived_at;
-      history       = JSON.parse(goal.archive_history || '[]');
+      newStatus        = 'active';
+      newArchivedAt    = null;
+      history          = JSON.parse(goal.archive_history || '[]');
+      activationHistory = [...JSON.parse(goal.activation_history || '[]'), ts];
     } else {
-      newStatus     = 'archived';
-      newArchivedAt = ts;
-      history       = [...JSON.parse(goal.archive_history || '[]'), ts];
+      newStatus         = 'archived';
+      newArchivedAt     = ts;
+      history           = [...JSON.parse(goal.archive_history || '[]'), ts];
+      activationHistory = JSON.parse(goal.activation_history || '[]');
     }
 
     await db.run(
-      `UPDATE personal_goals SET status = ?, archived_at = ?, archive_history = ?, updated_at = ? WHERE id = ?`,
-      [newStatus, newArchivedAt, JSON.stringify(history), ts, req.params.id]
+      `UPDATE personal_goals SET status = ?, archived_at = ?, archive_history = ?, activation_history = ?, updated_at = ? WHERE id = ?`,
+      [newStatus, newArchivedAt, JSON.stringify(history), JSON.stringify(activationHistory), ts, req.params.id]
     );
     const updated = await db.get('SELECT * FROM personal_goals WHERE id = ?', [req.params.id]);
-    res.json({ ...updated, archive_history: JSON.parse(updated.archive_history || '[]') });
+    res.json({ ...updated, archive_history: JSON.parse(updated.archive_history || '[]'), activation_history: JSON.parse(updated.activation_history || '[]') });
   } catch (err) {
     console.error('POST /personal-goals/:id/archive error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -162,7 +166,7 @@ router.post('/:id/complete', async (req, res) => {
       [newStatus, compDate, ts, req.params.id]
     );
     const updated = await db.get('SELECT * FROM personal_goals WHERE id = ?', [req.params.id]);
-    res.json({ ...updated, archive_history: JSON.parse(updated.archive_history || '[]') });
+    res.json({ ...updated, archive_history: JSON.parse(updated.archive_history || '[]'), activation_history: JSON.parse(updated.activation_history || '[]') });
   } catch (err) {
     console.error('POST /personal-goals/:id/complete error:', err);
     res.status(500).json({ error: 'Internal server error' });

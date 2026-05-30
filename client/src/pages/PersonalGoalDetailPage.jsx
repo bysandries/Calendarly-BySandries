@@ -206,6 +206,7 @@ export default function PersonalGoalDetailPage() {
   const scopeCol  = SCOPE_COLORS[goal.scope] || '#FF6B9D';
   const scopeLabel = scopeLabels[goal.scope] || goal.scope;
   const archiveHistory = goal.archive_history || [];
+  const activationHistory = goal.activation_history || [];
 
   return (
     <div className="tj-page">
@@ -356,22 +357,43 @@ export default function PersonalGoalDetailPage() {
           )}
         </div>
 
-        {/* Archive history */}
-        {archiveHistory.length > 0 && (
-          <div style={{ marginBottom: '24px' }}>
-            <p style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 600, color: 'var(--text-dimmed)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
-              Archive History ({archiveHistory.length})
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {archiveHistory.map((ts, i) => (
-                <span key={i} style={{
-                  fontSize: '11px', background: 'var(--surface-2)', border: '1px solid var(--border)',
-                  borderRadius: '4px', padding: '2px 8px', color: 'var(--text-dimmed)',
-                }}>
-                  #{i + 1} — {fmtDate(ts.split(' ')[0])}
-                </span>
-              ))}
-            </div>
+        {/* Archive / Activation history */}
+        {(archiveHistory.length > 0 || activationHistory.length > 0) && (
+          <div style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {archiveHistory.length > 0 && (
+              <div>
+                <p style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 600, color: 'var(--text-dimmed)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                  Archive History ({archiveHistory.length})
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {archiveHistory.map((ts, i) => (
+                    <span key={i} style={{
+                      fontSize: '11px', background: 'var(--surface-2)', border: '1px solid var(--border)',
+                      borderRadius: '4px', padding: '2px 8px', color: 'var(--text-dimmed)',
+                    }}>
+                      #{i + 1} — {fmtDate(ts.split(' ')[0])}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {activationHistory.length > 0 && (
+              <div>
+                <p style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 600, color: '#2ECC71', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                  Activation History ({activationHistory.length})
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {activationHistory.map((ts, i) => (
+                    <span key={i} style={{
+                      fontSize: '11px', background: 'rgba(46,204,113,.08)', border: '1px solid rgba(46,204,113,.2)',
+                      borderRadius: '4px', padding: '2px 8px', color: '#2ECC71',
+                    }}>
+                      #{i + 1} — {fmtDate(ts.split(' ')[0])}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -4,6 +4,13 @@ import { fetchGoals } from '../utils/api/personalGoals';
 import './TherapyJournal.css';
 import './PersonalDashboard.css';
 
+function fmtDateTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts.includes('T') ? ts : ts + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+    ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
 const DEFAULT_LABELS = {
   personal:    'Personal Goals',
   short_term:  'Short Term (1 Month)',
@@ -86,58 +93,75 @@ export default function GoalsHistoryPage() {
             <span>No goals found.</span>
           </div>
         ) : (
-          <div style={{ maxWidth: '900px' }}>
+          <div style={{ maxWidth: '960px' }}>
             {filtered.map(g => {
               const scopeLabel = scopeLabels[g.scope] || g.scope;
               const color = SCOPE_COLORS[g.scope] || '#FF6B9D';
+              const archHistory = g.archive_history || [];
+              const actHistory = g.activation_history || [];
+              const lastArchived = archHistory.length > 0 ? archHistory[archHistory.length - 1] : null;
+              const lastActivated = actHistory.length > 0 ? actHistory[actHistory.length - 1] : null;
               return (
-                <Link
-                  key={g.id}
-                  to={`/personal-care/goals/${g.id}`}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '12px',
-                    padding: '10px 14px', borderBottom: '1px solid var(--border)',
-                    textDecoration: 'none', color: 'inherit',
-                    transition: 'background .1s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                >
-                  <span style={{
-                    fontSize: '11px', fontWeight: 700, color, background: color + '18',
-                    borderRadius: '4px', padding: '2px 8px', flexShrink: 0, minWidth: '50px',
-                    textAlign: 'center',
-                  }}>
-                    {scopeLabel}
-                  </span>
-
-                  <span style={{
-                    flex: 1, fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {g.title}
-                  </span>
-
-                  <span style={{
-                    fontSize: '11px', fontWeight: 600,
-                    color: g.status === 'completed' ? '#2ECC71'
-                      : g.status === 'archived' ? 'var(--text-dimmed)'
-                      : '#FF6B9D',
-                    flexShrink: 0,
-                  }}>
-                    {g.status === 'active' ? 'Active' : g.status === 'completed' ? 'Done' : 'Archived'}
-                  </span>
-
-                  <span style={{ fontSize: '11px', color: 'var(--text-dimmed)', flexShrink: 0 }}>
-                    {fmtDate(g.creation_date)}
-                  </span>
-
-                  {g.completion_date && (
-                    <span style={{ fontSize: '11px', color: '#2ECC71', flexShrink: 0 }}>
-                      ✓ {fmtDate(g.completion_date)}
+                <div key={g.id}>
+                  <Link
+                    to={`/personal-care/goals/${g.id}`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '12px',
+                      padding: '10px 14px', borderBottom: '1px solid var(--border)',
+                      textDecoration: 'none', color: 'inherit',
+                      transition: 'background .1s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >
+                    <span style={{
+                      fontSize: '11px', fontWeight: 700, color, background: color + '18',
+                      borderRadius: '4px', padding: '2px 8px', flexShrink: 0, minWidth: '50px',
+                      textAlign: 'center',
+                    }}>
+                      {scopeLabel}
                     </span>
-                  )}
-                </Link>
+
+                    <span style={{
+                      flex: 1, fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {g.title}
+                    </span>
+
+                    <span style={{
+                      fontSize: '11px', fontWeight: 600,
+                      color: g.status === 'completed' ? '#2ECC71'
+                        : g.status === 'archived' ? 'var(--text-dimmed)'
+                        : '#FF6B9D',
+                      flexShrink: 0,
+                    }}>
+                      {g.status === 'active' ? 'Active' : g.status === 'completed' ? 'Done' : 'Archived'}
+                    </span>
+
+                    <span style={{ fontSize: '11px', color: 'var(--text-dimmed)', flexShrink: 0 }}>
+                      {fmtDate(g.creation_date)}
+                    </span>
+
+                    {g.completion_date && (
+                      <span style={{ fontSize: '11px', color: '#2ECC71', flexShrink: 0 }}>
+                        ✓ {fmtDate(g.completion_date)}
+                      </span>
+                    )}
+
+                    {lastArchived && (
+                      <span style={{ fontSize: '10px', color: 'var(--text-dimmed)', flexShrink: 0 }} title={`Archived: ${fmtDateTime(lastArchived)}`}>
+                        🗂 {fmtDate(lastArchived.split(' ')[0])}
+                      </span>
+                    )}
+
+                    {lastActivated && (
+                      <span style={{ fontSize: '10px', color: '#2ECC71', flexShrink: 0 }} title={`Activated: ${fmtDateTime(lastActivated)}`}>
+                        ▶ {fmtDate(lastActivated.split(' ')[0])}
+                      </span>
+                    )}
+                  </Link>
+                </div>
               );
             })}
           </div>
