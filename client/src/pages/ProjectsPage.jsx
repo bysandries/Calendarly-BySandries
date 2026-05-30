@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useProjects } from '../hooks/useProjects';
 import { usePeople } from '../hooks/usePeople';
-import { fetchAreas, fetchTasks, updateTask } from '../utils/api';
+import { fetchAreas } from '../utils/api/areas';
+import { fetchTasks, updateTask } from '../utils/api/tasks';
 import ProjectCard from '../components/ProjectCard';
 import ProjectDrawer from '../components/ProjectDrawer';
 import { calcProgression } from '../lib/taskMath';

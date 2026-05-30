@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
 import { usePeople } from '../hooks/usePeople';
-import { fetchAreas } from '../utils/api';
+import { fetchAreas } from '../utils/api/areas';
 import TaskCard from '../components/TaskCard';
 import TaskDrawer from '../components/TaskDrawer';
 import { getStatusInfo, GTD_STATUSES, TASK_TABS } from '../utils/statusMap';

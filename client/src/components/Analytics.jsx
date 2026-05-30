@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchWeeklyReport } from '../utils/api';
+import { fetchWeeklyReport } from '../utils/api/analytics';
 import './Analytics.css';
 
 function currentWeekBounds() {

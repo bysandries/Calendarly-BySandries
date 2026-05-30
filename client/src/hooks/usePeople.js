@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchPeople, createPerson, updatePerson, deletePerson } from '../utils/api';
+import { fetchPeople, createPerson, updatePerson, deletePerson } from '../utils/api/people';
 
 export function usePeople() {
   const [people, setPeople] = useState([]);

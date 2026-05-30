@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchNotes, createNote as apiCreate, updateNote as apiUpdate, deleteNote as apiDelete } from '../utils/api';
+import { fetchNotes, createNote as apiCreate, updateNote as apiUpdate, deleteNote as apiDelete } from '../utils/api/notes';
 
 export function useNotes(initialFilters = {}) {
   const [notes, setNotes] = useState([]);

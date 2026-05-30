@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
-import { fetchAreas } from '../utils/api';
+import { fetchAreas } from '../utils/api/areas';
 import { GTD_STATUSES, getStatusInfo, PRIORITY_COLORS } from '../utils/statusMap';
 
 export default function TaskDetailPage() {

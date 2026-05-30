@@ -3,9 +3,9 @@ import { DateTime } from 'luxon';
 import {
   createPomodoroSession,
   updatePomodoroSession,
-  syncEventBlock,
-  createDistractionNotesBatch,
-} from '../utils/api';
+} from '../utils/api/pomodoro';
+import { syncEventBlock } from '../utils/api/events';
+import { createDistractionNotesBatch } from '../utils/api/distractionNotes';
 
 const STORAGE_KEY = 'calendarly_pomodoro_state';
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchHabitsWeeklySummary, fetchHabitLogs, logHabit, deleteHabitLog } from '../utils/api';
+import { fetchHabitsWeeklySummary, fetchHabitLogs, logHabit, deleteHabitLog } from '../utils/api/habitLogs';
 import HabitEditDrawer from '../components/HabitEditDrawer';
 import HabitLogDrawer from '../components/HabitLogDrawer';
 import HabitDayDrawer from '../components/HabitDayDrawer';

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchAreas, createProject as apiCreate, updateProject as apiUpdate, fetchTasks, updateTask } from '../utils/api';
+import { fetchAreas } from '../utils/api/areas';
+import { createProject as apiCreate, updateProject as apiUpdate } from '../utils/api/projects';
+import { fetchTasks, updateTask } from '../utils/api/tasks';
 import AreaPicker from './AreaPicker';
 import PersonPicker from './PersonPicker';
 import ProjectStatusBadge from './ProjectStatusBadge';

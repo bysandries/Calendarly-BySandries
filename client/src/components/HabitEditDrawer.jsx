@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import AreaPicker from './AreaPicker';
-import { fetchAreas, createHabit, updateHabit, deleteHabit, fetchHabitLogs, updateHabitLog, deleteHabitLog } from '../utils/api';
+import { fetchAreas } from '../utils/api/areas';
+import { createHabit, updateHabit, deleteHabit } from '../utils/api/habits';
+import { fetchHabitLogs, updateHabitLog, deleteHabitLog } from '../utils/api/habitLogs';
 
 const EMPTY = {
   name: '',

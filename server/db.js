@@ -1,6 +1,8 @@
 const path = require('path');
 const sqlite3 = require('@journeyapps/sqlcipher').verbose();
 const { open } = require('sqlite');
+const migration002 = require('./migrations/002_therapy_journal');
+const migration003 = require('./migrations/003_therapy_linked_data');
 
 const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, 'calendarly.db');
 
@@ -526,6 +528,8 @@ async function initDatabase(forceReset = false) {
   await migratePeople(database);
   await seedDatabase(database);
   await migratePersonalCare(database);
+  await migration002.migrate(database);
+  await migration003.migrate(database);
   console.log('Database initialization completed.');
 }
 

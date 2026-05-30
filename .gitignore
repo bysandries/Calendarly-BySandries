@@ -107,3 +107,8 @@ server/opencode-cache/*
 
 # OpenCode runtime history
 .opencode/
+
+
+# User-specific settings
+.vscode/settings.json
+.vscode/tasks.json

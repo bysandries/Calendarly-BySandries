@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
-import { syncEventBlock } from '../utils/api';
+import { syncEventBlock } from '../utils/api/events';
 import { DateTime } from 'luxon';
 
 export default function GTDInbox() {

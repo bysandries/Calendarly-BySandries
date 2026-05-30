@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { createArea, updateArea, archiveArea, unarchiveArea } from '../utils/api';
+import { createArea, updateArea, archiveArea, unarchiveArea } from '../utils/api/areas';
 
 const PALETTE = [
   '#E74C3C', '#E67E22', '#F1C40F', '#2ECC71',

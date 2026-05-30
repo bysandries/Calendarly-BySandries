@@ -6,7 +6,7 @@ import {
   deleteExtract as apiDelete,
   linkExtractResource as apiLink,
   unlinkExtractResource as apiUnlink,
-} from '../utils/api';
+} from '../utils/api/extracts';
 
 export function useExtracts(initialFilters = {}) {
   const [extracts, setExtracts] = useState([]);

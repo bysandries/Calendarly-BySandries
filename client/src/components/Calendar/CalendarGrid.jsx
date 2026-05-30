@@ -1,16 +1,15 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { DateTime } from 'luxon';
-import { 
-  fetchEventsRange, 
-  syncEventBlock, 
-  clonePlan, 
-  deleteEvent, 
+import {
+  fetchEventsRange,
+  syncEventBlock,
+  clonePlan,
+  deleteEvent,
   updateEvent,
-  fetchAreas,
-  updateTask,
-  fetchDailyLogsRange,
-  upsertDailyLog
-} from '../../utils/api';
+} from '../../utils/api/events';
+import { fetchAreas } from '../../utils/api/areas';
+import { updateTask } from '../../utils/api/tasks';
+import { fetchDailyLogsRange, upsertDailyLog } from '../../utils/api/dailyLogs';
 import { resolveOverlaps } from './resolveOverlaps';
 import CreationPopover from './CreationPopover';
 import SlideDrawer from '../SlideDrawer';
