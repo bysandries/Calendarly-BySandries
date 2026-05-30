@@ -8,8 +8,9 @@ function fmtDateTime(ts) {
   if (!ts) return '';
   const d = new Date(ts.includes('T') ? ts : ts + 'T12:00:00');
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
-    ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
+
 
 const DEFAULT_LABELS = {
   personal:    'Personal Goals',
@@ -150,14 +151,14 @@ export default function GoalsHistoryPage() {
                     )}
 
                     {lastArchived && (
-                      <span style={{ fontSize: '10px', color: 'var(--text-dimmed)', flexShrink: 0 }} title={`Archived: ${fmtDateTime(lastArchived)}`}>
-                        🗂 {fmtDate(lastArchived.split(' ')[0])}
+                      <span style={{ fontSize: '10px', color: 'var(--text-dimmed)', flexShrink: 0 }}>
+                        🗂 {fmtDateTime(lastArchived)}
                       </span>
                     )}
 
                     {lastActivated && (
-                      <span style={{ fontSize: '10px', color: '#2ECC71', flexShrink: 0 }} title={`Activated: ${fmtDateTime(lastActivated)}`}>
-                        ▶ {fmtDate(lastActivated.split(' ')[0])}
+                      <span style={{ fontSize: '10px', color: '#2ECC71', flexShrink: 0 }}>
+                        ▶ {fmtDateTime(lastActivated)}
                       </span>
                     )}
                   </Link>
