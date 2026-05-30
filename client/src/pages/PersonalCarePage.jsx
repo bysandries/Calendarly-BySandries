@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchPersonalCareSummary } from '../utils/api/personalCare';
-import { fetchGoals, createGoal, archiveGoal } from '../utils/api/personalGoals';
+import { fetchGoals, createGoal, archiveGoal, updateGoal } from '../utils/api/personalGoals';
 import '../components/Analytics.css';
 import './PersonalDashboard.css';
 import './TherapyJournal.css';
@@ -445,23 +445,60 @@ const SCOPE_META = {
   long_term:   { label: 'Long Term (1 Year)',        color: '#2ECC71', icon: '◆' },
 };
 
-function GoalRow({ goal, onArchive }) {
+function GoalRow({ goal, onArchive, onUpdate }) {
   const meta = SCOPE_META[goal.scope] || SCOPE_META.personal;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  async function save() {
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === goal.title) {
+      setEditing(false);
+      return;
+    }
+    await onUpdate(goal.id, { title: trimmed });
+    setEditing(false);
+  }
+
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: '8px',
       padding: '7px 0', borderBottom: '1px solid var(--border)',
     }}>
-      <Link
-        to={`/personal-care/goals/${goal.id}`}
-        style={{
-          flex: 1, fontSize: '13px', color: 'var(--text-primary)',
-          textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}
-        title={goal.title}
-      >
-        {goal.title}
-      </Link>
+      {editing ? (
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={save}
+          onKeyDown={e => {
+            if (e.key === 'Escape') save();
+          }}
+          style={{
+            flex: 1, fontSize: '13px', background: 'var(--surface-2)',
+            border: '1px solid var(--border)', borderRadius: '4px',
+            padding: '4px 8px', color: 'var(--text-primary)', outline: 'none',
+          }}
+        />
+      ) : (
+        <Link
+          to={`/personal-care/goals/${goal.id}`}
+          onDoubleClick={() => { setDraft(goal.title); setEditing(true); }}
+          style={{
+            flex: 1, fontSize: '13px', color: 'var(--text-primary)',
+            textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}
+          title={goal.title}
+        >
+          {goal.title}
+        </Link>
+      )}
       {goal.status === 'completed' && (
         <span style={{ fontSize: '11px', color: '#2ECC71', fontWeight: 600, flexShrink: 0 }}>Done</span>
       )}
@@ -480,7 +517,7 @@ function GoalRow({ goal, onArchive }) {
   );
 }
 
-function GoalsWidget({ scope, goals, onAdd, onArchive, loading }) {
+function GoalsWidget({ scope, goals, onAdd, onArchive, onUpdate, loading }) {
   const meta  = SCOPE_META[scope];
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft]     = useState('');
@@ -566,7 +603,7 @@ function GoalsWidget({ scope, goals, onAdd, onArchive, loading }) {
       ) : (
         <div>
           {activeGoals.map(g => (
-            <GoalRow key={g.id} goal={g} onArchive={onArchive} />
+            <GoalRow key={g.id} goal={g} onArchive={onArchive} onUpdate={onUpdate} />
           ))}
         </div>
       )}
@@ -624,6 +661,11 @@ export default function PersonalCarePage() {
 
   const handleArchiveGoal = useCallback(async (id) => {
     const updated = await archiveGoal(id);
+    setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updated } : g));
+  }, []);
+
+  const handleUpdateGoal = useCallback(async (id, data) => {
+    const updated = await updateGoal(id, data);
     setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updated } : g));
   }, []);
 
@@ -685,6 +727,7 @@ export default function PersonalCarePage() {
               goals={goals.filter(g => g.scope === scope)}
               onAdd={handleAddGoal}
               onArchive={handleArchiveGoal}
+              onUpdate={handleUpdateGoal}
               loading={goalsLoading}
             />
           ))}

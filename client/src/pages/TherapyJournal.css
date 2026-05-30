@@ -1050,6 +1050,39 @@
   font-weight: 600;
 }
 
+/* ── Entries layout (2/3 + 1/3) ──────────────────────────────────────────── */
+.tj-entries-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+.tj-entries-main {
+  flex: 2;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.tj-quick-sidebar {
+  flex: 1;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent, #FF6B9D) 3%, var(--surface-1));
+}
+.tj-quick-sidebar .tj-quick-section {
+  border-bottom: none;
+  padding: 16px 16px 20px;
+  background: none;
+}
+.tj-quick-sidebar .tj-quick-entries {
+  flex-direction: column;
+  padding-top: 10px;
+}
+.tj-quick-sidebar .tj-quick-card {
+  min-width: 0;
+  max-width: none;
+  flex: auto;
+}
+
 /* ── Archived tab ───────────────────────────────────────────────────────── */
 .tj-archived-header {
   display: flex;
