@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { fetchTherapyPatterns } from '../utils/api/therapyJournal';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function buildInitial(initial) {
@@ -38,8 +39,147 @@ function buildInitial(initial) {
     },
     actions_taken: initial.actions_taken || [],
     reply_drafts:  initial.reply_drafts  || [],
-    goals: [], questions: [], patterns: [],
+    goals: [], questions: [],
+    // For edit: pre-populate with currently linked patterns
+    patterns: (initial.patterns || []).map(p => ({
+      id: p.id, name: p.name, description: p.description,
+      category: p.category, notes: p.entry_notes || null,
+    })),
   };
+}
+
+// ── PatternSelector (exported so TherapyEntryNewPage can also use it) ─────────
+const CAT_OPTIONS = [
+  { value: 'attachment',         label: 'Attachment' },
+  { value: 'emotion_regulation', label: 'Emotion reg.' },
+  { value: 'communication',      label: 'Communication' },
+  { value: 'other',              label: 'Other' },
+];
+
+export function PatternSelector({ selected, onChange }) {
+  const [allPatterns, setAllPatterns] = useState([]);
+  const [search,      setSearch]      = useState('');
+  const [showCreate,  setShowCreate]  = useState(false);
+  const [newName,     setNewName]     = useState('');
+  const [newDesc,     setNewDesc]     = useState('');
+  const [newCat,      setNewCat]      = useState('other');
+
+  useEffect(() => {
+    fetchTherapyPatterns().then(setAllPatterns).catch(() => {});
+  }, []);
+
+  const selectedIds = new Set(selected.filter(p => p.id).map(p => p.id));
+
+  const filtered = allPatterns.filter(p => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q);
+  });
+
+  const toggle = (pattern) => {
+    if (selectedIds.has(pattern.id)) {
+      onChange(selected.filter(p => p.id !== pattern.id));
+    } else {
+      onChange([...selected, { id: pattern.id, name: pattern.name, description: pattern.description, category: pattern.category, notes: null }]);
+    }
+  };
+
+  const removeNew = (idx) => {
+    const news = selected.filter(p => !p.id);
+    const existing = selected.filter(p => p.id);
+    news.splice(idx, 1);
+    onChange([...existing, ...news]);
+  };
+
+  const handleCreate = () => {
+    if (!newName.trim()) return;
+    const existing = selected.filter(p => p.id);
+    const news     = selected.filter(p => !p.id);
+    onChange([...existing, ...news, { name: newName.trim(), description: newDesc.trim() || null, category: newCat, notes: null }]);
+    setNewName(''); setNewDesc(''); setNewCat('other'); setShowCreate(false);
+  };
+
+  const newPatterns = selected.filter(p => !p.id);
+
+  return (
+    <div className="tj-pattern-selector">
+      {/* Selected chips */}
+      {selected.length > 0 && (
+        <div className="tj-selected-patterns">
+          {selected.map((p, i) => (
+            <span key={p.id || `new-${i}`} className="tj-selected-pattern-chip" data-cat={p.category || 'other'}>
+              {p.name}
+              {!p.id && <span style={{ fontSize: 9, color: 'var(--accent, #FF6B9D)', marginLeft: 3 }}>new</span>}
+              <button type="button" className="tj-chip-remove"
+                onClick={() => p.id ? toggle(p) : removeNew(newPatterns.findIndex((n, ni) => n === p || (n.name === p.name && ni === i - selected.filter(x => x.id).length)))}>
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Search + add */}
+      <div className="tj-pattern-search-row">
+        <input className="tj-pattern-search" value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search patterns…" />
+        <button type="button" className="tj-btn-secondary"
+          style={{ padding: '6px 10px', fontSize: 12, whiteSpace: 'nowrap' }}
+          onClick={() => { setShowCreate(v => !v); setSearch(''); }}>
+          {showCreate ? 'Cancel' : '+ New'}
+        </button>
+      </div>
+
+      {/* Create form */}
+      {showCreate && (
+        <div className="tj-ps-create-form">
+          <input className="tj-list-input" value={newName} onChange={e => setNewName(e.target.value)}
+            placeholder="Pattern name (required)" autoFocus />
+          <input className="tj-list-input" value={newDesc} onChange={e => setNewDesc(e.target.value)}
+            placeholder="Short description (optional)" />
+          <div className="tj-ps-cat-row">
+            {CAT_OPTIONS.map(c => (
+              <button key={c.value} type="button"
+                className={`tj-ps-cat-btn${newCat === c.value ? ' sel' : ''}`}
+                onClick={() => setNewCat(c.value)}>{c.label}</button>
+            ))}
+          </div>
+          <button type="button" className="tj-btn-primary" style={{ alignSelf: 'flex-start' }}
+            onClick={handleCreate} disabled={!newName.trim()}>
+            Add pattern
+          </button>
+        </div>
+      )}
+
+      {/* Existing patterns list */}
+      {!showCreate && (
+        <div className="tj-pattern-selector-list">
+          {filtered.length === 0 && (
+            <p style={{ fontSize: 12, color: 'var(--text-dimmed)', textAlign: 'center', padding: '12px 0' }}>
+              {search ? 'No matching patterns. Click "+ New" to create one.' : 'No patterns yet. Click "+ New" to create your first.'}
+            </p>
+          )}
+          {filtered.map(p => {
+            const isSelected = selectedIds.has(p.id);
+            return (
+              <div key={p.id} className={`tj-ps-item${isSelected ? ' selected' : ''}`} onClick={() => toggle(p)}>
+                <div className="tj-ps-check">{isSelected ? '✓' : ''}</div>
+                <div className="tj-ps-label">
+                  <div className="tj-ps-name">{p.name}</div>
+                  {p.description && <div className="tj-ps-desc">{p.description.length > 80 ? p.description.slice(0, 80) + '…' : p.description}</div>}
+                  <div className="tj-ps-cat">{(p.category || 'other').replace('_', ' ')}</div>
+                </div>
+                {p.occurrence_count > 0 && (
+                  <span className="tj-ps-count">{p.occurrence_count}×</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -244,6 +384,15 @@ export function EntryForm({ onSave, onClose, saving, initialData }) {
           <div className="tj-form-section">
             <label className="tj-form-label">Actions taken</label>
             <ListBuilder items={form.actions_taken} onChange={v => set('actions_taken', v)} placeholder="Action" />
+          </div>
+
+          {/* Patterns */}
+          <div className="tj-form-section">
+            <label className="tj-form-label">Patterns</label>
+            <PatternSelector
+              selected={form.patterns}
+              onChange={v => set('patterns', v)}
+            />
           </div>
 
           <div className="tj-form-section">

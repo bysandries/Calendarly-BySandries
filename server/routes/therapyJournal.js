@@ -15,17 +15,31 @@ function today() {
 router.get('/entries', async (req, res) => {
   try {
     const db = await getDbConnection();
-    const entries = await db.all(`
-      SELECT
-        e.*,
-        COUNT(DISTINCT ep.pattern_id) AS pattern_count,
-        (SELECT COUNT(*) FROM therapy_questions q WHERE q.entry_id = e.id AND q.answered = 0) AS open_question_count,
-        (SELECT COUNT(*) FROM therapy_questions q WHERE q.entry_id = e.id) AS question_count
-      FROM therapy_entries e
-      LEFT JOIN therapy_entry_patterns ep ON ep.entry_id = e.id
-      GROUP BY e.id
-      ORDER BY e.entry_date DESC, e.created_at DESC
-    `);
+    const { pattern_id } = req.query;
+
+    const entries = pattern_id
+      ? await db.all(`
+          SELECT
+            e.*,
+            (SELECT COUNT(*) FROM therapy_entry_patterns ep2 WHERE ep2.entry_id = e.id) AS pattern_count,
+            (SELECT COUNT(*) FROM therapy_questions q WHERE q.entry_id = e.id AND q.answered = 0) AS open_question_count,
+            (SELECT COUNT(*) FROM therapy_questions q WHERE q.entry_id = e.id) AS question_count
+          FROM therapy_entries e
+          INNER JOIN therapy_entry_patterns fep ON fep.entry_id = e.id AND fep.pattern_id = ?
+          GROUP BY e.id
+          ORDER BY e.entry_date DESC, e.created_at DESC
+        `, [pattern_id])
+      : await db.all(`
+          SELECT
+            e.*,
+            COUNT(DISTINCT ep.pattern_id) AS pattern_count,
+            (SELECT COUNT(*) FROM therapy_questions q WHERE q.entry_id = e.id AND q.answered = 0) AS open_question_count,
+            (SELECT COUNT(*) FROM therapy_questions q WHERE q.entry_id = e.id) AS question_count
+          FROM therapy_entries e
+          LEFT JOIN therapy_entry_patterns ep ON ep.entry_id = e.id
+          GROUP BY e.id
+          ORDER BY e.entry_date DESC, e.created_at DESC
+        `);
     res.json(entries.map(e => ({
       ...e,
       state: e.state ? JSON.parse(e.state) : null,
@@ -132,16 +146,18 @@ router.post('/entries', async (req, res) => {
 
     for (let i = 0; i < goals.length; i++) {
       const g = goals[i];
+      const status = ['open','in_progress','resolved'].includes(g.status) ? g.status : 'open';
       await db.run(
-        "INSERT INTO therapy_goals (id, text, priority, status, first_entry_id) VALUES (?, ?, ?, 'open', ?)",
-        [newId('tgoal'), g.text, g.priority ?? i, id]
+        'INSERT INTO therapy_goals (id, text, priority, status, first_entry_id) VALUES (?, ?, ?, ?, ?)',
+        [newId('tgoal'), g.text, g.priority ?? i, status, id]
       );
     }
 
     for (const q of questions) {
+      const answered = q.answered ? 1 : 0;
       await db.run(
-        'INSERT INTO therapy_questions (id, text, entry_id) VALUES (?, ?, ?)',
-        [newId('tq'), q.text, id]
+        'INSERT INTO therapy_questions (id, text, entry_id, answered, answered_at) VALUES (?, ?, ?, ?, ?)',
+        [newId('tq'), q.text, id, answered, answered && q.answered_at ? q.answered_at : null]
       );
     }
 
@@ -219,6 +235,24 @@ router.get('/patterns', async (req, res) => {
     res.json(patterns);
   } catch (err) {
     console.error('therapy GET /patterns:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/patterns/:id', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const pattern = await db.get(`
+      SELECT p.*, COUNT(ep.entry_id) AS occurrence_count
+      FROM therapy_patterns p
+      LEFT JOIN therapy_entry_patterns ep ON ep.pattern_id = p.id
+      WHERE p.id = ?
+      GROUP BY p.id
+    `, [req.params.id]);
+    if (!pattern) return res.status(404).json({ error: 'Not found' });
+    res.json(pattern);
+  } catch (err) {
+    console.error('therapy GET /patterns/:id:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -1,12 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   fetchTherapyEntry,
+  fetchTherapyEntries,
+  fetchTherapyPattern,
   updateTherapyEntry,
   updateTherapyGoal,
   updateTherapyQuestion,
   fetchAvailableSleep,
   fetchAvailableHabits,
+  createTherapyPattern,
+  linkEntryPattern,
+  unlinkEntryPattern,
 } from '../utils/api/therapyJournal';
 import { EntryForm } from './TherapyEntryForm';
 import './TherapyJournal.css';
@@ -476,12 +481,17 @@ function OverviewTab({ entry }) {
 
 // ── Tab: Patterns ─────────────────────────────────────────────────────────────
 function PatternsTab({ patterns }) {
-  if (!patterns?.length) return <p style={{ fontSize: 13, color: 'var(--text-dimmed)' }}>No patterns identified in this entry.</p>;
+  if (!patterns?.length) return <p style={{ fontSize: 13, color: 'var(--text-dimmed)' }}>No patterns identified in this entry. Use the Edit button to add patterns.</p>;
   return (
     <div className="tj-pattern-list">
       {patterns.map(p => (
         <div key={p.id} className="tj-pattern-card" data-cat={p.category}>
-          <div className="tj-pattern-name">{p.name}</div>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+            <div className="tj-pattern-name">{p.name}</div>
+            <Link to={`/personal-care/journal/pattern/${p.id}`} className="tj-pattern-more-link" title="View all entries with this pattern">
+              More entries →
+            </Link>
+          </div>
           {p.description && <div className="tj-pattern-desc">{p.description}</div>}
           {p.entry_notes && <div className="tj-pattern-notes">"{p.entry_notes}"</div>}
           <div className="tj-pattern-cat">{p.category?.replace('_', ' ')}</div>
@@ -527,16 +537,71 @@ function GoalsTab({ goals, questions, allGoals, onGoalStatus, onAnswerQ }) {
   );
 }
 
+// ── Export helper ─────────────────────────────────────────────────────────────
+function exportEntry(entry) {
+  const payload = {
+    __type: 'calendarly-therapy-entry',
+    __version: 1,
+    __exported_at: new Date().toISOString(),
+    entry_date:        entry.entry_date,
+    session_date:      entry.session_date      || null,
+    session_label:     entry.session_label     || null,
+    context:           entry.context           || null,
+    therapist_summary: entry.therapist_summary || null,
+    narrative:         entry.narrative         || null,
+    notes_to_self:     entry.notes_to_self     || null,
+    state:             entry.state             || null,
+    actions_taken:     entry.actions_taken     || [],
+    reply_drafts:      entry.reply_drafts      || [],
+    linked_sleep:      entry.linked_sleep      || [],
+    linked_habits:     entry.linked_habits     || [],
+    patterns: (entry.patterns || []).map(p => ({
+      name:        p.name,
+      description: p.description || null,
+      category:    p.category    || 'other',
+      notes:       p.entry_notes || null,
+    })),
+    goals: (entry.goals || []).map(g => ({
+      text:     g.text,
+      priority: g.priority,
+      status:   g.status,
+    })),
+    questions: (entry.questions || []).map(q => ({
+      text:        q.text,
+      answered:    !!q.answered,
+      answer_notes: q.answer_notes || null,
+      answered_at:  q.answered_at  || null,
+    })),
+  };
+
+  const slug = (entry.session_label || entry.entry_date || 'entry')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+  const filename = `therapy-${entry.entry_date || 'entry'}-${slug}.json`;
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function TherapyEntryDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [entry, setEntry]     = useState(null);
-  const [allGoals, setAllGoals] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab]         = useState('overview');
-  const [showEdit, setShowEdit] = useState(false);
-  const [saving, setSaving]   = useState(false);
+  const [searchParams] = useSearchParams();
+  const fromPattern = searchParams.get('from_pattern'); // pattern ID if navigated from pattern page
+
+  const [entry,      setEntry]     = useState(null);
+  const [allGoals,   setAllGoals]  = useState([]);
+  const [loading,    setLoading]   = useState(true);
+  const [tab,        setTab]       = useState('overview');
+  const [showEdit,   setShowEdit]  = useState(false);
+  const [saving,     setSaving]    = useState(false);
+
+  // For prev/next when coming from a pattern filter
+  const [patternCtx, setPatternCtx] = useState(null);
+  // patternCtx = { pattern: {id, name}, entries: [{id, session_label, entry_date}], index: number }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -551,6 +616,18 @@ export default function TherapyEntryDetailPage() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Load pattern context when coming from a pattern page
+  useEffect(() => {
+    if (!fromPattern) { setPatternCtx(null); return; }
+    Promise.all([
+      fetchTherapyPattern(fromPattern),
+      fetchTherapyEntries({ pattern_id: fromPattern }),
+    ]).then(([pattern, entries]) => {
+      const idx = entries.findIndex(e => e.id === id);
+      setPatternCtx({ pattern, entries, index: idx });
+    }).catch(() => setPatternCtx(null));
+  }, [fromPattern, id]);
 
   // Generic field update + optimistic local state
   const patch = useCallback(async (fields) => {
@@ -578,11 +655,41 @@ export default function TherapyEntryDetailPage() {
   const handleEditSave = useCallback(async (data) => {
     setSaving(true);
     try {
-      const updated = await updateTherapyEntry(id, data);
+      const { patterns: newPatterns = [], ...mainData } = data;
+
+      // 1. Update main entry fields
+      const updated = await updateTherapyEntry(id, mainData);
+
+      // 2. Diff patterns against currently linked
+      const currentPatterns = entry?.patterns || [];
+      const currentIds = new Set(currentPatterns.map(p => p.id));
+      const newExistingIds = new Set(newPatterns.filter(p => p.id).map(p => p.id));
+
+      // Unlink removed patterns
+      for (const p of currentPatterns) {
+        if (!newExistingIds.has(p.id)) {
+          await unlinkEntryPattern(id, p.id);
+        }
+      }
+      // Link newly added existing patterns
+      for (const p of newPatterns) {
+        if (p.id && !currentIds.has(p.id)) {
+          await linkEntryPattern(id, { pattern_id: p.id, notes: p.notes || null });
+        }
+      }
+      // Create and link brand-new patterns
+      for (const p of newPatterns) {
+        if (!p.id) {
+          const created = await createTherapyPattern({ name: p.name, description: p.description, category: p.category || 'other' });
+          await linkEntryPattern(id, { pattern_id: created.id, notes: p.notes || null });
+        }
+      }
+
       setEntry(prev => ({ ...prev, ...updated }));
       setShowEdit(false);
+      load(); // reload to get fresh patterns list
     } finally { setSaving(false); }
-  }, [id]);
+  }, [id, entry, load]);
 
   const handleLinkedSleep = useCallback(async (items) => {
     await patch({ linked_sleep: items });
@@ -629,13 +736,45 @@ export default function TherapyEntryDetailPage() {
     <div className="tj-page">
       {/* Top bar */}
       <div className="tj-page-topbar">
-        <Link to="/personal-care/journal" className="tj-topbar-back">← Journal</Link>
+        {patternCtx ? (
+          <Link to={`/personal-care/journal/pattern/${fromPattern}`} className="tj-topbar-back">
+            ← {patternCtx.pattern?.name || 'Pattern'}
+          </Link>
+        ) : (
+          <Link to="/personal-care/journal" className="tj-topbar-back">← Journal</Link>
+        )}
         <span className="tj-topbar-sep">|</span>
         <span className="tj-topbar-title" style={{ fontSize: 13 }}>{entry.session_label || entryDateFull}</span>
         <div className="tj-topbar-actions">
+          <button className="tj-btn-secondary" onClick={() => exportEntry(entry)} title="Download as JSON">Export ↓</button>
           <button className="tj-btn-secondary" onClick={() => setShowEdit(true)}>Edit</button>
         </div>
       </div>
+
+      {/* Pattern prev/next nav */}
+      {patternCtx && patternCtx.entries.length > 1 && (
+        <div className="tj-pattern-nav">
+          <button className="tj-pattern-nav-btn"
+            disabled={patternCtx.index <= 0}
+            onClick={() => {
+              const prev = patternCtx.entries[patternCtx.index - 1];
+              if (prev) navigate(`/personal-care/journal/${prev.id}?from_pattern=${fromPattern}`);
+            }}>
+            ‹ Prev
+          </button>
+          <span className="tj-pattern-nav-label">
+            Entry {patternCtx.index + 1} of {patternCtx.entries.length} with this pattern
+          </span>
+          <button className="tj-pattern-nav-btn"
+            disabled={patternCtx.index >= patternCtx.entries.length - 1}
+            onClick={() => {
+              const next = patternCtx.entries[patternCtx.index + 1];
+              if (next) navigate(`/personal-care/journal/${next.id}?from_pattern=${fromPattern}`);
+            }}>
+            Next ›
+          </button>
+        </div>
+      )}
 
       {/* Detail header */}
       <div className="tj-detail-page-header">

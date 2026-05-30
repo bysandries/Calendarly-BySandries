@@ -1,5 +1,7 @@
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTherapyJournal } from '../hooks/useTherapyJournal';
+import { createTherapyEntry } from '../utils/api/therapyJournal';
 import './TherapyJournal.css';
 
 function fmtDate(d) {
@@ -42,8 +44,54 @@ function MiniDots({ value, max, colorFn }) {
 }
 
 export default function TherapyJournalPage() {
-  const navigate = useNavigate();
+  const navigate    = useNavigate();
+  const fileRef     = useRef(null);
   const { entries, loading, error } = useTherapyJournal();
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState(null); // {type:'ok'|'error', text}
+
+  const handleImport = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      if (data.__type !== 'calendarly-therapy-entry') {
+        setImportMsg({ type: 'error', text: 'Invalid file — not a Calendarly therapy entry.' });
+        return;
+      }
+
+      const payload = {
+        entry_date:        data.entry_date        || new Date().toISOString().split('T')[0],
+        session_date:      data.session_date       || null,
+        session_label:     data.session_label      || null,
+        context:           data.context            || null,
+        therapist_summary: data.therapist_summary  || null,
+        narrative:         data.narrative          || null,
+        notes_to_self:     data.notes_to_self      || null,
+        state:             data.state              || null,
+        actions_taken:     data.actions_taken      || [],
+        reply_drafts:      data.reply_drafts       || [],
+        linked_sleep:      data.linked_sleep       || [],
+        linked_habits:     data.linked_habits      || [],
+        patterns:  (data.patterns  || []).filter(p => p.name),
+        goals:     (data.goals     || []).filter(g => g.text),
+        questions: (data.questions || []).filter(q => q.text),
+      };
+
+      const entry = await createTherapyEntry(payload);
+      navigate(`/personal-care/journal/${entry.id}`);
+    } catch (err) {
+      setImportMsg({ type: 'error', text: err.message === 'Unexpected token' || err instanceof SyntaxError ? 'Invalid JSON file.' : (err.message || 'Import failed.') });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   return (
     <div className="tj-page">
@@ -52,12 +100,33 @@ export default function TherapyJournalPage() {
         <span className="tj-topbar-sep">|</span>
         <span className="tj-topbar-title">Therapy Journal</span>
         <div className="tj-topbar-actions">
+          <input ref={fileRef} type="file" accept=".json,application/json"
+            style={{ display: 'none' }} onChange={handleImport} />
+          <button className="tj-btn-secondary"
+            onClick={() => fileRef.current?.click()}
+            disabled={importing}
+            title="Import a previously exported JSON entry">
+            {importing ? 'Importing…' : 'Import ↑'}
+          </button>
           <button className="tj-btn-primary" onClick={() => navigate('/personal-care/journal/new')}>+ New Entry</button>
         </div>
       </div>
 
       <div className="tj-list-body">
         {error && <p style={{ color: 'var(--accent-danger)', fontSize: 13 }}>Failed to load: {error}</p>}
+        {importMsg && (
+          <div style={{
+            marginBottom: 12, padding: '10px 14px', borderRadius: 7, fontSize: 13,
+            background: importMsg.type === 'ok' ? 'rgba(46,204,113,.12)' : 'rgba(231,76,60,.12)',
+            color: importMsg.type === 'ok' ? '#2ECC71' : '#E74C3C',
+            border: `1px solid ${importMsg.type === 'ok' ? 'rgba(46,204,113,.3)' : 'rgba(231,76,60,.3)'}`,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <span>{importMsg.text}</span>
+            <button onClick={() => setImportMsg(null)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: 16 }}>×</button>
+          </div>
+        )}
 
         {loading ? (
           <div className="tj-empty"><span style={{ color: 'var(--text-dimmed)', fontSize: 13 }}>Loading…</span></div>
