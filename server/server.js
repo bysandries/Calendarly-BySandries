@@ -86,6 +86,7 @@ const habitsRouter = require('./routes/habits');
 const habitLogsRouter = require('./routes/habit-logs');
 const personalCareRouter = require('./routes/personalCare');
 const therapyJournalRouter = require('./routes/therapyJournal');
+const personalGoalsRouter = require('./routes/personalGoals');
 
 // Mount routes
 app.use('/api/events', eventsRouter);
@@ -107,6 +108,7 @@ app.use('/api/habits', habitsRouter);
 app.use('/api/habit-logs', habitLogsRouter);
 app.use('/api/personal-care', personalCareRouter);
 app.use('/api/therapy', therapyJournalRouter);
+app.use('/api/personal-goals', personalGoalsRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

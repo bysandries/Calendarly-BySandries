@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchPersonalCareSummary } from '../utils/api/personalCare';
+import { fetchGoals, createGoal, archiveGoal } from '../utils/api/personalGoals';
 import '../components/Analytics.css';
 import './PersonalDashboard.css';
 import './TherapyJournal.css';
@@ -436,6 +437,133 @@ function CareProjectsPanel({ projects }) {
   );
 }
 
+// ── Goals Widgets ─────────────────────────────────────────────────────────────
+const SCOPE_META = {
+  personal:    { label: 'Personal Goals',           color: '#FF6B9D', icon: '★' },
+  short_term:  { label: 'Short Term (1 Month)',      color: '#3498DB', icon: '◎' },
+  medium_term: { label: 'Medium Term (6 Months)',    color: '#F1C40F', icon: '◈' },
+  long_term:   { label: 'Long Term (1 Year)',        color: '#2ECC71', icon: '◆' },
+};
+
+function GoalRow({ goal, onArchive }) {
+  const meta = SCOPE_META[goal.scope] || SCOPE_META.personal;
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: '8px',
+      padding: '7px 0', borderBottom: '1px solid var(--border)',
+    }}>
+      <Link
+        to={`/personal-care/goals/${goal.id}`}
+        style={{
+          flex: 1, fontSize: '13px', color: 'var(--text-primary)',
+          textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}
+        title={goal.title}
+      >
+        {goal.title}
+      </Link>
+      {goal.status === 'completed' && (
+        <span style={{ fontSize: '11px', color: '#2ECC71', fontWeight: 600, flexShrink: 0 }}>Done</span>
+      )}
+      <button
+        onClick={() => onArchive(goal.id)}
+        title="Archive"
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--text-dimmed)', fontSize: '13px', padding: '0 2px', flexShrink: 0,
+          lineHeight: 1,
+        }}
+      >
+        ⊠
+      </button>
+    </div>
+  );
+}
+
+function GoalsWidget({ scope, goals, onAdd, onArchive, loading }) {
+  const meta  = SCOPE_META[scope];
+  const [addOpen, setAddOpen] = useState(false);
+  const [draft, setDraft]     = useState('');
+  const [saving, setSaving]   = useState(false);
+
+  const activeGoals = goals.filter(g => g.status !== 'archived');
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    if (!draft.trim()) return;
+    setSaving(true);
+    try {
+      await onAdd(scope, draft.trim());
+      setDraft('');
+      setAddOpen(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="dashboard-panel" style={{ borderTop: `2px solid ${meta.color}44` }}>
+      <div className="panel-header">
+        <div>
+          <h3 className="panel-title" style={{ color: meta.color }}>{meta.icon} {meta.label}</h3>
+          <p className="panel-subtitle">{activeGoals.length} active goal{activeGoals.length !== 1 ? 's' : ''}</p>
+        </div>
+        <button
+          className="pd-panel-link"
+          onClick={() => setAddOpen(v => !v)}
+          style={{ cursor: 'pointer', background: 'none', border: 'none', color: meta.color, fontWeight: 600, fontSize: '13px' }}
+        >
+          {addOpen ? '✕ Cancel' : '+ Add'}
+        </button>
+      </div>
+
+      {addOpen && (
+        <form onSubmit={handleAdd} style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+          <input
+            autoFocus
+            placeholder="Goal title…"
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => e.key === 'Escape' && setAddOpen(false)}
+            style={{
+              flex: 1, background: 'var(--surface-2)', border: `1px solid ${meta.color}66`,
+              borderRadius: '5px', padding: '5px 10px', fontSize: '13px', color: 'var(--text-primary)',
+            }}
+          />
+          <button
+            type="submit"
+            disabled={saving || !draft.trim()}
+            style={{
+              background: meta.color, color: '#fff', border: 'none', borderRadius: '5px',
+              padding: '5px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+              opacity: saving || !draft.trim() ? 0.5 : 1,
+            }}
+          >
+            Add
+          </button>
+        </form>
+      )}
+
+      {loading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
+          {[1, 2].map(i => <div key={i} className="skeleton" style={{ height: '13px', width: i === 1 ? '70%' : '50%' }} />)}
+        </div>
+      ) : activeGoals.length === 0 ? (
+        <div className="no-analytics-data" style={{ padding: '16px 0' }}>
+          <span style={{ fontSize: '20px' }}>{meta.icon}</span>
+          <span style={{ fontSize: '13px' }}>No active goals yet.</span>
+        </div>
+      ) : (
+        <div>
+          {activeGoals.map(g => (
+            <GoalRow key={g.id} goal={g} onArchive={onArchive} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 function weekLabel(weekStart, weekEnd) {
   if (!weekStart || !weekEnd) return '';
@@ -452,6 +580,9 @@ export default function PersonalCarePage() {
   const [error, setError]     = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
 
+  const [goals, setGoals]           = useState([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
+
   useEffect(() => {
     let cancelled = false;
     const offset = weekOffset;
@@ -466,6 +597,25 @@ export default function PersonalCarePage() {
       .catch(e => { if (!cancelled && weekOffset === offset) { setError(e.message||'Failed to load'); setLoading(false); } });
     return () => { cancelled = true; };
   }, [weekOffset]);
+
+  const loadGoals = useCallback(() => {
+    setGoalsLoading(true);
+    fetchGoals({ context: 'personal_care' })
+      .then(g  => { setGoals(g); setGoalsLoading(false); })
+      .catch(() => { setGoalsLoading(false); });
+  }, []);
+
+  useEffect(() => { loadGoals(); }, [loadGoals]);
+
+  const handleAddGoal = useCallback(async (scope, title) => {
+    const newGoal = await createGoal({ title, scope, context: 'personal_care' });
+    setGoals(prev => [newGoal, ...prev]);
+  }, []);
+
+  const handleArchiveGoal = useCallback(async (id) => {
+    const updated = await archiveGoal(id);
+    setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updated } : g));
+  }, []);
 
   const {
     next_session,
@@ -512,6 +662,25 @@ export default function PersonalCarePage() {
         </div>
       )}
 
+      {/* Goals row — 4 widgets */}
+      <div style={{ marginTop: '24px' }}>
+        <h3 style={{ margin: '0 0 16px', fontSize: '14px', fontWeight: 600, color: 'var(--text-dimmed)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+          Goals
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px' }}>
+          {['personal', 'short_term', 'medium_term', 'long_term'].map(scope => (
+            <GoalsWidget
+              key={scope}
+              scope={scope}
+              goals={goals.filter(g => g.scope === scope)}
+              onAdd={handleAddGoal}
+              onArchive={handleArchiveGoal}
+              loading={goalsLoading}
+            />
+          ))}
+        </div>
+      </div>
+
       {/* KPI row */}
       {loading ? (
         <div className="pd-skeleton-grid">
@@ -553,6 +722,7 @@ export default function PersonalCarePage() {
           />
         </div>
       </div>
+
     </div>
   );
 }
