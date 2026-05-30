@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createTherapyEntry } from '../utils/api/therapyJournal';
+import { PatternSelector } from './TherapyEntryForm';
 import './TherapyJournal.css';
 
 // ── Tiny reusable input primitives (compact, for left panel) ──────────────────
@@ -105,6 +106,7 @@ const MOOD_OPTS   = [1,2,3,4,5,6,7,8,9,10].map(v => ({ value: v, label: String(v
 const TABS = [
   { id: 'info',      label: 'Info' },
   { id: 'summary',   label: 'Summary' },
+  { id: 'patterns',  label: 'Patterns' },
   { id: 'goals',     label: 'Goals' },
   { id: 'questions', label: 'Questions' },
   { id: 'actions',   label: 'Actions' },
@@ -138,6 +140,7 @@ export default function TherapyEntryNewPage() {
   const [actions_taken,     setActions]         = useState([]);
   const [goals,             setGoals]           = useState([{ text: '' }]);
   const [questions,         setQuestions]       = useState([{ text: '' }]);
+  const [patterns,          setPatterns]        = useState([]);
   const [state,             setStateField]      = useState(EMPTY_STATE);
 
   const setS = (k, v) => setStateField(prev => ({ ...prev, [k]: v }));
@@ -154,6 +157,7 @@ export default function TherapyEntryNewPage() {
         notes_to_self: notes_to_self || null,
         state,
         actions_taken: actions_taken.filter(Boolean),
+        patterns,
         goals: goals.filter(g => (g.text || '').trim()).map((g, i) => ({ text: g.text, priority: i })),
         questions: questions.filter(q => (q.text || '').trim()).map(q => ({ text: q.text })),
       };
@@ -163,7 +167,7 @@ export default function TherapyEntryNewPage() {
       setSaving(false);
     }
   }, [entry_date, session_date, session_label, context, therapist_summary, narrative,
-      notes_to_self, state, actions_taken, goals, questions, navigate]);
+      notes_to_self, state, actions_taken, patterns, goals, questions, navigate]);
 
   return (
     <div className="tj-page">
@@ -304,6 +308,17 @@ export default function TherapyEntryNewPage() {
                   value={therapist_summary}
                   onChange={e => setTherapistSum(e.target.value)}
                   placeholder="What do you want your therapist to understand about this period?" />
+              </div>
+            )}
+
+            {/* Patterns tab */}
+            {tab === 'patterns' && (
+              <div>
+                <p className="tj-section-label">Patterns</p>
+                <p style={{ fontSize: 12, color: 'var(--text-dimmed)', marginBottom: 12 }}>
+                  Search for existing patterns or create new ones to link to this entry.
+                </p>
+                <PatternSelector selected={patterns} onChange={setPatterns} />
               </div>
             )}
 

@@ -1,12 +1,13 @@
 import { api } from './core';
 
-export const fetchTherapyEntries = () => api.get('/therapy/entries');
+export const fetchTherapyEntries = (params) => api.get('/therapy/entries', params);
 export const fetchTherapyEntry = (id) => api.get(`/therapy/entries/${id}`);
 export const createTherapyEntry = (data) => api.post('/therapy/entries', data);
 export const updateTherapyEntry = (id, data) => api.patch(`/therapy/entries/${id}`, data);
 export const deleteTherapyEntry = (id) => api.delete(`/therapy/entries/${id}`);
 
 export const fetchTherapyPatterns = () => api.get('/therapy/patterns');
+export const fetchTherapyPattern  = (id) => api.get(`/therapy/patterns/${id}`);
 export const createTherapyPattern = (data) => api.post('/therapy/patterns', data);
 export const updateTherapyPattern = (id, data) => api.patch(`/therapy/patterns/${id}`, data);
 export const linkEntryPattern = (entryId, data) => api.post(`/therapy/entries/${entryId}/patterns`, data);
