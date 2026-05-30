@@ -2,13 +2,22 @@ import React, { useState } from 'react';
 import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
 import { syncEventBlock } from '../utils/api/events';
+import { createEnergyLog } from '../utils/api/activityEnergyLog';
 import { DateTime } from 'luxon';
+
+const QUADRANTS = [
+  { energy: 'high', emotion: 'positive', label: 'Performance', color: '#2ECC71' },
+  { energy: 'high', emotion: 'negative', label: 'Survival',    color: '#3498DB' },
+  { energy: 'low',  emotion: 'positive', label: 'Renewal',     color: '#F1C40F' },
+  { energy: 'low',  emotion: 'negative', label: 'Burnout',     color: '#E74C3C' },
+];
 
 export default function GTDInbox() {
   const { tasks, loading, error, createTask, updateTask, deleteTask } = useTasks({ status: '01 - Inbox' });
   const { createProject } = useProjects();
   const [newTitle, setNewTitle] = useState('');
   const [captureType, setCaptureType] = useState('task'); // 'task', 'project', 'event'
+  const [energyQuadrant, setEnergyQuadrant] = useState(null); // { energy, emotion }
 
   const handleQuickAdd = async (e) => {
     e.preventDefault();
@@ -16,10 +25,19 @@ export default function GTDInbox() {
 
     try {
       if (captureType === 'task') {
-        await createTask({
+        const task = await createTask({
           title: newTitle,
           status: '01 - Inbox'
         });
+        if (task?.id && energyQuadrant) {
+          createEnergyLog({
+            entity_type:  'task',
+            entity_id:    String(task.id),
+            energy_level: energyQuadrant.energy,
+            emotion_type: energyQuadrant.emotion,
+          }).catch(() => {});
+        }
+        setEnergyQuadrant(null);
       } else if (captureType === 'project') {
         await createProject({
           title: newTitle,
@@ -97,6 +115,39 @@ export default function GTDInbox() {
               Collect
             </button>
           </div>
+          {captureType === 'task' && (
+            <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-dimmed)', whiteSpace: 'nowrap' }}>Energy:</span>
+              {QUADRANTS.map(q => {
+                const active = energyQuadrant?.energy === q.energy && energyQuadrant?.emotion === q.emotion;
+                return (
+                  <button
+                    key={`${q.energy}-${q.emotion}`}
+                    type="button"
+                    onClick={() => setEnergyQuadrant(active ? null : q)}
+                    style={{
+                      fontSize: '11px', fontWeight: 600, padding: '3px 10px',
+                      borderRadius: '20px', cursor: 'pointer', border: `1px solid ${q.color}`,
+                      background: active ? q.color : 'transparent',
+                      color: active ? '#fff' : q.color,
+                      transition: 'background .12s, color .12s',
+                    }}
+                  >
+                    {q.label}
+                  </button>
+                );
+              })}
+              {energyQuadrant && (
+                <button
+                  type="button"
+                  onClick={() => setEnergyQuadrant(null)}
+                  style={{ fontSize: '11px', color: 'var(--text-dimmed)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}
+                >
+                  ✕ clear
+                </button>
+              )}
+            </div>
+          )}
           <div style={{ marginTop: '8px', fontSize: '0.8rem', color: 'var(--text-dimmed)' }}>
             {captureType === 'task' && "Creates an actionable item in your Inbox."}
             {captureType === 'project' && "Creates a new Project in 'On-Hold' status."}

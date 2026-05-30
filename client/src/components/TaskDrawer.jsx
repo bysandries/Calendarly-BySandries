@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { GTD_STATUSES, getStatusInfo, PRIORITY_COLORS } from '../utils/statusMap';
 import PersonPicker from './PersonPicker';
+import EnergyLogPanel from './EnergyLogPanel';
 
 export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, onClose }) {
   const isOpen = tasks.length > 0;
@@ -232,6 +233,12 @@ export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, o
                 rows={6}
                 style={{ width: '100%', marginTop: '8px' }}
               />
+            </div>
+          )}
+
+          {!isBulk && singleTask?.id && (
+            <div className="project-drawer-section">
+              <EnergyLogPanel entityType="task" entityId={singleTask.id} />
             </div>
           )}
         </div>
