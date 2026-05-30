@@ -536,6 +536,7 @@ async function initDatabase(forceReset = false) {
   await migration004.migrate(database);
   await migration005.migrate(database);
   await migration006.migrate(database);
+  await addColumnIfMissing(database, 'personal_goals', 'activation_history', "TEXT DEFAULT '[]'");
   console.log('Database initialization completed.');
 }
 
