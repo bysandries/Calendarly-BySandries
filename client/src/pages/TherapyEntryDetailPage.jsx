@@ -481,20 +481,35 @@ function OverviewTab({ entry }) {
 
 // ── Tab: Patterns ─────────────────────────────────────────────────────────────
 function PatternsTab({ patterns }) {
-  if (!patterns?.length) return <p style={{ fontSize: 13, color: 'var(--text-dimmed)' }}>No patterns identified in this entry. Use the Edit button to add patterns.</p>;
+  if (!patterns?.length) return (
+    <p style={{ fontSize: 13, color: 'var(--text-dimmed)' }}>
+      No patterns linked to this entry. Use the <strong>Edit</strong> button to add patterns.
+    </p>
+  );
   return (
     <div className="tj-pattern-list">
       {patterns.map(p => (
-        <div key={p.id} className="tj-pattern-card" data-cat={p.category}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-            <div className="tj-pattern-name">{p.name}</div>
-            <Link to={`/personal-care/journal/pattern/${p.id}`} className="tj-pattern-more-link" title="View all entries with this pattern">
+        <div key={p.id} className="tj-pattern-card-lg" data-cat={p.category || 'other'}
+          style={{ display: 'block', textDecoration: 'none' }}>
+          <div className="tj-pcl-header">
+            <span className="tj-pcl-name">{p.name}</span>
+            <span className="tj-pattern-cat-badge" data-cat={p.category || 'other'}>
+              {(p.category || 'other').replace('_', ' ')}
+            </span>
+          </div>
+          {p.description && <p className="tj-pcl-desc">{p.description}</p>}
+          {p.entry_notes && (
+            <p style={{ fontSize: 12, color: 'var(--text-dimmed)', fontStyle: 'italic', marginBottom: 8 }}>
+              "{p.entry_notes}"
+            </p>
+          )}
+          <div className="tj-pcl-footer">
+            <span className="tj-pcl-count" />
+            <Link to={`/personal-care/journal/pattern/${p.id}`} className="tj-pcl-link"
+              onClick={e => e.stopPropagation()}>
               More entries →
             </Link>
           </div>
-          {p.description && <div className="tj-pattern-desc">{p.description}</div>}
-          {p.entry_notes && <div className="tj-pattern-notes">"{p.entry_notes}"</div>}
-          <div className="tj-pattern-cat">{p.category?.replace('_', ' ')}</div>
         </div>
       ))}
     </div>
@@ -748,6 +763,16 @@ export default function TherapyEntryDetailPage() {
         <div className="tj-topbar-actions">
           <button className="tj-btn-secondary" onClick={() => exportEntry(entry)} title="Download as JSON">Export ↓</button>
           <button className="tj-btn-secondary" onClick={() => setShowEdit(true)}>Edit</button>
+          <button className="tj-archive-btn"
+            title={entry.is_archived ? 'Restore this entry' : 'Archive this entry'}
+            onClick={async () => {
+              const newVal = entry.is_archived ? 0 : 1;
+              await updateTherapyEntry(id, { is_archived: newVal });
+              if (newVal === 1) navigate('/personal-care/journal');
+              else setEntry(prev => ({ ...prev, is_archived: 0 }));
+            }}>
+            {entry.is_archived ? '↩ Unarchive' : 'Archive'}
+          </button>
         </div>
       </div>
 

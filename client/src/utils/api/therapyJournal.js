@@ -22,3 +22,8 @@ export const updateTherapyQuestion = (id, data) => api.patch(`/therapy/questions
 
 export const fetchAvailableSleep  = (params) => api.get('/therapy/available-sleep', params);
 export const fetchAvailableHabits = (params) => api.get('/therapy/available-habits', params);
+
+export const fetchQuickEntries = (params) => api.get('/therapy/quick-entries', params);
+export const createQuickEntry  = (data)   => api.post('/therapy/quick-entries', data);
+export const updateQuickEntry  = (id, data) => api.patch(`/therapy/quick-entries/${id}`, data);
+export const deleteQuickEntry  = (id)     => api.delete(`/therapy/quick-entries/${id}`);
