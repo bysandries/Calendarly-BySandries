@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchProjects, createProject as apiCreate, updateProject as apiUpdate, deleteProject as apiDelete } from '../utils/api';
+import { fetchProjects, createProject as apiCreate, updateProject as apiUpdate, deleteProject as apiDelete } from '../utils/api/projects';
 
 export function useProjects(initialFilters = {}) {
   const [projects, setProjects] = useState([]);

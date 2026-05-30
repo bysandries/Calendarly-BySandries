@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { createTask } from '../utils/api';
+import { createTask } from '../utils/api/tasks';
 
 const ACTIONABLE_STATUSES = [
   '01 - Inbox',

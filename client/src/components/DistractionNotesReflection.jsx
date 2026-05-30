@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchDistractionNotesWithTasks, deleteDistractionNote } from '../utils/api';
+import { fetchDistractionNotesWithTasks, deleteDistractionNote } from '../utils/api/distractionNotes';
 import { DateTime } from 'luxon';
 
 export default function DistractionNotesReflection() {

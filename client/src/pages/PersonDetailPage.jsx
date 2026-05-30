@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
 import { usePeople } from '../hooks/usePeople';
-import { fetchAreas } from '../utils/api';
+import { fetchAreas } from '../utils/api/areas';
 import TaskCard from '../components/TaskCard';
 import TaskDrawer from '../components/TaskDrawer';
 import { getStatusInfo, PRIORITY_COLORS } from '../utils/statusMap';

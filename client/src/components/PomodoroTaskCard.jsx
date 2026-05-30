@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { updateTask } from '../utils/api';
+import { updateTask } from '../utils/api/tasks';
 
 export default function PomodoroTaskCard({
   task,

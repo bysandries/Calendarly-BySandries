@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchPomodoroTimeByTask } from '../utils/api';
+import { fetchPomodoroTimeByTask } from '../utils/api/pomodoro';
 
 export default function TaskTimeTracker() {
   const [data, setData] = useState([]);

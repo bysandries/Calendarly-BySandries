@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { fetchAreas, fetchTasks, fetchEventTasks, linkTaskToEvent, unlinkTaskFromEvent } from '../utils/api';
+import { fetchAreas } from '../utils/api/areas';
+import { fetchTasks } from '../utils/api/tasks';
+import { fetchEventTasks, linkTaskToEvent, unlinkTaskFromEvent } from '../utils/api/events';
 import { TASK_TABS } from '../utils/statusMap';
 import AreaPicker from './AreaPicker';
 

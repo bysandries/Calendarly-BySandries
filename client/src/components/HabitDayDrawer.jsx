@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchHabitLogs, createHabitLog, deleteHabitLog } from '../utils/api';
+import { fetchHabitLogs, createHabitLog, deleteHabitLog } from '../utils/api/habitLogs';
 
 export default function HabitDayDrawer({ isOpen, habit, dateId, onClose, onUpdated }) {
   const [logs, setLogs] = useState([]);

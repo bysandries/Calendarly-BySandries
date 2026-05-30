@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { checkHealth } from '../../utils/api';
+import { checkHealth } from '../../utils/api/health';
 import {
   IconDatabase,
   IconInbox,

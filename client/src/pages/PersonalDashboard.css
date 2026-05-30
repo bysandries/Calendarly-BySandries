@@ -274,9 +274,150 @@
   grid-template-columns: 3fr 2fr;
 }
 
+/* ── Week Selector ─────────────────────────────────────────── */
+.pd-week-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.pd-week-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pd-week-btn:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+
+.pd-week-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pd-week-label {
+  flex: 1;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pd-week-current-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 999px;
+  padding: 2px 8px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
 @media (max-width: 1024px) {
   .pd-main-grid,
   .pd-lower-grid {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Mood KPI fill colour ───────────────────────────────────── */
+.pd-mood-fill { stroke: #9B59B6; }
+
+/* ── Therapy Dashboard Panel ────────────────────────────────── */
+.pd-therapy-last-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.pd-therapy-date {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.pd-therapy-mood {
+  font-size: 12px;
+  color: var(--text-dimmed);
+}
+
+.pd-therapy-chip {
+  font-size: 11px;
+  background: var(--surface-3);
+  color: var(--text-dimmed);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.pd-therapy-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dimmed);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 12px 0 6px;
+}
+
+.pd-therapy-goals {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pd-therapy-goal-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.pd-therapy-goal-num {
+  flex-shrink: 0;
+  font-size: 12px;
+  width: 14px;
+  text-align: center;
+  margin-top: 1px;
+}
+
+.pd-therapy-goal-text {
+  line-height: 1.4;
+}
+
+.pd-therapy-cta {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+}
+
+.pd-therapy-btn-primary {
+  background: var(--accent, #FF6B9D);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.pd-therapy-btn-primary:hover { opacity: 0.88; }

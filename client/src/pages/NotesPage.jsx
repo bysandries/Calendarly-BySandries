@@ -4,7 +4,8 @@ import { useNotes } from '../hooks/useNotes';
 import { useExtracts } from '../hooks/useExtracts';
 import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
-import { fetchAreas, fetchExtractLinks, addExtractLink, removeExtractLink } from '../utils/api';
+import { fetchAreas } from '../utils/api/areas';
+import { fetchExtractLinks, addExtractLink, removeExtractLink } from '../utils/api/extracts';
 
 const HIGHLIGHT_COLORS = [
   { hex: '#F1C40F', label: 'Yellow' },

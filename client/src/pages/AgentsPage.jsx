@@ -4,10 +4,12 @@ import {
   fetchCodeAgentStats,
   createCodeAgentSession,
   deleteCodeAgentSession,
+} from '../utils/api/codeAgents';
+import {
   fetchOpenCodeSessions,
   fetchOpenCodeStats,
   syncOpenCode,
-} from '../utils/api';
+} from '../utils/api/opencode';
 import './AgentsPage.css';
 
 const AGENTS = ['Claude', 'OpenCode', 'Gemini', 'Antigravity'];

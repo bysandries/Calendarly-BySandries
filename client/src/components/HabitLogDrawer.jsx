@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { createHabitLog } from '../utils/api';
+import { createHabitLog } from '../utils/api/habitLogs';
 
 function getLocalYMD() {
   const d = new Date();
