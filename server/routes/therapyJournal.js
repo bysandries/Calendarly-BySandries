@@ -15,7 +15,11 @@ function today() {
 router.get('/entries', async (req, res) => {
   try {
     const db = await getDbConnection();
-    const { pattern_id } = req.query;
+    const { pattern_id, archived } = req.query;
+    const showArchived = archived === '1' || archived === 'true';
+    const archiveFilter = showArchived
+      ? 'AND COALESCE(e.is_archived, 0) = 1'
+      : 'AND COALESCE(e.is_archived, 0) = 0';
 
     const entries = pattern_id
       ? await db.all(`
@@ -26,6 +30,7 @@ router.get('/entries', async (req, res) => {
             (SELECT COUNT(*) FROM therapy_questions q WHERE q.entry_id = e.id) AS question_count
           FROM therapy_entries e
           INNER JOIN therapy_entry_patterns fep ON fep.entry_id = e.id AND fep.pattern_id = ?
+          WHERE 1=1 ${archiveFilter}
           GROUP BY e.id
           ORDER BY e.entry_date DESC, e.created_at DESC
         `, [pattern_id])
@@ -37,6 +42,7 @@ router.get('/entries', async (req, res) => {
             (SELECT COUNT(*) FROM therapy_questions q WHERE q.entry_id = e.id) AS question_count
           FROM therapy_entries e
           LEFT JOIN therapy_entry_patterns ep ON ep.entry_id = e.id
+          WHERE 1=1 ${archiveFilter}
           GROUP BY e.id
           ORDER BY e.entry_date DESC, e.created_at DESC
         `);
@@ -181,7 +187,7 @@ router.patch('/entries/:id', async (req, res) => {
       'entry_date', 'session_date', 'session_label', 'context',
       'therapist_summary', 'narrative', 'state',
       'actions_taken', 'reply_drafts', 'notes_to_self',
-      'linked_sleep', 'linked_habits',
+      'linked_sleep', 'linked_habits', 'is_archived',
     ];
     const sets = [], vals = [];
     for (const key of allowed) {
@@ -407,6 +413,73 @@ router.patch('/questions/:id', async (req, res) => {
     res.json(await db.get('SELECT * FROM therapy_questions WHERE id = ?', [req.params.id]));
   } catch (err) {
     console.error('therapy PATCH /questions/:id:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Quick journal entries ──────────────────────────────────────────────────────
+
+router.get('/quick-entries', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const { archived } = req.query;
+    const showArchived = archived === '1';
+    const rows = await db.all(
+      `SELECT * FROM quick_journal_entries
+       WHERE is_archived = ?
+       ORDER BY created_at DESC`,
+      [showArchived ? 1 : 0]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('therapy GET /quick-entries:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/quick-entries', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const { topic = 'general', title, description } = req.body;
+    if (!title?.trim()) return res.status(400).json({ error: 'title is required' });
+    const id = newId('qje');
+    await db.run(
+      'INSERT INTO quick_journal_entries (id, topic, title, description) VALUES (?, ?, ?, ?)',
+      [id, topic, title.trim(), description?.trim() || null]
+    );
+    res.status(201).json(await db.get('SELECT * FROM quick_journal_entries WHERE id = ?', [id]));
+  } catch (err) {
+    console.error('therapy POST /quick-entries:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.patch('/quick-entries/:id', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const { title, description, topic, is_archived } = req.body;
+    const sets = [], vals = [];
+    if (title       !== undefined) { sets.push('title = ?');       vals.push(title); }
+    if (description !== undefined) { sets.push('description = ?'); vals.push(description); }
+    if (topic       !== undefined) { sets.push('topic = ?');       vals.push(topic); }
+    if (is_archived !== undefined) { sets.push('is_archived = ?'); vals.push(is_archived ? 1 : 0); }
+    if (!sets.length) return res.status(400).json({ error: 'No valid fields' });
+    vals.push(req.params.id);
+    await db.run(`UPDATE quick_journal_entries SET ${sets.join(', ')} WHERE id = ?`, vals);
+    res.json(await db.get('SELECT * FROM quick_journal_entries WHERE id = ?', [req.params.id]));
+  } catch (err) {
+    console.error('therapy PATCH /quick-entries/:id:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/quick-entries/:id', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    await db.run('DELETE FROM quick_journal_entries WHERE id = ?', [req.params.id]);
+    res.status(204).end();
+  } catch (err) {
+    console.error('therapy DELETE /quick-entries/:id:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
