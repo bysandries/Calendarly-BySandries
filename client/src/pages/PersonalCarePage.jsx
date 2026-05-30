@@ -485,8 +485,9 @@ function GoalsWidget({ scope, goals, onAdd, onArchive, loading }) {
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft]     = useState('');
   const [saving, setSaving]   = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
-  const activeGoals = goals.filter(g => g.status !== 'archived');
+  const activeGoals = goals.filter(g => g.status !== 'archived' && (showCompleted || g.status !== 'completed'));
 
   async function handleAdd(e) {
     e.preventDefault();
@@ -506,7 +507,16 @@ function GoalsWidget({ scope, goals, onAdd, onArchive, loading }) {
       <div className="panel-header">
         <div>
           <h3 className="panel-title" style={{ color: meta.color }}>{meta.icon} {meta.label}</h3>
-          <p className="panel-subtitle">{activeGoals.length} active goal{activeGoals.length !== 1 ? 's' : ''}</p>
+          <p className="panel-subtitle">
+            {activeGoals.length} active goal{activeGoals.length !== 1 ? 's' : ''}
+            {' · '}
+            <span
+              onClick={() => setShowCompleted(v => !v)}
+              style={{ cursor: 'pointer', textDecoration: 'underline dotted', color: showCompleted ? '#2ECC71' : 'var(--text-dimmed)' }}
+            >
+              {showCompleted ? 'hiding completed' : `${goals.filter(g => g.status === 'completed').length} completed`}
+            </span>
+          </p>
         </div>
         <button
           className="pd-panel-link"

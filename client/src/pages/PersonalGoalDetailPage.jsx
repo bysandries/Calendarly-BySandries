@@ -58,6 +58,8 @@ export default function PersonalGoalDetailPage() {
   const [titleDraft, setTitleDraft] = useState('');
   const [editingDate, setEditingDate] = useState(false);
   const [dateDraft, setDateDraft] = useState('');
+  const [editingCompletionDate, setEditingCompletionDate] = useState(false);
+  const [completionDateDraft, setCompletionDateDraft] = useState('');
 
   const [addLinkOpen, setAddLinkOpen] = useState(false);
   const [linkType, setLinkType] = useState('extract');
@@ -100,6 +102,17 @@ export default function PersonalGoalDetailPage() {
     } finally {
       setSaving(false);
       setEditingDate(false);
+    }
+  }
+
+  async function saveCompletionDate() {
+    setSaving(true);
+    try {
+      const updated = await updateGoal(id, { completion_date: completionDateDraft || null });
+      setGoal(prev => ({ ...prev, ...updated }));
+    } finally {
+      setSaving(false);
+      setEditingCompletionDate(false);
     }
   }
 
@@ -299,7 +312,32 @@ export default function PersonalGoalDetailPage() {
 
           {goal.completion_date && (
             <span style={{ fontSize: '13px', color: '#2ECC71' }}>
-              Completed: {fmtDate(goal.completion_date)}
+              Completed:{' '}
+              {editingCompletionDate ? (
+                <span style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                  <input
+                    type="date"
+                    value={completionDateDraft}
+                    onChange={e => setCompletionDateDraft(e.target.value)}
+                    style={{
+                      background: 'var(--surface-2)', border: '1px solid var(--border)',
+                      borderRadius: '4px', padding: '2px 6px', fontSize: '12px', color: 'var(--text-primary)',
+                    }}
+                  />
+                  <button className="tj-btn-primary" style={{ padding: '2px 8px', fontSize: '11px' }}
+                    onClick={saveCompletionDate} disabled={saving}>Save</button>
+                  <button className="tj-btn-secondary" style={{ padding: '2px 8px', fontSize: '11px' }}
+                    onClick={() => setEditingCompletionDate(false)}>Cancel</button>
+                </span>
+              ) : (
+                <span
+                  style={{ cursor: 'pointer', textDecoration: 'underline dotted', color: '#2ECC71' }}
+                  onClick={() => { setCompletionDateDraft(goal.completion_date || ''); setEditingCompletionDate(true); }}
+                  title="Click to edit"
+                >
+                  {fmtDate(goal.completion_date)}
+                </span>
+              )}
             </span>
           )}
           {goal.archived_at && goal.status === 'archived' && (
