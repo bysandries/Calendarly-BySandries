@@ -4,6 +4,7 @@ import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
 import { fetchAreas } from '../utils/api/areas';
 import { GTD_STATUSES, getStatusInfo, PRIORITY_COLORS } from '../utils/statusMap';
+import EnergyLogPanel from '../components/EnergyLogPanel';
 
 export default function TaskDetailPage() {
   const { id } = useParams();
@@ -146,6 +147,8 @@ export default function TaskDetailPage() {
             placeholder="Add task descriptions, links, or notes..."
           />
         </div>
+
+        <EnergyLogPanel entityType="task" entityId={task.id} />
 
         <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
           <button

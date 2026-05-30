@@ -5,6 +5,7 @@ import { fetchTasks } from '../utils/api/tasks';
 import { fetchEventTasks, linkTaskToEvent, unlinkTaskFromEvent } from '../utils/api/events';
 import { TASK_TABS } from '../utils/statusMap';
 import AreaPicker from './AreaPicker';
+import EnergyLogPanel from './EnergyLogPanel';
 
 
 const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged }) => {
@@ -400,6 +401,10 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
                 )}
               </div>
             )}
+          </div>
+
+          <div style={{ padding: '0 4px' }}>
+            <EnergyLogPanel entityType="event" entityId={event.id} />
           </div>
         </div>
 
