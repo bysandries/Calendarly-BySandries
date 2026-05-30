@@ -351,79 +351,83 @@ export default function TherapyJournalPage() {
 
       {/* ── ENTRIES TAB ───────────────────────────────────────────────────── */}
       {tab === 'entries' && (
-        <>
-          {/* Quick Capture */}
-          <div className="tj-quick-section">
-            <div className="tj-quick-section-label">Quick Capture</div>
-            <div className="tj-quick-topics">
-              {TOPICS.map(t => (
-                <button key={t.id}
-                  className={`tj-quick-topic-btn${activeTopic === t.id ? ' active' : ''}`}
-                  onClick={() => handleTopicClick(t.id)}
-                  style={{ '--topic-color': t.color }}>
-                  {t.icon} {t.label}
-                </button>
-              ))}
+        <div className="tj-entries-layout">
+          {/* Left column — entry list (2/3) */}
+          <div className="tj-entries-main">
+            <div className="tj-list-body">
+              {error && <p style={{ color: 'var(--accent-danger)', fontSize: 13 }}>{error}</p>}
+              {loading ? (
+                <div className="tj-empty"><span style={{ color: 'var(--text-dimmed)', fontSize: 13 }}>Loading…</span></div>
+              ) : entries.length === 0 ? (
+                <div className="tj-empty">
+                  <span className="tj-empty-icon">📓</span>
+                  <span>No entries yet. Create your first one.</span>
+                  <button className="tj-btn-primary" onClick={() => navigate('/personal-care/journal/new')}>+ New Entry</button>
+                </div>
+              ) : (
+                <div className="tj-list-grid">
+                  {entries.map(e => <EntryCard key={e.id} e={e} />)}
+                </div>
+              )}
             </div>
+          </div>
 
-            {activeTopic && (
-              <div className="tj-quick-form">
-                <div style={{ fontSize: 11, color: topicMap[activeTopic]?.color, fontWeight: 700, marginBottom: 2 }}>
-                  {topicMap[activeTopic]?.icon} {topicMap[activeTopic]?.label}
-                </div>
-                <input autoFocus className="tj-quick-input" value={quickTitle}
-                  onChange={e => setQuickTitle(e.target.value)}
-                  placeholder="What's on your mind?"
-                  onKeyDown={e => e.key === 'Escape' && (setActiveTopic(null), setQuickTitle(''), setQuickDesc(''))}
-                />
-                <textarea className="tj-quick-textarea" value={quickDesc}
-                  onChange={e => setQuickDesc(e.target.value)}
-                  placeholder="Add more detail… (optional)"
-                  rows={2}
-                />
-                <div className="tj-quick-form-row">
-                  <button className="tj-btn-primary" onClick={handleQuickSave}
-                    disabled={savingQuick || !quickTitle.trim()}>
-                    {savingQuick ? 'Saving…' : 'Save'}
+          {/* Right column — quick notes (1/3) */}
+          <div className="tj-quick-sidebar">
+            <div className="tj-quick-section">
+              <div className="tj-quick-section-label">Quick Capture</div>
+              <div className="tj-quick-topics">
+                {TOPICS.map(t => (
+                  <button key={t.id}
+                    className={`tj-quick-topic-btn${activeTopic === t.id ? ' active' : ''}`}
+                    onClick={() => handleTopicClick(t.id)}
+                    style={{ '--topic-color': t.color }}>
+                    {t.icon} {t.label}
                   </button>
-                  <button className="tj-btn-secondary"
-                    onClick={() => { setActiveTopic(null); setQuickTitle(''); setQuickDesc(''); }}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Quick entry cards */}
-            {quickList.length > 0 && (
-              <div className="tj-quick-entries">
-                {quickList.map(q => (
-                  <QuickCard key={q.id} q={q}
-                    onArchive={handleArchiveQuick}
-                    onDelete={handleDeleteQuick} />
                 ))}
               </div>
-            )}
-          </div>
 
-          {/* Full entry list */}
-          <div className="tj-list-body">
-            {error && <p style={{ color: 'var(--accent-danger)', fontSize: 13 }}>{error}</p>}
-            {loading ? (
-              <div className="tj-empty"><span style={{ color: 'var(--text-dimmed)', fontSize: 13 }}>Loading…</span></div>
-            ) : entries.length === 0 ? (
-              <div className="tj-empty">
-                <span className="tj-empty-icon">📓</span>
-                <span>No entries yet. Create your first one.</span>
-                <button className="tj-btn-primary" onClick={() => navigate('/personal-care/journal/new')}>+ New Entry</button>
-              </div>
-            ) : (
-              <div className="tj-list-grid">
-                {entries.map(e => <EntryCard key={e.id} e={e} />)}
-              </div>
-            )}
+              {activeTopic && (
+                <div className="tj-quick-form">
+                  <div style={{ fontSize: 11, color: topicMap[activeTopic]?.color, fontWeight: 700, marginBottom: 2 }}>
+                    {topicMap[activeTopic]?.icon} {topicMap[activeTopic]?.label}
+                  </div>
+                  <input autoFocus className="tj-quick-input" value={quickTitle}
+                    onChange={e => setQuickTitle(e.target.value)}
+                    placeholder="What's on your mind?"
+                    onKeyDown={e => e.key === 'Escape' && (setActiveTopic(null), setQuickTitle(''), setQuickDesc(''))}
+                  />
+                  <textarea className="tj-quick-textarea" value={quickDesc}
+                    onChange={e => setQuickDesc(e.target.value)}
+                    placeholder="Add more detail… (optional)"
+                    rows={2}
+                  />
+                  <div className="tj-quick-form-row">
+                    <button className="tj-btn-primary" onClick={handleQuickSave}
+                      disabled={savingQuick || !quickTitle.trim()}>
+                      {savingQuick ? 'Saving…' : 'Save'}
+                    </button>
+                    <button className="tj-btn-secondary"
+                      onClick={() => { setActiveTopic(null); setQuickTitle(''); setQuickDesc(''); }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Quick entry cards */}
+              {quickList.length > 0 && (
+                <div className="tj-quick-entries">
+                  {quickList.map(q => (
+                    <QuickCard key={q.id} q={q}
+                      onArchive={handleArchiveQuick}
+                      onDelete={handleDeleteQuick} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* ── PATTERNS TAB ──────────────────────────────────────────────────── */}
