@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { fetchTimelineItems } from '../utils/api/timeline';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { fetchTimelineItems, exportTimeline, importTimeline } from '../utils/api/timeline';
 import { LANES, TYPES, laneMeta, itemColor } from '../utils/timelineConstants';
 import TimelineItemDrawer from '../components/TimelineItemDrawer';
 import './TimelinePage.css';
@@ -49,6 +49,8 @@ export default function TimelinePage() {
   const [showLaneFilter, setShowLaneFilter] = useState(false);
   const [compact, setCompact] = useState(false);
   const [drawerItem, setDrawerItem] = useState(null); // null = closed
+  const [busy, setBusy] = useState(false);
+  const fileInputRef = useRef(null);
 
   const load = () => {
     setLoading(true);
@@ -98,6 +100,54 @@ export default function TimelinePage() {
   const handleSaved = () => load();
   const handleDeleted = () => load();
 
+  const handleExport = async () => {
+    setBusy(true);
+    try {
+      const payload = await exportTimeline();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `life-map-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Export failed. See console for details.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-importing the same file
+    if (!file) return;
+    setBusy(true);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const items = Array.isArray(data) ? data : data.items;
+      if (!Array.isArray(items)) throw new Error('No items array found in file');
+      if (!window.confirm(`Import ${items.length} item(s)? They will be added to your existing Life Map.`)) {
+        setBusy(false);
+        return;
+      }
+      const res = await importTimeline(data);
+      alert(`Imported ${res.created} item(s)` +
+        (res.links_created ? `, ${res.links_created} link(s)` : '') +
+        (res.skipped ? `. Skipped ${res.skipped} invalid.` : '.'));
+      load();
+    } catch (err) {
+      console.error('Import failed:', err);
+      alert(`Import failed: ${err.message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const nowY = new Date().getFullYear();
 
   return (
@@ -117,6 +167,9 @@ export default function TimelinePage() {
 
         <button className="tl-filter-btn" onClick={() => setShowLaneFilter(v => !v)}>Lanes ▾</button>
         <button className="tl-filter-btn" onClick={() => setCompact(v => !v)}>{compact ? 'Comfortable' : 'Compact'}</button>
+        <button className="tl-filter-btn" onClick={handleExport} disabled={busy} title="Download all items as JSON">⬇ Export</button>
+        <button className="tl-filter-btn" onClick={() => fileInputRef.current?.click()} disabled={busy} title="Import items from a JSON file">⬆ Import</button>
+        <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={handleImportFile} style={{ display: 'none' }} />
         <button className="tl-new-btn" onClick={() => openNew({})}>+ New</button>
       </div>
 

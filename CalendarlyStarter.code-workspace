@@ -1,0 +1,28 @@
+{"settings": {
+    // 1. Branding & Peacock
+    "peacock.color": "#000000",
+
+    // 2. Editor Standards (The "Luis Sandries Special" foundation)
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+
+    // 4. File Management (Keep the workspace clean)
+    "files.exclude": {
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/node_modules": true,
+        "**/dist": true,
+        "**/target": true
+    },
+
+    // 5. Terminal & Environment
+    "terminal.integrated.env.linux": {
+        "PROJECT_ROOT": "${workspaceFolder}"
+    }
+}}
