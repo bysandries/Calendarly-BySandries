@@ -10,8 +10,10 @@ const path = require('path');
 const { URL } = require('url');
 
 const API_PORT = process.env.PORT || 3000;
-const EXTERNAL_URL = process.env.GEMINI_EXTERNAL_STATS_API || 'https://dietpi.tailc92e5c.ts.net/api/code-agents';
-const SCRATCH_DIR = '/Users/bysandries/.gemini/antigravity-cli/scratch';
+// Optional external telemetry endpoint; when unset, external posting is skipped.
+const EXTERNAL_URL = process.env.GEMINI_EXTERNAL_STATS_API || '';
+const SCRATCH_DIR = process.env.GEMINI_SCRATCH_DIR ||
+  path.join(process.env.HOME || '/tmp', '.gemini', 'antigravity-cli', 'scratch');
 const PENDING_DIR = path.join(SCRATCH_DIR, 'pending_stats');
 
 // Promise-based fire-and-forget request helper
@@ -184,20 +186,22 @@ process.stdin.on('end', async () => {
       // Local server might be offline, ignore so we don't block
     }
 
-    // 2. Send to external telemetry API
-    try {
-      await postPayload(EXTERNAL_URL, body);
-    } catch (e) {
-      // External API is down or user is offline! Save data to post it later.
-      if (!fs.existsSync(PENDING_DIR)) {
-        fs.mkdirSync(PENDING_DIR, { recursive: true });
+    // 2. Send to external telemetry API (only if an endpoint is configured)
+    if (EXTERNAL_URL) {
+      try {
+        await postPayload(EXTERNAL_URL, body);
+      } catch (e) {
+        // External API is down or user is offline! Save data to post it later.
+        if (!fs.existsSync(PENDING_DIR)) {
+          fs.mkdirSync(PENDING_DIR, { recursive: true });
+        }
+        const queueFile = path.join(PENDING_DIR, `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.json`);
+        fs.writeFileSync(queueFile, JSON.stringify(body));
       }
-      const queueFile = path.join(PENDING_DIR, `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.json`);
-      fs.writeFileSync(queueFile, JSON.stringify(body));
-    }
 
-    // 3. Attempt to flush previously queued stats if we are online now
-    await processPendingStats(EXTERNAL_URL, PENDING_DIR);
+      // 3. Attempt to flush previously queued stats if we are online now
+      await processPendingStats(EXTERNAL_URL, PENDING_DIR);
+    }
 
   } catch (_) {
     // never block execution

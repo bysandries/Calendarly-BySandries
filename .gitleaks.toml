@@ -1,0 +1,20 @@
+# Gitleaks configuration for CalendarlyStarter.
+# Extends the built-in ruleset and adds project-specific allowlists.
+title = "CalendarlyStarter gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Files that intentionally contain placeholder/redacted values"
+paths = [
+  '''\.env\.template$''',      # placeholders only (e.g. "your-super-secure-...")
+  '''SECURITY_FINDINGS\.md$''', # documents a truncated/redacted token reference
+  '''(^|/)node_modules/''',
+  '''(^|/)graphify-out/''',
+]
+# Ignore obvious placeholder strings if they ever appear in tracked files.
+regexes = [
+  '''change-me-in-production''',
+  '''your-super-secure-high-entropy-passphrase''',
+]

@@ -2,7 +2,7 @@
     // 1. Branding & Peacock
     "peacock.color": "#000000",
 
-    // 2. Editor Standards (The "Luis Sandries Special" foundation)
+    // 2. Editor Standards
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
         "source.fixAll.eslint": "explicit"

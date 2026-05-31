@@ -6,7 +6,10 @@
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "server": "npm start --prefix server",
     "client": "npm run dev --prefix client",
-    "test": "node server/test-db.js"
+    "test": "node server/test-db.js",
+    "hooks:install": "git config core.hooksPath .githooks",
+    "secrets:scan": "gitleaks git --redact --config .gitleaks.toml -v",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "keywords": [],
   "author": "",
