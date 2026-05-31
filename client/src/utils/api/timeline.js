@@ -7,3 +7,5 @@ export const updateTimelineItem = (id, body)    => api.put(`/timeline/${id}`, bo
 export const deleteTimelineItem = (id)          => api.delete(`/timeline/${id}`);
 export const addTimelineLink    = (id, body)    => api.post(`/timeline/${id}/links`, body);
 export const deleteTimelineLink = (id, linkId)  => api.delete(`/timeline/${id}/links/${linkId}`);
+export const exportTimeline     = ()            => api.get('/timeline/export');
+export const importTimeline     = (payload)     => api.post('/timeline/import', payload);

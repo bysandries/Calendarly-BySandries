@@ -40,6 +40,73 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/timeline/export  — full backup payload (items + their links)
+// Declared before '/:id' so the literal path isn't captured by the param route.
+router.get('/export', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const items = await db.all('SELECT * FROM timeline_items ORDER BY start_date ASC, sort_order ASC');
+    const links = await db.all('SELECT * FROM timeline_item_links ORDER BY created_at ASC');
+    const linksByItem = {};
+    links.forEach(l => { (linksByItem[l.item_id] = linksByItem[l.item_id] || []).push(l); });
+    res.json({
+      type: 'calendarly-timeline-export',
+      version: 1,
+      exported_at: new Date().toISOString(),
+      count: items.length,
+      items: items.map(it => ({ ...hydrate(it), links: linksByItem[it.id] || [] })),
+    });
+  } catch (err) {
+    console.error('GET /timeline/export error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/timeline/import  — append items from an export payload.
+// Generates fresh ids (never overwrites existing items); preserves
+// version_history and recreates links (link_id targets are external, so no
+// remapping is needed).
+router.post('/import', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const body = req.body || {};
+    const items = Array.isArray(body) ? body : (Array.isArray(body.items) ? body.items : null);
+    if (!items) return res.status(400).json({ error: 'Expected an array of items or { items: [...] }' });
+
+    let created = 0, linksCreated = 0, skipped = 0;
+    for (const raw of items) {
+      if (!raw || !raw.title || !raw.title.trim() || !raw.start_date) { skipped++; continue; }
+      const id = newId();
+      const ts = now();
+      const vh = Array.isArray(raw.version_history)
+        ? JSON.stringify(raw.version_history)
+        : (typeof raw.version_history === 'string' ? raw.version_history : '[]');
+      await db.run(
+        `INSERT INTO timeline_items
+          (id, title, type, lane, color, start_date, end_date, status, progress, notes, version_history, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, raw.title.trim(), raw.type || 'goal', raw.lane || 'general', raw.color || null,
+         raw.start_date, raw.end_date || null, raw.status || 'planned', Number(raw.progress) || 0,
+         raw.notes || null, vh, Number(raw.sort_order) || 0, ts, ts]
+      );
+      created++;
+      const links = Array.isArray(raw.links) ? raw.links : [];
+      for (const l of links) {
+        if (!l || !l.link_type || !l.link_id) continue;
+        await db.run(
+          'INSERT INTO timeline_item_links (id, item_id, link_type, link_id, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+          [newId('tllink'), id, l.link_type, String(l.link_id), l.notes || null, ts]
+        );
+        linksCreated++;
+      }
+    }
+    res.json({ ok: true, created, links_created: linksCreated, skipped });
+  } catch (err) {
+    console.error('POST /timeline/import error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/timeline/:id  — one item with hydrated links
 router.get('/:id', async (req, res) => {
   try {
