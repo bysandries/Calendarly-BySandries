@@ -26,6 +26,7 @@ import TaskDetailPage from './pages/TaskDetailPage';
 import PomodoroPage from './pages/PomodoroPage';
 import TimelinePage from './pages/TimelinePage';
 import { IconMenu } from './components/Layout/NavIcons';
+import AuthGate from './components/AuthGate';
 
 function MainLayout() {
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -99,9 +100,11 @@ function MainLayout() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <MainLayout />
-    </BrowserRouter>
+    <AuthGate>
+      <BrowserRouter>
+        <MainLayout />
+      </BrowserRouter>
+    </AuthGate>
   );
 }
 

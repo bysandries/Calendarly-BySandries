@@ -84,7 +84,7 @@ http://localhost:3000
 
 ### 3.2 Authentication
 
-The Calendarly backend currently runs **without authentication** in local-first mode. No API keys, tokens, or session cookies are required. If the user has configured `SECRET_UPLOAD_PASSWORD`, only the upload endpoints require the `x-upload-password` header (but you are forbidden from those endpoints anyway).
+The Calendarly backend requires a **shared API token** on every request. Send it as `Authorization: Bearer <token>` or `x-api-key: <token>`, using the value of the server's `API_AUTH_TOKEN`. The only unauthenticated endpoint is the liveness probe `GET /api/health`. Requests without a valid token receive `401 Unauthorized`; if the server has no token configured it fails closed with `503`. Upload endpoints additionally require the `x-upload-password` header (but you are forbidden from those endpoints anyway).
 
 ### 3.3 Allowed Endpoints — Full Catalog
 

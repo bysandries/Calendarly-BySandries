@@ -1,0 +1,37 @@
+#!/usr/bin/env sh
+# ─────────────────────────────────────────────────────────────────────────────
+# Pre-commit secret scan (gitleaks).
+# Blocks commits that introduce secrets (API keys, tokens, DB encryption keys…).
+#
+# Enabled via:  git config core.hooksPath .githooks   (run: npm run hooks:install)
+# Bypass once (NOT recommended): SKIP_GITLEAKS=1 git commit ...
+# ─────────────────────────────────────────────────────────────────────────────
+
+if [ "$SKIP_GITLEAKS" = "1" ]; then
+  echo "[gitleaks] scan skipped via SKIP_GITLEAKS=1"
+  exit 0
+fi
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "┌────────────────────────────────────────────────────────────────┐"
+  echo "│ gitleaks is not installed — secret scanning is REQUIRED.         │"
+  echo "│   macOS:  brew install gitleaks                                  │"
+  echo "│   other:  https://github.com/gitleaks/gitleaks#installing        │"
+  echo "│                                                                  │"
+  echo "│ To bypass this one commit (not recommended):                     │"
+  echo "│   SKIP_GITLEAKS=1 git commit ...                                 │"
+  echo "└────────────────────────────────────────────────────────────────┘"
+  exit 1
+fi
+
+# Scan only what is staged for this commit.
+gitleaks git --staged --redact --config .gitleaks.toml
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "[gitleaks] Potential secret detected — commit blocked."
+  echo "  • If it is a real secret: remove it and use an env var instead."
+  echo "  • If it is a false positive: add an allowlist entry to .gitleaks.toml."
+  exit 1
+fi
+
+exit 0

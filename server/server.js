@@ -33,11 +33,13 @@ app.use(helmet({
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 
-// Enable CORS
+// Enable CORS. Even in dev we no longer reflect every origin ('*'); we only
+// allow loopback origins (any port). Production uses the explicit allowlist.
+const devOrigins = [/^http:\/\/localhost(:\d+)?$/, /^http:\/\/127\.0\.0\.1(:\d+)?$/];
 app.use(cors({
-  origin: isDev ? '*' : (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean),
+  origin: isDev ? devOrigins : (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean),
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-upload-password']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-upload-password']
 }));
 
 // Rate limiting (ECC: rate limiting on all endpoints)
@@ -65,6 +67,18 @@ app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
+
+// Public liveness probe — declared BEFORE the auth gate so container health
+// checks work without a token. Intentionally exposes nothing sensitive
+// (no env, no DB details).
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+// Authentication gate — every /api route below this line requires the shared
+// API token. The liveness probe above is the only unauthenticated endpoint.
+const { requireApiToken } = require('./middleware/auth');
+app.use('/api', requireApiToken);
 
 // Import routers
 const eventsRouter = require('./routes/events');
@@ -114,16 +128,11 @@ app.use('/api/personal-goals', personalGoalsRouter);
 app.use('/api/activity-energy-log', activityEnergyLogRouter);
 app.use('/api/timeline', timelineRouter);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV || 'development'
-  });
-});
+// Note: the public liveness probe is registered above the auth gate.
+// The integrity check below is intentionally behind the auth gate because it
+// can mutate the database (restore from backup) and exposes DB internals.
 
-// Database integrity check and auto-restore endpoint
+// Database integrity check and auto-restore endpoint (authenticated)
 app.get('/api/health/integrity-check', async (req, res) => {
   try {
     const { runIntegrityCheck } = require('./integrity-checker');

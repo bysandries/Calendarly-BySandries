@@ -3,6 +3,7 @@ const express = require('express');
 const multer = require('multer');
 const decompress = require('decompress');
 const fs = require('fs');
+const { safeEqual } = require('../middleware/auth');
 const router = express.Router();
 
 const WORKSPACE_ROOT = path.resolve(__dirname, '..');
@@ -47,10 +48,18 @@ function requireUploadPassword(req, res, next) {
     return res.status(500).json({ error: 'Upload password not configured on server.' });
   }
   const provided = req.headers['x-upload-password'];
-  if (!provided || provided !== expected) {
+  if (!provided || !safeEqual(provided, expected)) {
     return res.status(401).json({ error: 'Invalid or missing upload password.' });
   }
   next();
+}
+
+// Returns true only if `entryPath` resolves to a location inside GRAPHIFY_OUT.
+// Used to reject zip-slip / path-traversal entries BEFORE they are written.
+function isWithinOutput(entryPath) {
+  const OUT_PREFIX = path.resolve(GRAPHIFY_OUT) + path.sep;
+  const resolved = path.resolve(GRAPHIFY_OUT, entryPath);
+  return resolved === path.resolve(GRAPHIFY_OUT) || resolved.startsWith(OUT_PREFIX);
 }
 
 // ── POST /api/upload/graphify ──
@@ -74,16 +83,29 @@ router.post(
       // Ensure target directory exists
       fs.mkdirSync(GRAPHIFY_OUT, { recursive: true });
 
-      // Extract archive
-      const files = await decompress(archivePath, GRAPHIFY_OUT);
+      // Extract archive. The `filter` runs BEFORE each entry is written to
+      // disk, so zip-slip / path-traversal entries never touch the filesystem.
+      let blockedTraversal = false;
+      const files = await decompress(archivePath, GRAPHIFY_OUT, {
+        filter: (file) => {
+          if (!isWithinOutput(file.path)) {
+            blockedTraversal = true;
+            return false;
+          }
+          return true;
+        },
+      });
 
-      // Prevent zip-slip path traversal: ensure no extracted entry escapes GRAPHIFY_OUT
-      const OUT_PREFIX = path.resolve(GRAPHIFY_OUT) + path.sep;
+      // Defense-in-depth: verify nothing slipped through the filter.
       for (const f of files) {
-        if (!path.resolve(GRAPHIFY_OUT, f.path).startsWith(OUT_PREFIX)) {
-          fs.rmSync(GRAPHIFY_OUT, { recursive: true, force: true });
-          throw new Error(`Path traversal attempt blocked: ${f.path}`);
+        if (!isWithinOutput(f.path)) {
+          blockedTraversal = true;
+          break;
         }
+      }
+      if (blockedTraversal) {
+        fs.rmSync(GRAPHIFY_OUT, { recursive: true, force: true });
+        throw new Error('Path traversal attempt blocked.');
       }
 
       // Clean up temp archive
@@ -117,7 +139,8 @@ router.post(
       try {
         if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath);
       } catch (e) { /* ignore */ }
-      return res.status(500).json({ error: 'Failed to extract archive.', details: error.message });
+      // Do not leak error.message (filesystem paths / internals) to the client.
+      return res.status(500).json({ error: 'Failed to extract archive.' });
     }
   }
 );

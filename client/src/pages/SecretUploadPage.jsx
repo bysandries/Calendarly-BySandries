@@ -1,6 +1,14 @@
 import { useState, useRef, useCallback } from 'react';
+import { getApiToken } from '../utils/api/core';
 
 const API_BASE = '/api';
+
+// The upload endpoints sit behind the global API auth gate as well as the
+// upload-password gate, so every request must carry the Bearer token too.
+const authHeader = () => {
+  const token = getApiToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 function isValidArchive(filename) {
   const f = filename.toLowerCase();
@@ -15,6 +23,7 @@ async function uploadFile(file, password) {
     method: 'POST',
     headers: {
       'x-upload-password': password,
+      ...authHeader(),
     },
     body: formData,
   });
@@ -30,6 +39,7 @@ async function checkStatus(password) {
   const response = await fetch(`${API_BASE}/upload/graphify/status`, {
     headers: {
       'x-upload-password': password,
+      ...authHeader(),
     },
   });
   const data = await response.json().catch(() => ({ error: response.statusText }));
