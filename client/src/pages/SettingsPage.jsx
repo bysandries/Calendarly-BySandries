@@ -40,6 +40,7 @@ export default function SettingsPage() {
       { id: '/notes', label: 'Extracts', enabled: true },
       { id: '/habits', label: 'Habits', enabled: true },
       { id: '/calendar', label: 'Calendar Tracking', enabled: true },
+      { id: '/timeline', label: 'Life Map', enabled: true },
       { id: '/pomodoro', label: 'Pomodoro', enabled: true },
       { id: '/analytics', label: 'Reflection Dashboard', enabled: true },
       { id: '/agents', label: 'Code Agents', enabled: true },

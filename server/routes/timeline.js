@@ -1,0 +1,208 @@
+const express = require('express');
+const router = express.Router();
+const { getDbConnection } = require('../db');
+
+function now() {
+  return new Date().toISOString().replace('T', ' ').split('.')[0];
+}
+
+function newId(prefix = 'tl') {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+}
+
+const hydrate = (item) => ({
+  ...item,
+  version_history: JSON.parse(item.version_history || '[]'),
+});
+
+// GET /api/timeline  — all items (filterable by type, lane, status)
+router.get('/', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const { type, lane, status } = req.query;
+    let sql = 'SELECT * FROM timeline_items WHERE 1=1';
+    const params = [];
+    if (type)   { sql += ' AND type = ?';   params.push(type);   }
+    if (lane)   { sql += ' AND lane = ?';   params.push(lane);   }
+    if (status) { sql += ' AND status = ?'; params.push(status); }
+    sql += ' ORDER BY start_date ASC, sort_order ASC';
+    const rows = await db.all(sql, params);
+
+    // Attach link counts so the canvas can show a "linked" indicator cheaply.
+    const counts = await db.all(
+      'SELECT item_id, COUNT(*) AS n FROM timeline_item_links GROUP BY item_id'
+    );
+    const countMap = Object.fromEntries(counts.map(c => [c.item_id, c.n]));
+    res.json(rows.map(r => ({ ...hydrate(r), link_count: countMap[r.id] || 0 })));
+  } catch (err) {
+    console.error('GET /timeline error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/timeline/:id  — one item with hydrated links
+router.get('/:id', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const item = await db.get('SELECT * FROM timeline_items WHERE id = ?', [req.params.id]);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    const links = await db.all(
+      'SELECT * FROM timeline_item_links WHERE item_id = ? ORDER BY created_at ASC',
+      [req.params.id]
+    );
+    res.json({ ...hydrate(item), links });
+  } catch (err) {
+    console.error('GET /timeline/:id error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/timeline
+router.post('/', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const {
+      title, type = 'goal', lane = 'general', color = null,
+      start_date, end_date = null, status = 'planned',
+      progress = 0, notes = null, sort_order = 0,
+    } = req.body;
+    if (!title || !title.trim()) return res.status(400).json({ error: 'Title is required' });
+    if (!start_date) return res.status(400).json({ error: 'start_date is required' });
+    const id = newId();
+    const ts = now();
+    await db.run(
+      `INSERT INTO timeline_items
+        (id, title, type, lane, color, start_date, end_date, status, progress, notes, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, title.trim(), type, lane, color, start_date, end_date, status,
+       Number(progress) || 0, notes, Number(sort_order) || 0, ts, ts]
+    );
+    const item = await db.get('SELECT * FROM timeline_items WHERE id = ?', [id]);
+    res.status(201).json(hydrate(item));
+  } catch (err) {
+    console.error('POST /timeline error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/timeline/:id  — snapshots the prior state into version_history first
+router.put('/:id', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const item = await db.get('SELECT * FROM timeline_items WHERE id = ?', [req.params.id]);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
+    const ts = now();
+    const {
+      title, type, lane, color, start_date, end_date,
+      status, progress, notes, sort_order,
+    } = req.body;
+
+    // Only snapshot when something plan-shaping actually changed, so cosmetic
+    // edits (notes, color) don't pollute the history view.
+    const planChanged =
+      (start_date !== undefined && start_date !== item.start_date) ||
+      (end_date   !== undefined && end_date   !== item.end_date)   ||
+      (status     !== undefined && status     !== item.status)     ||
+      (progress   !== undefined && Number(progress) !== item.progress) ||
+      (lane       !== undefined && lane       !== item.lane);
+
+    let history = JSON.parse(item.version_history || '[]');
+    if (planChanged) {
+      history = [...history, {
+        changed_at: ts,
+        start_date: item.start_date,
+        end_date: item.end_date,
+        status: item.status,
+        progress: item.progress,
+        lane: item.lane,
+      }];
+    }
+
+    await db.run(
+      `UPDATE timeline_items SET
+        title = COALESCE(?, title),
+        type = COALESCE(?, type),
+        lane = COALESCE(?, lane),
+        color = ?,
+        start_date = COALESCE(?, start_date),
+        end_date = ?,
+        status = COALESCE(?, status),
+        progress = COALESCE(?, progress),
+        notes = ?,
+        sort_order = COALESCE(?, sort_order),
+        version_history = ?,
+        updated_at = ?
+       WHERE id = ?`,
+      [
+        title?.trim() || null,
+        type || null,
+        lane || null,
+        color !== undefined ? color : item.color,
+        start_date || null,
+        end_date !== undefined ? end_date : item.end_date,
+        status || null,
+        progress !== undefined ? Number(progress) : null,
+        notes !== undefined ? notes : item.notes,
+        sort_order !== undefined ? Number(sort_order) : null,
+        JSON.stringify(history),
+        ts,
+        req.params.id,
+      ]
+    );
+    const updated = await db.get('SELECT * FROM timeline_items WHERE id = ?', [req.params.id]);
+    res.json(hydrate(updated));
+  } catch (err) {
+    console.error('PUT /timeline/:id error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/timeline/:id  (cascades links)
+router.delete('/:id', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const item = await db.get('SELECT id FROM timeline_items WHERE id = ?', [req.params.id]);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    await db.run('DELETE FROM timeline_item_links WHERE item_id = ?', [req.params.id]);
+    await db.run('DELETE FROM timeline_items WHERE id = ?', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /timeline/:id error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/timeline/:id/links
+router.post('/:id/links', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const { link_type, link_id, notes } = req.body;
+    if (!link_type || !link_id) return res.status(400).json({ error: 'link_type and link_id are required' });
+    const id = newId('tllink');
+    const ts = now();
+    await db.run(
+      'INSERT INTO timeline_item_links (id, item_id, link_type, link_id, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, req.params.id, link_type, link_id, notes || null, ts]
+    );
+    const link = await db.get('SELECT * FROM timeline_item_links WHERE id = ?', [id]);
+    res.status(201).json(link);
+  } catch (err) {
+    console.error('POST /timeline/:id/links error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/timeline/:id/links/:linkId
+router.delete('/:id/links/:linkId', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    await db.run('DELETE FROM timeline_item_links WHERE id = ? AND item_id = ?', [req.params.linkId, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /timeline/:id/links/:linkId error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+module.exports = router;

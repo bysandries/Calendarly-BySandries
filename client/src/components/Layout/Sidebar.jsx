@@ -13,6 +13,7 @@ import {
   IconAgents,
   IconHabits,
   IconHeart,
+  IconMap,
   IconSettings,
 
   IconChevronLeft,
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { to: '/habits', icon: IconHabits, label: 'Habits' },
   { to: '/personal-care', icon: IconHeart, label: 'Personal Care' },
   { to: '/calendar', icon: IconCalendar, label: 'Calendar Tracking' },
+  { to: '/timeline', icon: IconMap, label: 'Life Map' },
   { to: '/pomodoro', icon: IconClock, label: 'Pomodoro', mobileOnly: true },
   { to: '/analytics', icon: IconAnalytics, label: 'Reflection Dashboard' },
   { to: '/agents', icon: IconAgents, label: 'Code Agents' },
@@ -71,7 +73,18 @@ export default function Sidebar({ isMobileOpen, onClose }) {
                 return original ? { ...original, label: c.label } : null;
               })
               .filter(Boolean);
-              
+
+            // Show nav items added in code that aren't in the saved config yet
+            // (e.g. newly shipped features). Insert them just above Settings so
+            // they're visible without forcing the user to re-save nav prefs.
+            const configuredIds = new Set(config.map(c => c.id));
+            const missing = NAV_ITEMS.filter(item => !configuredIds.has(item.to));
+            if (missing.length) {
+              const settingsIdx = orderedItems.findIndex(i => i.to === '/settings');
+              if (settingsIdx >= 0) orderedItems.splice(settingsIdx, 0, ...missing);
+              else orderedItems.push(...missing);
+            }
+
             setNavItems(orderedItems);
           }
         }
