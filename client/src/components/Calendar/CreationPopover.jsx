@@ -170,27 +170,29 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
   };
 
   return ReactDOM.createPortal(
-    <div className="creation-popover google-popover glass-panel" style={style} onMouseDown={e => e.stopPropagation()}>
-      {/* Header: hamburger left, close right */}
-      <div className="gpop-header">
-        <button
-          className="gpop-icon-btn"
-          type="button"
-          title={isExpanded ? 'Collapse' : 'Expand'}
-          onClick={() => setIsExpanded(!isExpanded)}
-          aria-label="Toggle expand"
-        >
-          <span className="gpop-hamburger">≡</span>
-        </button>
-        <button
-          className="gpop-icon-btn"
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-        >
-          <span className="gpop-close">✕</span>
-        </button>
-      </div>
+    <>
+      {isMobile && <div className="gpop-backdrop" onClick={onClose} />}
+      <div className="creation-popover google-popover glass-panel" style={style} onMouseDown={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="gpop-header">
+          <button
+            className="gpop-icon-btn"
+            type="button"
+            title={isExpanded ? 'Collapse' : 'Expand'}
+            onClick={() => setIsExpanded(!isExpanded)}
+            aria-label="Toggle expand"
+          >
+            <span className="gpop-hamburger">≡</span>
+          </button>
+          <button
+            className={`gpop-icon-btn ${isMobile ? 'gpop-close-btn-mobile' : ''}`}
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <span className="gpop-close">{isMobile ? 'Close ✕' : '✕'}</span>
+          </button>
+        </div>
 
       <form onSubmit={handleSubmit} className="gpop-form">
 
@@ -431,7 +433,8 @@ const CreationPopover = ({ isOpen, onClose, initialData, areas, onSave, onAreasC
           </button>
         </div>
       </form>
-    </div>,
+    </div>
+    </>,
     document.body
   );
 };
