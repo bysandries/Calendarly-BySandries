@@ -272,6 +272,51 @@
   flex-shrink: 0;
 }
 
+/* Mood indicator */
+.tl-mood-indicator {
+  font-size: 10px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.tl-mood-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  border: 2px solid var(--surface-1, #16161e);
+  z-index: 3;
+}
+
+/* Drag-and-drop */
+.tl-band[draggable], .tl-milestone-wrap[draggable] {
+  cursor: grab;
+}
+.tl-band[draggable]:active, .tl-milestone-wrap[draggable]:active {
+  cursor: grabbing;
+}
+.tl-band.tl-dragging {
+  opacity: 0.4;
+  transform: scale(0.95);
+}
+.tl-milestone.tl-dragging {
+  opacity: 0.4;
+}
+.tl-band.tl-drag-over {
+  outline: 2px dashed var(--accent-primary, #6366f1);
+  outline-offset: 2px;
+  filter: brightness(1.15);
+}
+.tl-milestone-wrap.tl-drag-over .tl-milestone {
+  outline: 2px dashed var(--accent-primary, #6366f1);
+  outline-offset: 2px;
+}
+
 /* Empty state */
 .tl-empty {
   display: flex;

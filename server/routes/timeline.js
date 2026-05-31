@@ -25,7 +25,12 @@ router.get('/', async (req, res) => {
     if (type)   { sql += ' AND type = ?';   params.push(type);   }
     if (lane)   { sql += ' AND lane = ?';   params.push(lane);   }
     if (status) { sql += ' AND status = ?'; params.push(status); }
-    sql += ' ORDER BY start_date ASC, sort_order ASC';
+    const sort = req.query.sort || 'date';
+    if (sort === 'mood') {
+      sql += ' ORDER BY mood DESC NULLS LAST, start_date ASC, sort_order ASC';
+    } else {
+      sql += ' ORDER BY start_date ASC, sort_order ASC';
+    }
     const rows = await db.all(sql, params);
 
     // Attach link counts so the canvas can show a "linked" indicator cheaply.
@@ -83,11 +88,12 @@ router.post('/import', async (req, res) => {
         : (typeof raw.version_history === 'string' ? raw.version_history : '[]');
       await db.run(
         `INSERT INTO timeline_items
-          (id, title, type, lane, color, start_date, end_date, status, progress, notes, version_history, sort_order, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (id, title, type, lane, color, start_date, end_date, status, progress, notes, version_history, sort_order, mood, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, raw.title.trim(), raw.type || 'goal', raw.lane || 'general', raw.color || null,
          raw.start_date, raw.end_date || null, raw.status || 'planned', Number(raw.progress) || 0,
-         raw.notes || null, vh, Number(raw.sort_order) || 0, ts, ts]
+         raw.notes || null, vh, Number(raw.sort_order) || 0,
+         raw.mood != null ? Number(raw.mood) : null, ts, ts]
       );
       created++;
       const links = Array.isArray(raw.links) ? raw.links : [];
@@ -103,6 +109,30 @@ router.post('/import', async (req, res) => {
     res.json({ ok: true, created, links_created: linksCreated, skipped });
   } catch (err) {
     console.error('POST /timeline/import error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/timeline/reorder  — bulk-update sort_order for DnD reorder
+router.post('/reorder', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const { order } = req.body; // [{ id, sort_order }, ...]
+    if (!Array.isArray(order)) return res.status(400).json({ error: 'Expected an order array' });
+    await db.run('BEGIN');
+    try {
+      for (const o of order) {
+        await db.run('UPDATE timeline_items SET sort_order = ?, updated_at = ? WHERE id = ?',
+          [Number(o.sort_order) || 0, now(), o.id]);
+      }
+      await db.run('COMMIT');
+    } catch (innerErr) {
+      await db.run('ROLLBACK');
+      throw innerErr;
+    }
+    res.json({ ok: true, updated: order.length });
+  } catch (err) {
+    console.error('POST /timeline/reorder error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -131,18 +161,19 @@ router.post('/', async (req, res) => {
     const {
       title, type = 'goal', lane = 'general', color = null,
       start_date, end_date = null, status = 'planned',
-      progress = 0, notes = null, sort_order = 0,
+      progress = 0, notes = null, sort_order = 0, mood = null,
     } = req.body;
     if (!title || !title.trim()) return res.status(400).json({ error: 'Title is required' });
     if (!start_date) return res.status(400).json({ error: 'start_date is required' });
+    if (mood != null && (mood < 1 || mood > 10)) return res.status(400).json({ error: 'Mood must be between 1 and 10' });
     const id = newId();
     const ts = now();
     await db.run(
       `INSERT INTO timeline_items
-        (id, title, type, lane, color, start_date, end_date, status, progress, notes, sort_order, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, title, type, lane, color, start_date, end_date, status, progress, notes, sort_order, mood, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, title.trim(), type, lane, color, start_date, end_date, status,
-       Number(progress) || 0, notes, Number(sort_order) || 0, ts, ts]
+       Number(progress) || 0, notes, Number(sort_order) || 0, mood != null ? Number(mood) : null, ts, ts]
     );
     const item = await db.get('SELECT * FROM timeline_items WHERE id = ?', [id]);
     res.status(201).json(hydrate(item));
@@ -162,8 +193,10 @@ router.put('/:id', async (req, res) => {
     const ts = now();
     const {
       title, type, lane, color, start_date, end_date,
-      status, progress, notes, sort_order,
+      status, progress, notes, sort_order, mood,
     } = req.body;
+
+    if (mood != null && (mood < 1 || mood > 10)) return res.status(400).json({ error: 'Mood must be between 1 and 10' });
 
     // Only snapshot when something plan-shaping actually changed, so cosmetic
     // edits (notes, color) don't pollute the history view.
@@ -198,6 +231,7 @@ router.put('/:id', async (req, res) => {
         progress = COALESCE(?, progress),
         notes = ?,
         sort_order = COALESCE(?, sort_order),
+        mood = ?,
         version_history = ?,
         updated_at = ?
        WHERE id = ?`,
@@ -212,6 +246,7 @@ router.put('/:id', async (req, res) => {
         progress !== undefined ? Number(progress) : null,
         notes !== undefined ? notes : item.notes,
         sort_order !== undefined ? Number(sort_order) : null,
+        mood !== undefined ? (mood != null ? Number(mood) : null) : item.mood,
         JSON.stringify(history),
         ts,
         req.params.id,
