@@ -119,9 +119,16 @@ router.post('/reorder', async (req, res) => {
     const db = await getDbConnection();
     const { order } = req.body; // [{ id, sort_order }, ...]
     if (!Array.isArray(order)) return res.status(400).json({ error: 'Expected an order array' });
-    for (const o of order) {
-      await db.run('UPDATE timeline_items SET sort_order = ?, updated_at = ? WHERE id = ?',
-        [Number(o.sort_order) || 0, now(), o.id]);
+    await db.run('BEGIN');
+    try {
+      for (const o of order) {
+        await db.run('UPDATE timeline_items SET sort_order = ?, updated_at = ? WHERE id = ?',
+          [Number(o.sort_order) || 0, now(), o.id]);
+      }
+      await db.run('COMMIT');
+    } catch (innerErr) {
+      await db.run('ROLLBACK');
+      throw innerErr;
     }
     res.json({ ok: true, updated: order.length });
   } catch (err) {
@@ -158,6 +165,7 @@ router.post('/', async (req, res) => {
     } = req.body;
     if (!title || !title.trim()) return res.status(400).json({ error: 'Title is required' });
     if (!start_date) return res.status(400).json({ error: 'start_date is required' });
+    if (mood != null && (mood < 1 || mood > 10)) return res.status(400).json({ error: 'Mood must be between 1 and 10' });
     const id = newId();
     const ts = now();
     await db.run(
@@ -187,6 +195,8 @@ router.put('/:id', async (req, res) => {
       title, type, lane, color, start_date, end_date,
       status, progress, notes, sort_order, mood,
     } = req.body;
+
+    if (mood != null && (mood < 1 || mood > 10)) return res.status(400).json({ error: 'Mood must be between 1 and 10' });
 
     // Only snapshot when something plan-shaping actually changed, so cosmetic
     // edits (notes, color) don't pollute the history view.

@@ -70,10 +70,6 @@ export default function TimelinePage() {
   }, [sortMode]);
   useEffect(() => { load(); }, [load]);
 
-  const handleSortChange = (mode) => {
-    setSortMode(mode);
-  };
-
   const visibleItems = useMemo(() => items.filter(it =>
     (typeFilter === 'all' || it.type === typeFilter) && !hiddenLanes.has(it.lane)
   ), [items, typeFilter, hiddenLanes]);
@@ -115,38 +111,41 @@ export default function TimelinePage() {
   const handleDeleted = () => load();
 
   // ── Drag-and-drop reorder ───────────────────────────────────────────
-  const handleDragStart = (e, id) => {
+  const handleDragStart = useCallback((e, id) => {
     setDraggedId(id);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', id);
-  };
-  const handleDragOver = (e, id) => {
+  }, []);
+  const handleDragOver = useCallback((e, id) => {
     e.preventDefault();
-    if (draggedId && draggedId !== id) setDragOverId(id);
-  };
-  const handleDragLeave = () => setDragOverId(null);
-  const handleDrop = async (e, targetId) => {
+    setDragOverId(prev => (prev === id ? prev : id));
+  }, []);
+  // Only clear dragOver when the pointer truly leaves the element (not into a child).
+  const handleDragLeave = useCallback((e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) setDragOverId(null);
+  }, []);
+  const handleDrop = useCallback(async (e, targetId) => {
     e.preventDefault();
-    const sourceId = draggedId;
-    if (!sourceId || sourceId === targetId) { setDraggedId(null); setDragOverId(null); return; }
-    const ids = items.map(i => i.id);
-    const srcIdx = ids.indexOf(sourceId);
-    const tgtIdx = ids.indexOf(targetId);
-    if (srcIdx === -1 || tgtIdx === -1) { setDraggedId(null); setDragOverId(null); return; }
-    const reordered = [...items];
-    const [moved] = reordered.splice(srcIdx, 1);
-    reordered.splice(tgtIdx, 0, moved);
-    setItems(reordered);
-    setDraggedId(null);
-    setDragOverId(null);
-    try {
-      await reorderTimelineItems(reordered.map((it, i) => ({ id: it.id, sort_order: i })));
-    } catch (err) {
-      console.error('Reorder failed:', err);
-      load();
-    }
-  };
-  const handleDragEnd = () => { setDraggedId(null); setDragOverId(null); };
+    setDraggedId(prev => {
+      const sourceId = prev;
+      if (!sourceId || sourceId === targetId) { setDragOverId(null); return null; }
+      setItems(curr => {
+        const ids = curr.map(i => i.id);
+        const srcIdx = ids.indexOf(sourceId);
+        const tgtIdx = ids.indexOf(targetId);
+        if (srcIdx === -1 || tgtIdx === -1) return curr;
+        const reordered = [...curr];
+        const [moved] = reordered.splice(srcIdx, 1);
+        reordered.splice(tgtIdx, 0, moved);
+        reorderTimelineItems(reordered.map((it, i) => ({ id: it.id, sort_order: i })))
+          .catch(err => { console.error('Reorder failed:', err); load(); });
+        return reordered;
+      });
+      setDragOverId(null);
+      return null;
+    });
+  }, [load]);
+  const handleDragEnd = useCallback(() => { setDraggedId(null); setDragOverId(null); }, []);
 
   const handleExport = async () => {
     setBusy(true);
@@ -214,7 +213,7 @@ export default function TimelinePage() {
         </div>
 
         <button className="tl-filter-btn" onClick={() => setShowLaneFilter(v => !v)}>Lanes ▾</button>
-        <button className={`tl-filter-btn ${sortMode === 'mood' ? 'active' : ''}`} onClick={() => handleSortChange(sortMode === 'mood' ? 'date' : 'mood')} title="Sort by mood (highest first)">
+        <button className={`tl-filter-btn ${sortMode === 'mood' ? 'active' : ''}`} onClick={() => setSortMode(sortMode === 'mood' ? 'date' : 'mood')} title="Sort by mood (highest first)">
           {sortMode === 'mood' ? '😊 Mood' : '📅 Date'}
         </button>
         <button className="tl-filter-btn" onClick={() => setCompact(v => !v)}>{compact ? 'Comfortable' : 'Compact'}</button>
