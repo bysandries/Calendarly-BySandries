@@ -9,6 +9,7 @@ const migration006 = require('./migrations/006_activity_energy_log');
 const migration007 = require('./migrations/007_quick_entry_datetime');
 const migration008 = require('./migrations/008_dimension_assessments');
 const migration009 = require('./migrations/009_timeline');
+const migration010 = require('./migrations/010_timeline_mood');
 
 const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, 'calendarly.db');
 
@@ -542,6 +543,7 @@ async function initDatabase(forceReset = false) {
   await migration007.migrate(database);
   await migration008.migrate(database);
   await migration009.migrate(database);
+  await migration010.migrate(database);
   await addColumnIfMissing(database, 'personal_goals', 'activation_history', "TEXT DEFAULT '[]'");
   console.log('Database initialization completed.');
 }

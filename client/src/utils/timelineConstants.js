@@ -29,3 +29,21 @@ export function laneMeta(key) {
 export function itemColor(item) {
   return item.color || laneMeta(item.lane).color;
 }
+
+// Mood helpers (1-10 scale, consistent with therapy journal)
+export function moodColor(v) {
+  if (!v) return 'var(--text-dimmed)';
+  if (v >= 7) return '#2ECC71';
+  if (v >= 5) return '#F1C40F';
+  return '#E74C3C';
+}
+export function moodEmoji(v) {
+  if (!v) return null;
+  if (v >= 8) return '😊';
+  if (v >= 6) return '🙂';
+  if (v >= 4) return '😶';
+  if (v >= 2) return '😔';
+  return '😞';
+}
+
+export const MOOD_OPTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
