@@ -12,7 +12,8 @@ process.stdin.on('end', () => {
     const sessionId = payload.session_id || payload.conversationId || payload.context?.conversationId;
     if (!sessionId) return process.exit(0);
 
-    const scratchDir = '/Users/bysandries/.gemini/antigravity-cli/scratch';
+    const scratchDir = process.env.GEMINI_SCRATCH_DIR ||
+      path.join(process.env.HOME || '/tmp', '.gemini', 'antigravity-cli', 'scratch');
     if (!fs.existsSync(scratchDir)) {
       fs.mkdirSync(scratchDir, { recursive: true });
     }
