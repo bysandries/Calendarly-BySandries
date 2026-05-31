@@ -161,6 +161,14 @@ function EntryCard({ e, archived, onUnarchive }) {
 // ── Quick card ────────────────────────────────────────────────────────────────
 function QuickCard({ q, onArchive, onDelete }) {
   const topic = topicMap[q.topic] || { label: q.topic, color: 'var(--text-dimmed)', icon: '📝' };
+  let timeLabel;
+  if (q.entry_date) {
+    const d = new Date(q.entry_date + 'T12:00:00');
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    timeLabel = q.entry_time ? `${dateStr} · ${q.entry_time}` : dateStr;
+  } else {
+    timeLabel = fmtRelative(q.created_at);
+  }
   return (
     <div className="tj-quick-card" style={{ borderTopColor: topic.color }}>
       <div className="tj-quick-card-topic" style={{ color: topic.color }}>
@@ -168,7 +176,7 @@ function QuickCard({ q, onArchive, onDelete }) {
       </div>
       <div className="tj-quick-card-title">{q.title}</div>
       {q.description && <div className="tj-quick-card-desc">{q.description}</div>}
-      <div className="tj-quick-card-time">{fmtRelative(q.created_at)}</div>
+      <div className="tj-quick-card-time">{timeLabel}</div>
       <div className="tj-quick-card-actions">
         <button className="tj-quick-card-btn" onClick={() => onArchive(q.id)}>Archive</button>
         <button className="tj-quick-card-btn danger" onClick={() => onDelete(q.id)}>Delete</button>
@@ -196,7 +204,10 @@ export default function TherapyJournalPage() {
   const [activeTopic,  setActiveTopic]  = useState(null); // topic id
   const [quickTitle,   setQuickTitle]   = useState('');
   const [quickDesc,    setQuickDesc]    = useState('');
+  const [quickDate,    setQuickDate]    = useState(new Date().toISOString().split('T')[0]);
+  const [quickTime,    setQuickTime]    = useState(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
   const [savingQuick,  setSavingQuick]  = useState(false);
+  const [showMobileQuick, setShowMobileQuick] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -275,15 +286,25 @@ export default function TherapyJournalPage() {
     setActiveTopic(topicId);
     setQuickTitle('');
     setQuickDesc('');
+    setQuickDate(new Date().toISOString().split('T')[0]);
+    setQuickTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
   };
 
   const handleQuickSave = async () => {
     if (!quickTitle.trim() || !activeTopic) return;
     setSavingQuick(true);
     try {
-      const q = await createQuickEntry({ topic: activeTopic, title: quickTitle.trim(), description: quickDesc.trim() || null });
+      const q = await createQuickEntry({
+        topic: activeTopic,
+        title: quickTitle.trim(),
+        description: quickDesc.trim() || null,
+        entry_date: quickDate || null,
+        entry_time: quickTime || null,
+      });
       setQuickList(prev => [q, ...prev]);
       setActiveTopic(null); setQuickTitle(''); setQuickDesc('');
+      setQuickDate(new Date().toISOString().split('T')[0]);
+      setQuickTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
     } finally { setSavingQuick(false); }
   };
 
@@ -318,6 +339,7 @@ export default function TherapyJournalPage() {
             title="Import a previously exported JSON entry">
             {importing ? 'Importing…' : 'Import ↑'}
           </button>
+          <button className="tj-btn-quick-log" onClick={() => setShowMobileQuick(true)}>⏱ Quick Log</button>
           <button className="tj-btn-primary" onClick={() => navigate('/personal-care/journal/new')}>+ New Entry</button>
         </div>
       </div>
@@ -402,13 +424,23 @@ export default function TherapyJournalPage() {
                     placeholder="Add more detail… (optional)"
                     rows={2}
                   />
+                  <div className="tj-quick-dt-row">
+                    <input type="date" className="tj-quick-input tj-quick-dt" value={quickDate}
+                      onChange={e => setQuickDate(e.target.value)} />
+                    <input type="time" className="tj-quick-input tj-quick-dt" value={quickTime}
+                      onChange={e => setQuickTime(e.target.value)} />
+                  </div>
                   <div className="tj-quick-form-row">
                     <button className="tj-btn-primary" onClick={handleQuickSave}
                       disabled={savingQuick || !quickTitle.trim()}>
                       {savingQuick ? 'Saving…' : 'Save'}
                     </button>
                     <button className="tj-btn-secondary"
-                      onClick={() => { setActiveTopic(null); setQuickTitle(''); setQuickDesc(''); }}>
+                      onClick={() => {
+                        setActiveTopic(null); setQuickTitle(''); setQuickDesc('');
+                        setQuickDate(new Date().toISOString().split('T')[0]);
+                        setQuickTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
+                      }}>
                       Cancel
                     </button>
                   </div>
@@ -464,6 +496,64 @@ export default function TherapyJournalPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {showMobileQuick && (
+        <div className="tj-mobile-quick-overlay" onClick={() => setShowMobileQuick(false)}>
+          <div className="tj-mobile-quick-panel" onClick={e => e.stopPropagation()}>
+            <div className="tj-mobile-quick-header">
+              <span>Quick Capture</span>
+              <button className="tj-mobile-quick-close" onClick={() => setShowMobileQuick(false)}>×</button>
+            </div>
+            <div className="tj-quick-topics">
+              {TOPICS.map(t => (
+                <button key={t.id}
+                  className={`tj-quick-topic-btn${activeTopic === t.id ? ' active' : ''}`}
+                  onClick={() => handleTopicClick(t.id)}
+                  style={{ '--topic-color': t.color }}>
+                  {t.icon} {t.label}
+                </button>
+              ))}
+            </div>
+            {activeTopic && (
+              <div className="tj-quick-form">
+                <div style={{ fontSize: 11, color: topicMap[activeTopic]?.color, fontWeight: 700, marginBottom: 2 }}>
+                  {topicMap[activeTopic]?.icon} {topicMap[activeTopic]?.label}
+                </div>
+                <input autoFocus className="tj-quick-input" value={quickTitle}
+                  onChange={e => setQuickTitle(e.target.value)}
+                  placeholder="What's on your mind?"
+                  onKeyDown={e => e.key === 'Escape' && (setActiveTopic(null), setQuickTitle(''), setQuickDesc(''))}
+                />
+                <textarea className="tj-quick-textarea" value={quickDesc}
+                  onChange={e => setQuickDesc(e.target.value)}
+                  placeholder="Add more detail… (optional)"
+                  rows={3}
+                />
+                <div className="tj-quick-dt-row">
+                  <input type="date" className="tj-quick-input tj-quick-dt" value={quickDate}
+                    onChange={e => setQuickDate(e.target.value)} />
+                  <input type="time" className="tj-quick-input tj-quick-dt" value={quickTime}
+                    onChange={e => setQuickTime(e.target.value)} />
+                </div>
+                <div className="tj-quick-form-row">
+                  <button className="tj-btn-primary" onClick={async () => { await handleQuickSave(); setShowMobileQuick(false); }}
+                    disabled={savingQuick || !quickTitle.trim()}>
+                    {savingQuick ? 'Saving…' : 'Save'}
+                  </button>
+                  <button className="tj-btn-secondary" onClick={() => {
+                    setActiveTopic(null); setQuickTitle(''); setQuickDesc('');
+                    setQuickDate(new Date().toISOString().split('T')[0]);
+                    setQuickTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
+                    setShowMobileQuick(false);
+                  }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
