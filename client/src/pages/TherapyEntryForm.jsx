@@ -14,6 +14,7 @@ function buildInitial(initial) {
       avoiding: [], helping: [], sleep_notes: '', mood_notes: '',
     },
     actions_taken: [], reply_drafts: [], goals: [], questions: [], patterns: [],
+    dimension_assessments: {},
   };
   return {
     entry_date:        initial.entry_date        || today,
@@ -40,6 +41,7 @@ function buildInitial(initial) {
     actions_taken: initial.actions_taken || [],
     reply_drafts:  initial.reply_drafts  || [],
     goals: [], questions: [],
+    dimension_assessments: initial.dimension_assessments || {},
     // For edit: pre-populate with currently linked patterns
     patterns: (initial.patterns || []).map(p => ({
       id: p.id, name: p.name, description: p.description,
@@ -50,11 +52,43 @@ function buildInitial(initial) {
 
 // ── PatternSelector (exported so TherapyEntryNewPage can also use it) ─────────
 const CAT_OPTIONS = [
-  { value: 'attachment',         label: 'Attachment' },
-  { value: 'emotion_regulation', label: 'Emotion reg.' },
-  { value: 'communication',      label: 'Communication' },
-  { value: 'other',              label: 'Other' },
+  { value: 'attachment',              label: 'Attachment' },
+  { value: 'emotion_regulation',      label: 'Emotion reg.' },
+  { value: 'communication',           label: 'Communication' },
+  { value: 'stress_response',         label: 'Stress Response' },
+  { value: 'conflict_style',          label: 'Conflict Style' },
+  { value: 'boundaries',              label: 'Boundaries' },
+  { value: 'core_beliefs',            label: 'Core Beliefs' },
+  { value: 'defense_mechanisms',      label: 'Defense Mechanisms' },
+  { value: 'self_concept',            label: 'Self-Concept' },
+  { value: 'interpersonal_patterns',  label: 'Interpersonal Patterns' },
+  { value: 'trauma_responses',        label: 'Trauma Responses' },
+  { value: 'love_languages',          label: 'Love Languages' },
+  { value: 'differentiation',         label: 'Differentiation' },
+  { value: 'internal_family_systems', label: 'Internal Family Systems' },
+  { value: 'window_of_tolerance',     label: 'Window of Tolerance' },
+  { value: 'other',                   label: 'Other' },
 ];
+
+const DIMENSION_ASSESSMENTS = [
+  { value: 'attachment',              label: 'Attachment' },
+  { value: 'emotion_regulation',      label: 'Emotion Reg.' },
+  { value: 'communication',           label: 'Communication' },
+  { value: 'stress_response',         label: 'Stress Response' },
+  { value: 'conflict_style',          label: 'Conflict Style' },
+  { value: 'boundaries',              label: 'Boundaries' },
+  { value: 'core_beliefs',            label: 'Core Beliefs' },
+  { value: 'defense_mechanisms',      label: 'Defense Mechanisms' },
+  { value: 'self_concept',            label: 'Self-Concept' },
+  { value: 'interpersonal_patterns',  label: 'Interpersonal Patterns' },
+  { value: 'trauma_responses',        label: 'Trauma Responses' },
+  { value: 'love_languages',          label: 'Love Languages' },
+  { value: 'differentiation',         label: 'Differentiation' },
+  { value: 'internal_family_systems', label: 'IFS' },
+  { value: 'window_of_tolerance',     label: 'Window of Tolerance' },
+];
+
+const RATING_OPTS = [1,2,3,4,5].map(v => ({ value: v, label: String(v) }));
 
 export function PatternSelector({ selected, onChange }) {
   const [allPatterns, setAllPatterns] = useState([]);
@@ -263,6 +297,7 @@ const BOOL_OPTS   = [{ value: true, label: 'Yes' }, { value: false, label: 'Stru
 export function EntryForm({ onSave, onClose, saving, initialData }) {
   const isEditing = !!initialData;
   const [form, setForm] = useState(() => buildInitial(initialData));
+  const [showDims, setShowDims] = useState(false);
 
   const set  = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setS = (k, v) => setForm(f => ({ ...f, state: { ...f.state, [k]: v } }));
@@ -360,6 +395,43 @@ export function EntryForm({ onSave, onClose, saving, initialData }) {
                 <AffirmToggle confirmed={form.state.safety_self_harm === false} label="No self-harm thoughts" onChange={ok => setS('safety_self_harm', ok ? false : null)} />
               </div>
             </div>
+          </div>
+
+          {/* ── Dimension Reflections ── */}
+          <div className="tj-form-section">
+            <label className="tj-form-label" style={{ cursor: 'pointer', userSelect: 'none' }}
+              onClick={() => setShowDims(v => !v)}>
+              {showDims ? '▼' : '▶'} Dimension Reflections
+              {!showDims && (
+                <span style={{ fontSize: 11, color: 'var(--text-dimmed)', marginLeft: 6 }}>
+                  ({Object.keys(form.dimension_assessments).filter(k => form.dimension_assessments[k]?.rating != null || form.dimension_assessments[k]?.note).length} assessed)
+                </span>
+              )}
+            </label>
+            {showDims && (
+              <div style={{ marginTop: 8 }}>
+                {DIMENSION_ASSESSMENTS.map(d => {
+                  const val = form.dimension_assessments[d.value] || {};
+                  return (
+                    <div key={d.value} className="tj-dim-form-row">
+                      <div className="tj-dim-form-header">
+                        <span className="tj-dim-form-label" data-cat={d.value}>{d.label}</span>
+                        <PillRow options={RATING_OPTS} value={val.rating ?? null}
+                          onChange={v => set('dimension_assessments', {
+                            ...form.dimension_assessments,
+                            [d.value]: { ...val, rating: v }
+                          })} />
+                      </div>
+                      <input className="tj-dim-form-note" value={val.note || ''}
+                        onChange={e => set('dimension_assessments', {
+                          ...form.dimension_assessments,
+                          [d.value]: { ...val, note: e.target.value || null }
+                        })} placeholder={`How is ${d.label.toLowerCase()} showing up?`} />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Therapist summary */}

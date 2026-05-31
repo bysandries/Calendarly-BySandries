@@ -133,6 +133,39 @@ function WellbeingPanel({ state }) {
   );
 }
 
+// ── Left panel — Dimension Assessments ─────────────────────────────────────────
+function DimensionsPanel({ assessments }) {
+  if (!assessments) return null;
+  const entries = Object.entries(assessments)
+    .filter(([, v]) => v?.rating != null || v?.note);
+  if (!entries.length) return null;
+
+  return (
+    <div className="tj-info-section">
+      <p className="tj-info-section-title">Dimension Reflections</p>
+      {entries.map(([key, val]) => {
+        const label = key.replace(/_/g, ' ');
+        const cat = key;
+        return (
+          <div key={key} className="tj-dim-detail-row" data-cat={cat}>
+            <div className="tj-dim-detail-header">
+              <span className="tj-dim-detail-label">{label}</span>
+              {val.rating != null && (
+                <span className="tj-dim-detail-rating" style={{
+                  color: val.rating >= 4 ? '#2ECC71' : val.rating >= 3 ? '#F1C40F' : '#E74C3C'
+                }}>
+                  {val.rating}/5
+                </span>
+              )}
+            </div>
+            {val.note && <p className="tj-dim-detail-note">{val.note}</p>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Sleep calendar picker ──────────────────────────────────────────────────────
 const CAL_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -829,6 +862,7 @@ export default function TherapyEntryDetailPage() {
             entryDate={entry.entry_date}
             onUpdate={handleLinkedHabits}
           />
+          <DimensionsPanel assessments={entry.dimension_assessments} />
         </div>
 
         {/* Right: tabbed content */}
