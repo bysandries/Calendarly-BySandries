@@ -91,19 +91,22 @@ const SlideDrawer = ({ isOpen, onClose, event, onSave, onDelete, onAreasChanged 
 
   if (!isOpen || !event) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const payload = {
       ...event,
       ...formData,
       color_hex: colorHex
     };
-    // If this event is part of a series, pass the selected scope
     if (event.series_id) {
       payload.scope = saveScope;
     }
-    onSave(event.id, payload);
-    setIsEditing(false);
-    onClose();
+    try {
+      await onSave(event.id, payload);
+      setIsEditing(false);
+      onClose();
+    } catch (err) {
+      console.error('Save failed:', err);
+    }
   };
   handleSaveRef.current = handleSave;
 

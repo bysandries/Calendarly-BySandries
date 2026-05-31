@@ -361,13 +361,18 @@ router.post('/sync-block', async (req, res) => {
 // 3. PATCH /api/events/:id — update with scope
 router.patch('/:id', async (req, res) => {
   const { id } = req.params;
-  const { scope = 'single', title, area, color_hex, time_slot, duration_mins, notes, date_string, creator, participants } = req.body;
+  let { scope = 'single', title, area, color_hex, time_slot, duration_mins, notes, date_string, creator, participants } = req.body;
 
   try {
     const db = await getDbConnection();
     const event = await db.get('SELECT * FROM events WHERE id = ?', [id]);
     if (!event) {
       return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Strip date_string if it wasn't actually changed by the user
+    if (date_string !== undefined && date_string === event.date_string) {
+      date_string = undefined;
     }
 
     // If single scope or no series, just update this row
