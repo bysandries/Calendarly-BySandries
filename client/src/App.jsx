@@ -24,6 +24,7 @@ import PersonalGoalDetailPage from './pages/PersonalGoalDetailPage';
 import GoalsHistoryPage from './pages/GoalsHistoryPage';
 import TaskDetailPage from './pages/TaskDetailPage';
 import PomodoroPage from './pages/PomodoroPage';
+import TimelinePage from './pages/TimelinePage';
 import { IconMenu } from './components/Layout/NavIcons';
 
 function MainLayout() {
@@ -86,6 +87,7 @@ function MainLayout() {
           <Route path="/personal-care/journal/:id" element={<TherapyEntryDetailPage />} />
           <Route path="/personal-care/goals" element={<GoalsHistoryPage />} />
           <Route path="/personal-care/goals/:id" element={<PersonalGoalDetailPage />} />
+          <Route path="/timeline" element={<TimelinePage />} />
           <Route path="/pomodoro" element={<PomodoroPage />} />
           <Route path="/secret-upload" element={<SecretUploadPage />} />
           <Route path="*" element={<Navigate to="/gtd" replace />} />
