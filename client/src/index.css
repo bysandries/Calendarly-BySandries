@@ -3432,12 +3432,24 @@ body {
   display: flex;
   height: 100%;
   width: 100%;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .lane {
   flex: 1;
   position: relative;
   height: 100%;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.slot-capture {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .lane.plan-lane {
@@ -3447,6 +3459,18 @@ body {
 
 .lane.measure-lane {
   background: var(--measure-lane-bg);
+}
+
+.calendar-day-header {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.time-gutter {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* Premium Calendar Event Blocks */
@@ -3723,6 +3747,27 @@ body {
 .gpop-close {
   font-size: 0.85rem;
   line-height: 1;
+}
+
+.gpop-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 899;
+}
+
+.gpop-close-btn-mobile {
+  width: auto !important;
+  padding: 0 12px !important;
+  border-radius: 6px !important;
+  background: var(--surface-2) !important;
+  color: var(--text-secondary) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+.gpop-close-btn-mobile:hover {
+  background: var(--surface-3) !important;
+  color: var(--text-primary) !important;
 }
 
 /* Form */
@@ -4928,11 +4973,95 @@ body {
   gap: 6px;
 }
 
+.quick-add-lane-picker {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+.quick-add-lane-picker button {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--grid-border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  line-height: 1.4;
+}
+.quick-add-lane-picker button:first-child {
+  background: var(--plan-lane-bg, rgba(52,152,219,.08));
+  color: var(--plan-lane-color, #3498DB);
+}
+.quick-add-lane-picker button:last-child {
+  background: var(--measure-lane-bg, rgba(46,204,113,.08));
+  color: var(--measure-lane-color, #2ECC71);
+}
+.quick-add-lane-picker button:active {
+  opacity: .7;
+}
+
 @media (max-width: 768px) {
   .secret-upload-page {
     padding-top: 0;
   }
   .secret-upload-card {
     padding: 20px;
+  }
+}
+
+/* ── Mobile Day Navigation ──────────────────────────────────────────────── */
+.mobile-day-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--grid-border);
+  flex-shrink: 0;
+}
+.mobile-day-nav-label {
+  flex: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mobile-day-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.mobile-day-date {
+  font-size: 12px;
+  color: var(--text-dimmed);
+}
+.mobile-day-nav .btn-nav {
+  width: 36px;
+  height: 36px;
+}
+
+.mobile-header-hidden .page-description {
+  display: none;
+}
+
+/* Calendar day mode — full width, no min-width */
+.calendar-with-panel.day-mode .calendar-container {
+  flex: 1;
+}
+
+@media (max-width: 768px) {
+  .mobile-day-nav {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  .mobile-day-nav .btn-nav {
+    width: 32px;
+    height: 32px;
+  }
+  .mobile-day-name {
+    font-size: 14px;
   }
 }

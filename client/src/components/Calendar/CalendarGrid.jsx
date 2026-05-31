@@ -36,7 +36,7 @@ const isEditableTarget = (el) => {
   return false;
 };
 
-const CalendarGrid = ({ baseDate, timezone }) => {
+const CalendarGrid = ({ baseDate, timezone, viewMode = 'week', dayOffset = 0 }) => {
   const [events, setEvents] = useState([]);
   const [areas, setAreas] = useState([]);
   const [dailyLogs, setDailyLogs] = useState({});
@@ -244,21 +244,22 @@ const CalendarGrid = ({ baseDate, timezone }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Global mouse handlers for drawing and resizing
+  // Global pointer handlers for drawing and resizing
   useEffect(() => {
-    const handleGlobalMouseMove = (e) => {
-      // ── Resizing Logic ──
+    const getY = (e) => {
+      if (e.touches && e.touches.length > 0) return e.touches[0].clientY;
+      return e.clientY;
+    };
+
+    const handleGlobalMove = (e) => {
       if (resizingState) {
-        const deltaY = e.clientY - resizingState.startY;
+        const deltaY = getY(e) - resizingState.startY;
         const deltaMins = (deltaY / 80) * 60;
         let newDuration = resizingState.originalDuration + deltaMins;
-        
-        // Snap to nearest 15 mins
         newDuration = Math.round(newDuration / 15) * 15;
-        // Minimum 15 mins
         newDuration = Math.max(15, newDuration);
 
-        setEvents(prev => prev.map(ev => 
+        setEvents(prev => prev.map(ev =>
           ev.id === resizingState.eventId ? { ...ev, duration_mins: newDuration } : ev
         ));
         return;
@@ -270,7 +271,7 @@ const CalendarGrid = ({ baseDate, timezone }) => {
       if (!laneEl) return;
 
       const rect = laneEl.getBoundingClientRect();
-      const y = e.clientY - rect.top;
+      const y = getY(e) - rect.top;
       const endMins = pxToSnappedMins(y);
 
       setDrawingState(prev => {
@@ -280,17 +281,12 @@ const CalendarGrid = ({ baseDate, timezone }) => {
       });
     };
 
-    const handleGlobalMouseUp = (e) => {
-      // ── Finish Resizing ──
+    const handleGlobalUp = (e) => {
       if (resizingState) {
         const block = events.find(ev => ev.id === resizingState.eventId);
         if (block) {
           if (block.series_id) {
-            setPendingMove({
-              type: 'resize',
-              block,
-              originalDuration: resizingState.originalDuration
-            });
+            setPendingMove({ type: 'resize', block, originalDuration: resizingState.originalDuration });
             setShowMoveScopeModal(true);
           } else {
             syncEventBlock(block).then(() => loadData());
@@ -306,20 +302,17 @@ const CalendarGrid = ({ baseDate, timezone }) => {
       const end = Math.max(drawingState.startMins, drawingState.endMins);
       const span = end - start;
 
-      // Discard bare clicks and sub-15-min drags
       if (!drawingState.hasMoved || span < SNAP_MINS) {
         setDrawingState(null);
         return;
       }
 
-      // Anchor popover to the side of the day column so the selection stays visible
       const laneEl = document.querySelector(`[data-date="${drawingState.date}"][data-lane="${drawingState.columnType}"]`);
       const dayColEl = laneEl?.parentElement;
       const colRect = dayColEl?.getBoundingClientRect();
       const POPOVER_WIDTH = 420;
       const GAP = 8;
-      let x = 0;
-      let y = 0;
+      let x = 0, y = 0;
       if (colRect) {
         x = colRect.right + GAP;
         if (x + POPOVER_WIDTH > window.innerWidth - 8) {
@@ -328,45 +321,66 @@ const CalendarGrid = ({ baseDate, timezone }) => {
         y = colRect.top + (start / 60) * HOUR_PX;
         y = Math.max(8, Math.min(y, window.innerHeight - 120));
       } else {
-        x = e.clientX;
-        y = e.clientY;
+        const pt = e.changedTouches ? e.changedTouches[0] : e;
+        x = pt.clientX;
+        y = pt.clientY;
       }
 
-      setPopoverState({
-        date: drawingState.date,
-        columnType: drawingState.columnType,
-        startMins: start,
-        endMins: end,
-        x,
-        y
-      });
+      setPopoverState({ date: drawingState.date, columnType: drawingState.columnType, startMins: start, endMins: end, x, y });
       setDrawingState(null);
     };
 
     if (drawingState || resizingState) {
-      window.addEventListener('mousemove', handleGlobalMouseMove);
-      window.addEventListener('mouseup', handleGlobalMouseUp);
+      window.addEventListener('mousemove', handleGlobalMove);
+      window.addEventListener('mouseup', handleGlobalUp);
+      window.addEventListener('touchmove', handleGlobalMove, { passive: true });
+      window.addEventListener('touchend', handleGlobalUp);
     }
     return () => {
-      window.removeEventListener('mousemove', handleGlobalMouseMove);
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
+      window.removeEventListener('mousemove', handleGlobalMove);
+      window.removeEventListener('mouseup', handleGlobalUp);
+      window.removeEventListener('touchmove', handleGlobalMove);
+      window.removeEventListener('touchend', handleGlobalUp);
     };
   }, [drawingState, resizingState, events, loadData]);
 
   const handleMouseDown = (e, dateString, columnType) => {
-    if (e.button !== 0) return; // Only left click
+    if (e.button !== 0) return;
     const laneEl = document.querySelector(`[data-date="${dateString}"][data-lane="${columnType}"]`);
     if (!laneEl) return;
     const rect = laneEl.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const snapped = pxToSnappedMins(y);
     setDrawingState({
-      date: dateString,
+      date: dateString, columnType, startY: y,
+      startMins: snapped, endMins: snapped, hasMoved: false
+    });
+  };
+
+  const handleTouchStart = (e, dateString, columnType) => {
+    const laneEl = document.querySelector(`[data-date="${dateString}"][data-lane="${columnType}"]`);
+    if (!laneEl) return;
+    const rect = laneEl.getBoundingClientRect();
+    const touch = e.touches[0];
+    const y = touch.clientY - rect.top;
+    const snapped = pxToSnappedMins(y);
+    setDrawingState({
+      date: dateString, columnType, startY: y,
+      startMins: snapped, endMins: snapped, hasMoved: false
+    });
+  };
+
+  const handleQuickAdd = (day, columnType) => {
+    const nowDt = DateTime.now().setZone(timezone);
+    const currentSlot = nowDt.hour * 60 + nowDt.minute;
+    const snapped = Math.ceil(currentSlot / 15) * 15;
+    setPopoverState({
+      date: day.toISODate(),
       columnType,
-      startY: y,
       startMins: snapped,
-      endMins: snapped,
-      hasMoved: false
+      endMins: snapped + 60,
+      x: window.innerWidth / 2 - 210,
+      y: 100,
     });
   };
 
@@ -397,11 +411,11 @@ const CalendarGrid = ({ baseDate, timezone }) => {
           id: id
         });
       }
-      loadData();
-      // Update active event inside drawer
+      await loadData();
       setActiveDrawerEvent(prev => prev && prev.id === id ? { ...prev, ...updatedFields } : prev);
     } catch (error) {
       console.error('Error saving event:', error);
+      throw error;
     }
   };
 
@@ -783,20 +797,30 @@ const CalendarGrid = ({ baseDate, timezone }) => {
 
   return (
     <>
-    <div style={{ display: 'grid', gridTemplateColumns: '64px repeat(7, 1fr)', gridTemplateRows: '72px 1920px', minWidth: '1000px', position: 'relative' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: viewMode === 'day' ? '54px 1fr' : '64px repeat(7, 1fr)', gridTemplateRows: viewMode === 'day' ? '56px 1920px' : '72px 1920px', minWidth: viewMode === 'day' ? '0' : '1000px', position: 'relative' }}>
           
           {/* Header Row */}
           <div className="calendar-corner sticky-top sticky-left"></div>
           {days.map((day, i) => {
+            if (viewMode === 'day' && i !== dayOffset) return null;
             const isToday = day.hasSame(now, 'day');
             return (
               <div 
                 key={i} 
                 className={`calendar-day-header sticky-top ${isToday ? 'today' : ''}`}
-                style={{ gridColumn: i + 2 }}
+                style={viewMode === 'day' ? { gridColumn: '2', padding: '8px 6px' } : { gridColumn: i + 2 }}
               >
-                <span className="day-name">{day.toFormat('EEE')}</span>
-                <span className="day-number">{day.day}</span>
+                {viewMode === 'day' ? (
+                  <>
+                    <span className="day-name" style={{ fontSize: '14px' }}>{day.toFormat('EEEE')}</span>
+                    <span className="day-number" style={{ fontSize: '28px' }}>{day.day}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="day-name">{day.toFormat('EEE')}</span>
+                    <span className="day-number">{day.day}</span>
+                  </>
+                )}
                 {dailyLogs[day.toISODate()] && (
                   <span 
                     style={{ fontSize: '10px', marginTop: '4px', cursor: 'pointer', color: 'var(--accent-primary)' }}
@@ -814,6 +838,16 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                     +
                   </button>
                 )}
+                {viewMode === 'day' && (
+                  <div className="quick-add-lane-picker">
+                    <button onClick={(e) => { e.stopPropagation(); handleQuickAdd(day, 'plan'); }}>
+                      + Plan
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleQuickAdd(day, 'measure'); }}>
+                      + Measure
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -829,6 +863,7 @@ const CalendarGrid = ({ baseDate, timezone }) => {
 
           {/* Day Columns */}
           {days.map((day, dayIndex) => {
+            if (viewMode === 'day' && dayIndex !== dayOffset) return null;
             const dateStr = day.toISODate();
             const isToday = day.hasSame(now, 'day');
             const dayEvents = displayEvents.filter(ev => ev.displayDate === dateStr);
@@ -846,7 +881,7 @@ const CalendarGrid = ({ baseDate, timezone }) => {
               <div 
                 key={dateStr} 
                 className="day-lanes" 
-                style={{ gridRow: '2 / 3', gridColumn: dayIndex + 2, position: 'relative', borderRight: '1px solid var(--grid-border)' }}
+                style={{ gridRow: '2 / 3', gridColumn: viewMode === 'day' ? '2' : dayIndex + 2, position: 'relative', borderRight: '1px solid var(--grid-border)' }}
               >
                 {/* Visual Hour Grid Lines */}
                 {Array.from({ length: 24 }).map((_, i) => (
@@ -1028,13 +1063,14 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                     );
                   })()}
 
-                  {/* Empty Slot Mouse Capture */}
+                  {/* Empty Slot Capture */}
                   {Array.from({ length: 24 }).map((_, i) => (
                     <div
                       key={i}
                       className="slot-capture"
                       style={{ top: i * 80, height: 80, position: 'absolute', left: 0, right: 0, zIndex: 1 }}
                       onMouseDown={(e) => handleMouseDown(e, dateStr, 'plan')}
+                      onTouchStart={(e) => handleTouchStart(e, dateStr, 'plan')}
                     />
                   ))}
                 </div>
@@ -1204,13 +1240,14 @@ const CalendarGrid = ({ baseDate, timezone }) => {
                     );
                   })()}
 
-                  {/* Empty Slot Mouse Capture */}
+                  {/* Empty Slot Capture */}
                   {Array.from({ length: 24 }).map((_, i) => (
                     <div
                       key={i}
                       className="slot-capture"
                       style={{ top: i * 80, height: 80, position: 'absolute', left: 0, right: 0, zIndex: 1 }}
                       onMouseDown={(e) => handleMouseDown(e, dateStr, 'measure')}
+                      onTouchStart={(e) => handleTouchStart(e, dateStr, 'measure')}
                     />
                   ))}
                 </div>
