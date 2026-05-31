@@ -88,6 +88,7 @@ const personalCareRouter = require('./routes/personalCare');
 const therapyJournalRouter = require('./routes/therapyJournal');
 const personalGoalsRouter = require('./routes/personalGoals');
 const activityEnergyLogRouter = require('./routes/activityEnergyLog');
+const timelineRouter = require('./routes/timeline');
 
 // Mount routes
 app.use('/api/events', eventsRouter);
@@ -111,6 +112,7 @@ app.use('/api/personal-care', personalCareRouter);
 app.use('/api/therapy', therapyJournalRouter);
 app.use('/api/personal-goals', personalGoalsRouter);
 app.use('/api/activity-energy-log', activityEnergyLogRouter);
+app.use('/api/timeline', timelineRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
