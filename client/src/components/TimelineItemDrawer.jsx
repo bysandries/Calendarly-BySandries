@@ -7,7 +7,7 @@ import {
 import { fetchProjects } from '../utils/api/projects';
 import { fetchTasks } from '../utils/api/tasks';
 import { fetchGoals } from '../utils/api/personalGoals';
-import { LANES, TYPES, STATUSES, laneMeta } from '../utils/timelineConstants';
+import { LANES, TYPES, STATUSES, laneMeta, MOOD_OPTS, moodEmoji, moodColor } from '../utils/timelineConstants';
 
 const COLOR_SWATCHES = ['#6366f1', '#3498DB', '#2ECC71', '#F1C40F', '#E67E22', '#FF6B9D', '#9B59B6', '#1ABC9C'];
 
@@ -29,7 +29,7 @@ const LINK_SOURCES = {
 
 const EMPTY = {
   title: '', type: 'goal', lane: 'general', color: '',
-  start_date: '', end_date: '', status: 'planned', progress: 0, notes: '',
+  start_date: '', end_date: '', status: 'planned', progress: 0, notes: '', mood: null,
 };
 
 export default function TimelineItemDrawer({ isOpen, item, onClose, onSaved, onDeleted }) {
@@ -98,6 +98,7 @@ export default function TimelineItemDrawer({ isOpen, item, onClose, onSaved, onD
         status: form.status,
         progress: isGoal ? Number(form.progress) || 0 : 0,
         notes: form.notes || null,
+        mood: form.mood ? Number(form.mood) : null,
       };
       let saved;
       if (currentId) {
@@ -231,6 +232,29 @@ export default function TimelineItemDrawer({ isOpen, item, onClose, onSaved, onD
               <input type="range" min="0" max="100" value={form.progress} onChange={e => set('progress', e.target.value)} style={{ width: '100%' }} />
             </div>
           )}
+
+          {/* Mood */}
+          <div style={fieldWrap}>
+            <span style={labelStyle}>Mood <span style={{ fontWeight: 400 }}>(optional — 1-10)</span></span>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {MOOD_OPTS.map(v => (
+                <button key={v} type="button" onClick={() => set('mood', form.mood === v ? null : v)}
+                  style={{
+                    width: 32, height: 32, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    border: form.mood === v ? '2px solid var(--text-primary)' : '2px solid transparent',
+                    background: form.mood === v ? moodColor(v) : 'var(--surface-2, rgba(255,255,255,0.06))',
+                    color: form.mood === v ? '#fff' : 'var(--text-primary)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                  title={`Mood ${v}/10`}>
+                  {moodEmoji(v)}
+                </button>
+              ))}
+              {form.mood && (
+                <button type="button" className="tl-filter-btn" onClick={() => set('mood', null)} style={{ padding: '3px 9px' }}>Clear</button>
+              )}
+            </div>
+          </div>
 
           {/* Color */}
           <div style={fieldWrap}>

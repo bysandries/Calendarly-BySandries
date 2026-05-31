@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { fetchTimelineItems, exportTimeline, importTimeline } from '../utils/api/timeline';
-import { LANES, TYPES, laneMeta, itemColor } from '../utils/timelineConstants';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fetchTimelineItems, exportTimeline, importTimeline, reorderTimelineItems } from '../utils/api/timeline';
+import { LANES, TYPES, laneMeta, itemColor, moodColor, moodEmoji } from '../utils/timelineConstants';
 import TimelineItemDrawer from '../components/TimelineItemDrawer';
 import './TimelinePage.css';
 
@@ -28,8 +28,15 @@ function segmentForYear(item, year) {
 }
 
 // Greedy interval packing so overlapping bands stack onto separate sub-rows.
+// Groups same-colored items together so they appear on adjacent tracks.
 function packTracks(segments) {
-  const sorted = [...segments].sort((a, b) => a.startMonth - b.startMonth || a.endMonth - b.endMonth);
+  const sorted = [...segments].sort((a, b) => {
+    const ca = itemColor(a.item);
+    const cb = itemColor(b.item);
+    if (ca < cb) return -1;
+    if (ca > cb) return 1;
+    return a.startMonth - b.startMonth || a.endMonth - b.endMonth;
+  });
   const trackEnds = [];
   sorted.forEach(seg => {
     let placed = false;
@@ -50,15 +57,22 @@ export default function TimelinePage() {
   const [compact, setCompact] = useState(false);
   const [drawerItem, setDrawerItem] = useState(null); // null = closed
   const [busy, setBusy] = useState(false);
+  const [sortMode, setSortMode] = useState('date'); // 'date' | 'mood'
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
   const fileInputRef = useRef(null);
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
-    fetchTimelineItems()
+    fetchTimelineItems({ sort: sortMode })
       .then(rows => { setItems(rows); setLoading(false); })
       .catch(() => setLoading(false));
+  }, [sortMode]);
+  useEffect(() => { load(); }, [load]);
+
+  const handleSortChange = (mode) => {
+    setSortMode(mode);
   };
-  useEffect(load, []);
 
   const visibleItems = useMemo(() => items.filter(it =>
     (typeFilter === 'all' || it.type === typeFilter) && !hiddenLanes.has(it.lane)
@@ -99,6 +113,40 @@ export default function TimelinePage() {
 
   const handleSaved = () => load();
   const handleDeleted = () => load();
+
+  // ── Drag-and-drop reorder ───────────────────────────────────────────
+  const handleDragStart = (e, id) => {
+    setDraggedId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+  const handleDragOver = (e, id) => {
+    e.preventDefault();
+    if (draggedId && draggedId !== id) setDragOverId(id);
+  };
+  const handleDragLeave = () => setDragOverId(null);
+  const handleDrop = async (e, targetId) => {
+    e.preventDefault();
+    const sourceId = draggedId;
+    if (!sourceId || sourceId === targetId) { setDraggedId(null); setDragOverId(null); return; }
+    const ids = items.map(i => i.id);
+    const srcIdx = ids.indexOf(sourceId);
+    const tgtIdx = ids.indexOf(targetId);
+    if (srcIdx === -1 || tgtIdx === -1) { setDraggedId(null); setDragOverId(null); return; }
+    const reordered = [...items];
+    const [moved] = reordered.splice(srcIdx, 1);
+    reordered.splice(tgtIdx, 0, moved);
+    setItems(reordered);
+    setDraggedId(null);
+    setDragOverId(null);
+    try {
+      await reorderTimelineItems(reordered.map((it, i) => ({ id: it.id, sort_order: i })));
+    } catch (err) {
+      console.error('Reorder failed:', err);
+      load();
+    }
+  };
+  const handleDragEnd = () => { setDraggedId(null); setDragOverId(null); };
 
   const handleExport = async () => {
     setBusy(true);
@@ -166,6 +214,9 @@ export default function TimelinePage() {
         </div>
 
         <button className="tl-filter-btn" onClick={() => setShowLaneFilter(v => !v)}>Lanes ▾</button>
+        <button className={`tl-filter-btn ${sortMode === 'mood' ? 'active' : ''}`} onClick={() => handleSortChange(sortMode === 'mood' ? 'date' : 'mood')} title="Sort by mood (highest first)">
+          {sortMode === 'mood' ? '😊 Mood' : '📅 Date'}
+        </button>
         <button className="tl-filter-btn" onClick={() => setCompact(v => !v)}>{compact ? 'Comfortable' : 'Compact'}</button>
         <button className="tl-filter-btn" onClick={handleExport} disabled={busy} title="Download all items as JSON">⬇ Export</button>
         <button className="tl-filter-btn" onClick={() => fileInputRef.current?.click()} disabled={busy} title="Import items from a JSON file">⬆ Import</button>
@@ -235,13 +286,24 @@ export default function TimelinePage() {
                           const color = itemColor(it);
                           const gridRow = (seg.track || 0) + 1;
 
+                          const isDragging = draggedId === it.id;
+                          const isDragOver = dragOverId === it.id;
+
                           if (it.type === 'milestone') {
                             return (
-                              <div key={it.id} className="tl-milestone-wrap"
+                              <div key={it.id}
+                                className={`tl-milestone-wrap ${isDragOver ? 'tl-drag-over' : ''}`}
                                 style={{ gridColumn: `${seg.startMonth} / ${seg.startMonth + 1}`, gridRow }}
-                                title={it.title}>
-                                <div className="tl-milestone" style={{ background: color }}
+                                title={it.title}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, it.id)}
+                                onDragOver={(e) => handleDragOver(e, it.id)}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, it.id)}
+                                onDragEnd={handleDragEnd}>
+                                <div className={`tl-milestone ${isDragging ? 'tl-dragging' : ''}`} style={{ background: color }}
                                   onClick={() => setDrawerItem(it)} />
+                                {it.mood && <span className="tl-mood-dot" style={{ background: moodColor(it.mood) }} title={`Mood ${it.mood}/10`}>{moodEmoji(it.mood)}</span>}
                               </div>
                             );
                           }
@@ -249,15 +311,22 @@ export default function TimelinePage() {
                           const revised = (it.version_history || []).length > 0;
                           return (
                             <div key={it.id}
-                              className={`tl-band type-${it.type} status-${it.status} ${seg.isStart ? '' : 'no-start'} ${seg.isEnd ? '' : 'no-end'}`}
+                              className={`tl-band type-${it.type} status-${it.status} ${seg.isStart ? '' : 'no-start'} ${seg.isEnd ? '' : 'no-end'} ${isDragging ? 'tl-dragging' : ''} ${isDragOver ? 'tl-drag-over' : ''}`}
                               style={{ gridColumn: `${seg.startMonth} / ${seg.endMonth + 1}`, gridRow,
                                 background: color, borderColor: color }}
                               title={`${it.title}${it.end_date ? '' : ''}`}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, it.id)}
+                              onDragOver={(e) => handleDragOver(e, it.id)}
+                              onDragLeave={handleDragLeave}
+                              onDrop={(e) => handleDrop(e, it.id)}
+                              onDragEnd={handleDragEnd}
                               onClick={() => setDrawerItem(it)}>
                               {it.type === 'goal' && it.progress > 0 && (
                                 <div className="tl-progress" style={{ width: `${it.progress}%` }} />
                               )}
                               {it.status === 'completed' && <span className="tl-badge">✓</span>}
+                              {it.mood && <span className="tl-mood-indicator" style={{ color: moodColor(it.mood) }}>{moodEmoji(it.mood)}</span>}
                               <span className="tl-band-label">{it.title}</span>
                               {revised && <span className="tl-revised-dot" title="Plan was revised">↻</span>}
                             </div>
