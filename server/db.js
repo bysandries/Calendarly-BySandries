@@ -35,6 +35,14 @@ async function getDbConnection() {
   // Enable foreign keys
   await db.get('PRAGMA foreign_keys = ON');
 
+  // Performance pragmas: WAL + NORMAL sync turn each write from a full fsync
+  // (~10-30ms) into a sub-millisecond append. Safe for a local-first app.
+  await db.run('PRAGMA journal_mode = WAL');
+  await db.run('PRAGMA synchronous = NORMAL');
+  await db.run('PRAGMA busy_timeout = 5000');
+  await db.run('PRAGMA wal_autocheckpoint = 1000');
+  await db.run('PRAGMA temp_store = MEMORY');
+
   return db;
 }
 
