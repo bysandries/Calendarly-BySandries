@@ -40,6 +40,8 @@ server/server.log
 *.p12
 secrets/
 credentials.json
+.api_auth_token
+**/.api_auth_token
 
 # ─── Databases (SQLite + sidecars) ─────────────────────────
 *.db

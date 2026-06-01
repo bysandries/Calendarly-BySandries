@@ -77,7 +77,9 @@ app.get('/api/health', (req, res) => {
 
 // Authentication gate — every /api route below this line requires the shared
 // API token. The liveness probe above is the only unauthenticated endpoint.
-const { requireApiToken } = require('./middleware/auth');
+// The token itself is resolved at startup in startServer() (env var, persisted
+// file, or freshly generated on first run).
+const { requireApiToken, resolveApiToken } = require('./middleware/auth');
 app.use('/api', requireApiToken);
 
 // Import routers
@@ -213,10 +215,25 @@ async function startServer() {
     // Initialize DB schema without resetting - data persists
     await initDatabase(false);
 
+    // Resolve the API auth token (env var → persisted file → generate on first
+    // run). The token file lives next to the DB so it survives restarts and,
+    // in Docker, lives in the persistent data volume.
+    const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, 'calendarly.db');
+    const tokenFile = path.join(path.dirname(dbPath), '.api_auth_token');
+    const { token, source } = resolveApiToken(tokenFile);
+
     app.listen(PORT, () => {
       console.log(`===============================================`);
       console.log(`🚀 Calendarly Backend running on port ${PORT}`);
       console.log(`📂 Environment: ${process.env.NODE_ENV || 'development'}`);
+      if (source === 'env') {
+        console.log(`🔑 API token: loaded from API_AUTH_TOKEN env var`);
+      } else {
+        console.log(`🔑 API token (${source === 'generated' ? 'generated on first run' : 'loaded from file'}):`);
+        console.log(`   ${token}`);
+        console.log(`   stored at: ${tokenFile}`);
+        console.log(`   → paste this into the web UI when prompted.`);
+      }
       console.log(`===============================================`);
     });
   } catch (error) {

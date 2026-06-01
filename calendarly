@@ -19,11 +19,15 @@ case $COMMAND in
   status)
     docker-compose ps
     ;;
+  token)
+    echo "Current API auth token:"
+    docker exec calendarly-backend sh -c 'cat /data/.api_auth_token 2>/dev/null || echo "(none — set API_AUTH_TOKEN in .env, or check startup logs)"'
+    ;;
   logs)
     docker-compose logs -f
     ;;
   *)
-    echo "Usage: ./calendarly {backup|restart|status|logs}"
+    echo "Usage: ./calendarly {backup|restart|status|logs|token}"
     exit 1
     ;;
 esac
