@@ -25,20 +25,46 @@ export function useNotes(initialFilters = {}) {
   }, [loadNotes]);
 
   const createNote = async (data) => {
-    const note = await apiCreate(data);
-    setNotes(prev => [note, ...prev]);
-    return note;
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setNotes(prev => [{ id: tempId, ...data, _pending: true }, ...prev]);
+    try {
+      const note = await apiCreate(data);
+      setNotes(prev => prev.map(n => n.id === tempId ? note : n));
+      return note;
+    } catch (err) {
+      setNotes(prev => prev.filter(n => n.id !== tempId));
+      throw err;
+    }
   };
 
   const updateNote = async (id, data) => {
-    const updated = await apiUpdate(id, data);
-    setNotes(prev => prev.map(n => n.id === id ? updated : n));
-    return updated;
+    let snapshot;
+    setNotes(prev => {
+      snapshot = prev;
+      return prev.map(n => n.id === id ? { ...n, ...data, _pending: true } : n);
+    });
+    try {
+      const updated = await apiUpdate(id, data);
+      setNotes(prev => prev.map(n => n.id === id ? updated : n));
+      return updated;
+    } catch (err) {
+      setNotes(snapshot);
+      throw err;
+    }
   };
 
   const deleteNote = async (id) => {
-    await apiDelete(id);
-    setNotes(prev => prev.filter(n => n.id !== id));
+    let snapshot;
+    setNotes(prev => {
+      snapshot = prev;
+      return prev.filter(n => n.id !== id);
+    });
+    try {
+      await apiDelete(id);
+    } catch (err) {
+      setNotes(snapshot);
+      throw err;
+    }
   };
 
   const refetch = (newFilters) => {

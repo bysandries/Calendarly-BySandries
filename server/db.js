@@ -553,6 +553,24 @@ async function initDatabase(forceReset = false) {
   await migration009.migrate(database);
   await migration010.migrate(database);
   await addColumnIfMissing(database, 'personal_goals', 'activation_history', "TEXT DEFAULT '[]'");
+
+  // Indexes for hot read paths — these are what the pages fetch on load.
+  // Without them SQLite full-scans these tables on every filtered/ordered query.
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);`);
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_person ON tasks(person_id);`);
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);`);
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_priority_due ON tasks(priority DESC, date_due ASC);`);
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_events_date ON events(date_string);`);
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_events_series ON events(series_id);`);
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_etl_task ON event_task_links(task_id);`);
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_extract_resources_extract ON extract_resources(extract_id);`);
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_notes_linked_task ON notes(linked_task_id);`);
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_pomodoro_task ON pomodoro_sessions(task_id);`);
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_distraction_task ON distraction_notes(task_id);`);
+
+  // ANALYZE lets the query planner pick those indexes effectively.
+  await database.exec('ANALYZE;');
+
   console.log('Database initialization completed.');
 }
 
