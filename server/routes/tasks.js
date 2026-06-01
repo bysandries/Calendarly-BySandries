@@ -69,26 +69,41 @@ router.post('/', async (req, res) => {
       }
     }
 
+    const task = {
+      id: taskId,
+      title,
+      status: finalStatus,
+      project_id: project_id || null,
+      date_due: date_due || null,
+      priority: priority || 0,
+      notes: notes || '',
+      estimated_minutes: Number.isFinite(Number(estimated_minutes)) ? Number(estimated_minutes) : 0,
+      received_date: receivedDate,
+      finished_date: finishedDate,
+      is_starred: is_starred ? 1 : 0,
+      person_id: finalPersonId || null
+    };
+
     await db.run(
       `INSERT INTO tasks (id, title, status, project_id, date_due, priority, notes, estimated_minutes, received_date, finished_date, is_starred, person_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        taskId,
-        title,
-        finalStatus,
-        project_id || null,
-        date_due || null,
-        priority || 0,
-        notes || '',
-        Number.isFinite(Number(estimated_minutes)) ? Number(estimated_minutes) : 0,
-        receivedDate,
-        finishedDate,
-        is_starred ? 1 : 0,
-        finalPersonId || null
+        task.id,
+        task.title,
+        task.status,
+        task.project_id,
+        task.date_due,
+        task.priority,
+        task.notes,
+        task.estimated_minutes,
+        task.received_date,
+        task.finished_date,
+        task.is_starred,
+        task.person_id
       ]
     );
 
-    const task = await db.get('SELECT * FROM tasks WHERE id = ?', [taskId]);
+    // Respond with the in-memory record instead of a second round trip to the DB.
     res.status(201).json(task);
   } catch (error) {
     console.error('Error creating task:', error);

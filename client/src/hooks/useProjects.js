@@ -25,27 +25,54 @@ export function useProjects(initialFilters = {}) {
   }, [loadProjects]);
 
   const createProject = async (data) => {
-    const project = await apiCreate(data);
-    setProjects(prev => [...prev, project]);
-    return project;
+    // Optimistic insert; reconcile with the server record on resolve.
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setProjects(prev => [...prev, { id: tempId, ...data, _pending: true }]);
+    try {
+      const project = await apiCreate(data);
+      setProjects(prev => prev.map(p => p.id === tempId ? project : p));
+      return project;
+    } catch (err) {
+      setProjects(prev => prev.filter(p => p.id !== tempId));
+      throw err;
+    }
   };
 
   const updateProject = async (id, data) => {
-    const updated = await apiUpdate(id, data);
-    setProjects(prev => prev.map(p => p.id === id ? updated : p));
-    return updated;
+    let snapshot;
+    setProjects(prev => {
+      snapshot = prev;
+      return prev.map(p => p.id === id ? { ...p, ...data, _pending: true } : p);
+    });
+    try {
+      const updated = await apiUpdate(id, data);
+      setProjects(prev => prev.map(p => p.id === id ? updated : p));
+      return updated;
+    } catch (err) {
+      setProjects(snapshot);
+      throw err;
+    }
   };
 
   const deleteProject = async (id) => {
-    const result = await apiDelete(id);
-    if (result.action === 'archived') {
-      // Update status in place so the list re-renders correctly
-      setProjects(prev => prev.map(p => p.id === id ? result.project : p));
-    } else {
-      // Permanently removed from deleted tables — remove from local state
-      setProjects(prev => prev.filter(p => p.id !== id));
+    // Delete may archive (soft) or hard-delete; the server is authoritative, so
+    // optimistically remove from the list and roll back / reconcile on response.
+    let snapshot;
+    setProjects(prev => {
+      snapshot = prev;
+      return prev.filter(p => p.id !== id);
+    });
+    try {
+      const result = await apiDelete(id);
+      if (result.action === 'archived') {
+        // Re-insert with the archived status so filtered views render correctly.
+        setProjects(prev => snapshot.map(p => p.id === id ? result.project : p));
+      }
+      return result;
+    } catch (err) {
+      setProjects(snapshot);
+      throw err;
     }
-    return result;
   };
 
   const refetch = (newFilters) => {

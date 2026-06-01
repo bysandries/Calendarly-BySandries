@@ -53,8 +53,18 @@ export function useTherapyJournal() {
   }, []);
 
   const removeEntry = useCallback(async (id) => {
-    await deleteTherapyEntry(id);
-    setEntries(prev => prev.filter(e => e.id !== id));
+    // Optimistic remove with rollback on failure.
+    let snapshot;
+    setEntries(prev => {
+      snapshot = prev;
+      return prev.filter(e => e.id !== id);
+    });
+    try {
+      await deleteTherapyEntry(id);
+    } catch (err) {
+      setEntries(snapshot);
+      throw err;
+    }
   }, []);
 
   // ── Patterns ─────────────────────────────────────────────────────────────────

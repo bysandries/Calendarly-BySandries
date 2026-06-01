@@ -23,21 +23,49 @@ export function usePeople() {
     loadPeople();
   }, [loadPeople]);
 
+  const byName = (a, b) => a.name.localeCompare(b.name);
+
   const addPerson = async (name) => {
-    const person = await createPerson({ name });
-    setPeople(prev => [...prev, person].sort((a, b) => a.name.localeCompare(b.name)));
-    return person;
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setPeople(prev => [...prev, { id: tempId, name, _pending: true }].sort(byName));
+    try {
+      const person = await createPerson({ name });
+      setPeople(prev => prev.map(p => p.id === tempId ? person : p).sort(byName));
+      return person;
+    } catch (err) {
+      setPeople(prev => prev.filter(p => p.id !== tempId));
+      throw err;
+    }
   };
 
   const editPerson = async (id, name) => {
-    const updated = await updatePerson(id, { name });
-    setPeople(prev => prev.map(p => p.id === id ? updated : p).sort((a, b) => a.name.localeCompare(b.name)));
-    return updated;
+    let snapshot;
+    setPeople(prev => {
+      snapshot = prev;
+      return prev.map(p => p.id === id ? { ...p, name, _pending: true } : p).sort(byName);
+    });
+    try {
+      const updated = await updatePerson(id, { name });
+      setPeople(prev => prev.map(p => p.id === id ? updated : p).sort(byName));
+      return updated;
+    } catch (err) {
+      setPeople(snapshot);
+      throw err;
+    }
   };
 
   const removePerson = async (id) => {
-    await deletePerson(id);
-    setPeople(prev => prev.filter(p => p.id !== id));
+    let snapshot;
+    setPeople(prev => {
+      snapshot = prev;
+      return prev.filter(p => p.id !== id);
+    });
+    try {
+      await deletePerson(id);
+    } catch (err) {
+      setPeople(snapshot);
+      throw err;
+    }
   };
 
   return { people, loading, error, addPerson, editPerson, removePerson, refetch: loadPeople };

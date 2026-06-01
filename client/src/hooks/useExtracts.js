@@ -32,20 +32,46 @@ export function useExtracts(initialFilters = {}) {
   }, [loadExtracts]);
 
   const createExtract = async (data) => {
-    const extract = await apiCreate(data);
-    setExtracts(prev => [extract, ...prev]);
-    return extract;
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setExtracts(prev => [{ id: tempId, resources: [], ...data, _pending: true }, ...prev]);
+    try {
+      const extract = await apiCreate(data);
+      setExtracts(prev => prev.map(e => e.id === tempId ? extract : e));
+      return extract;
+    } catch (err) {
+      setExtracts(prev => prev.filter(e => e.id !== tempId));
+      throw err;
+    }
   };
 
   const updateExtract = async (id, data) => {
-    const updated = await apiUpdate(id, data);
-    setExtracts(prev => prev.map(e => e.id === id ? updated : e));
-    return updated;
+    let snapshot;
+    setExtracts(prev => {
+      snapshot = prev;
+      return prev.map(e => e.id === id ? { ...e, ...data, _pending: true } : e);
+    });
+    try {
+      const updated = await apiUpdate(id, data);
+      setExtracts(prev => prev.map(e => e.id === id ? updated : e));
+      return updated;
+    } catch (err) {
+      setExtracts(snapshot);
+      throw err;
+    }
   };
 
   const deleteExtract = async (id) => {
-    await apiDelete(id);
-    setExtracts(prev => prev.filter(e => e.id !== id));
+    let snapshot;
+    setExtracts(prev => {
+      snapshot = prev;
+      return prev.filter(e => e.id !== id);
+    });
+    try {
+      await apiDelete(id);
+    } catch (err) {
+      setExtracts(snapshot);
+      throw err;
+    }
   };
 
   const linkResource = async (id, data) => {
