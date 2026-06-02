@@ -7,12 +7,11 @@ const CalendarPage = () => {
   const scrollAreaRef = useRef(null);
   const [timezone, setTimezone] = useState(localStorage.getItem('calendarly_tz') || 'America/Los_Angeles');
   
-  // Dynamic week pagination state
-  // Default to May 24, 2026 as the active base week since that's where seeded events are
-  // TODO: I need to make the baseDate as the currentDate because it could be old events.
-  const [baseDate, setBaseDate] = useState(() => 
-    DateTime.fromObject({ year: 2026, month: 5, day: 24 }, { zone: timezone })
-  );
+  // Dynamic week pagination state — starts at the current week (Sunday)
+  const [baseDate, setBaseDate] = useState(() => {
+    const today = DateTime.now().setZone(timezone);
+    return today.minus({ days: today.weekday % 7 });
+  });
 
   // Mobile day view state
   const [viewMode, setViewMode] = useState('week');
@@ -56,7 +55,8 @@ const CalendarPage = () => {
   };
 
   const handleToday = () => {
-    setBaseDate(DateTime.fromObject({ year: 2026, month: 5, day: 24 }, { zone: timezone }));
+    const today = DateTime.now().setZone(timezone);
+    setBaseDate(today.minus({ days: today.weekday % 7 }));
   };
 
   // Day navigation (mobile)

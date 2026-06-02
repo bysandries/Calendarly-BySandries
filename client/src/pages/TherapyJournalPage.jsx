@@ -20,6 +20,7 @@ const TOPICS = [
   { id: 'fear',        label: 'Fear',        color: '#E67E22', icon: '😰' },
   { id: 'trigger',     label: 'Trigger',     color: '#95A5A6', icon: '⚡' },
   { id: 'gratitude',   label: 'Gratitude',   color: '#27AE60', icon: '🙏' },
+  { id: 'regret',      label: 'Regret',      color: '#8B4513', icon: '😞' },
 ];
 
 const topicMap = Object.fromEntries(TOPICS.map(t => [t.id, t]));
