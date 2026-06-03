@@ -124,8 +124,12 @@ export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, o
       }
     };
     fetchUIConfig();
+    window.addEventListener('nav-settings-saved', fetchUIConfig);
     const interval = setInterval(fetchUIConfig, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('nav-settings-saved', fetchUIConfig);
+    };
   }, []);
 
   // Persist collapsed state in localStorage; default to collapsed on small screens

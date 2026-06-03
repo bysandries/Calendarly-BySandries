@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './SettingsPage.css';
 
 const TIMEZONES = [
@@ -69,6 +69,10 @@ export default function SettingsPage() {
       Innovation: 'Innovation'
     }
   });
+
+  // Keep a live ref to dbSettings so async save handlers always read the latest state
+  const dbSettingsRef = useRef(dbSettings);
+  useEffect(() => { dbSettingsRef.current = dbSettings; }, [dbSettings]);
 
   const [people, setPeople] = useState([]);
 
@@ -271,15 +275,17 @@ export default function SettingsPage() {
     if (e) e.preventDefault();
     setSaving(true);
     try {
+      const settings = dbSettingsRef.current;
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dbSettings)
+        body: JSON.stringify(settings)
       });
       const data = await res.json();
       if (data.success) {
         triggerAlert('success', 'Local scheduling preferences saved successfully.');
-        applyThemeClass(dbSettings.theme);
+        applyThemeClass(settings.theme);
+        window.dispatchEvent(new CustomEvent('nav-settings-saved'));
       } else {
         triggerAlert('error', data.error || 'Failed to apply preferences.');
       }
@@ -1200,6 +1206,7 @@ export default function SettingsPage() {
                           type="text"
                           value={group.label}
                           onChange={e => handleGroupLabel(group.id, e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
                           onClick={e => e.stopPropagation()}
                           onMouseDown={e => e.stopPropagation()}
                           placeholder="Group name…"
@@ -1247,6 +1254,7 @@ export default function SettingsPage() {
                                 type="text"
                                 value={item.label}
                                 onChange={e => handleItemLabel(item.id, e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
                                 onClick={e => e.stopPropagation()}
                                 onMouseDown={e => e.stopPropagation()}
                                 style={{
