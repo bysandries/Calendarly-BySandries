@@ -373,6 +373,20 @@ function ProjectPanel({ project, projectTasks, projectTasksLoading, areas, onSav
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [editingGoals, setEditingGoals] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(460);
+  const resizeState = useRef(null);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!resizeState.current) return;
+      const delta = resizeState.current.startX - e.clientX;
+      setPanelWidth(Math.min(800, Math.max(300, resizeState.current.startWidth + delta)));
+    };
+    const onUp = () => { resizeState.current = null; document.body.style.cursor = ''; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, []);
 
   useEffect(() => {
     setForm({
@@ -433,7 +447,23 @@ function ProjectPanel({ project, projectTasks, projectTasksLoading, areas, onSav
     : visibleTasks.filter(t => doneStatuses.includes(t.status));
 
   return (
-    <div style={{ width: '460px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+    <div style={{ width: panelWidth, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border-subtle)', position: 'relative' }}>
+
+      {/* Resize handle on left border */}
+      <div
+        onMouseDown={e => {
+          e.preventDefault();
+          resizeState.current = { startX: e.clientX, startWidth: panelWidth };
+          document.body.style.cursor = 'col-resize';
+        }}
+        style={{
+          position: 'absolute', left: 0, top: 0, bottom: 0, width: '5px',
+          cursor: 'col-resize', zIndex: 20,
+          background: 'transparent',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(52,152,219,0.25)'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+      />
 
       {/* Header */}
       <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
