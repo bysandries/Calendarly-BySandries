@@ -23,11 +23,11 @@ const IMPORTANCE_COLORS = {
 
 function SectionLabel({ label, count }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px 6px' }}>
-      <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-dimmed)', textTransform: 'uppercase' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px 8px' }}>
+      <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-dimmed)', textTransform: 'uppercase' }}>
         {label}
       </span>
-      <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'var(--text-dimmed)' }}>
+      <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'var(--text-dimmed)' }}>
         {count}
       </span>
     </div>
@@ -46,7 +46,7 @@ function TaskRow({ task, projects, isSelected, onClick }) {
       onClick={onClick}
       style={{
         display: 'flex', alignItems: 'center', gap: '10px',
-        padding: '7px 12px', borderRadius: '6px', cursor: 'pointer',
+        padding: '9px 12px', borderRadius: '6px', cursor: 'pointer',
         background: isSelected ? 'rgba(52,152,219,0.08)' : 'transparent',
         border: `1px solid ${isSelected ? 'rgba(52,152,219,0.25)' : 'transparent'}`,
         transition: 'background 100ms',
@@ -54,20 +54,20 @@ function TaskRow({ task, projects, isSelected, onClick }) {
       onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
     >
-      <span style={{ color: priorityColor, fontSize: '9px', flexShrink: 0 }}>●</span>
-      <span style={{ flex: 1, fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span style={{ color: priorityColor, fontSize: '10px', flexShrink: 0 }}>●</span>
+      <span style={{ flex: 1, fontSize: '14px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {task.title}
       </span>
       {project && (
-        <span style={{ fontSize: '11px', color: 'var(--text-muted)', flexShrink: 0, maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)', flexShrink: 0, maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {project.title}
         </span>
       )}
-      <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', color: status.color ?? 'var(--text-muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', color: status.color ?? 'var(--text-muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>
         {status.label}
       </span>
       {task.date_due && (
-        <span style={{ fontSize: '11px', color: overdue ? 'var(--danger, #e74c3c)' : 'var(--text-dimmed)', flexShrink: 0 }}>
+        <span style={{ fontSize: '12px', color: overdue ? 'var(--danger, #e74c3c)' : 'var(--text-dimmed)', flexShrink: 0 }}>
           {formatDaysLeft(daysLeft)}
         </span>
       )}
@@ -85,7 +85,7 @@ function ProjectRow({ project, isSelected, onClick }) {
       onClick={onClick}
       style={{
         display: 'flex', alignItems: 'center', gap: '10px',
-        padding: '7px 12px', borderRadius: '6px', cursor: 'pointer',
+        padding: '9px 12px', borderRadius: '6px', cursor: 'pointer',
         background: isSelected ? 'rgba(52,152,219,0.08)' : 'transparent',
         border: `1px solid ${isSelected ? 'rgba(52,152,219,0.25)' : 'transparent'}`,
         transition: 'background 100ms',
@@ -94,19 +94,19 @@ function ProjectRow({ project, isSelected, onClick }) {
       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
     >
       {project.phase && (
-        <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '10px', background: 'rgba(52,152,219,0.1)', color: 'var(--accent-primary)', flexShrink: 0 }}>
+        <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '10px', background: 'rgba(52,152,219,0.1)', color: 'var(--accent-primary)', flexShrink: 0 }}>
           {project.phase}
         </span>
       )}
-      <span style={{ flex: 1, fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span style={{ flex: 1, fontSize: '14px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {project.title}
       </span>
       {total > 0 && (
-        <div style={{ width: '48px', height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{ width: '52px', height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', flexShrink: 0, overflow: 'hidden' }}>
           <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#2ecc71' : 'var(--accent-primary)', borderRadius: '2px' }} />
         </div>
       )}
-      <span style={{ fontSize: '11px', color: 'var(--text-dimmed)', flexShrink: 0, width: '28px', textAlign: 'right' }}>
+      <span style={{ fontSize: '12px', color: 'var(--text-dimmed)', flexShrink: 0, width: '30px', textAlign: 'right' }}>
         {total > 0 ? `${pct}%` : '—'}
       </span>
     </div>
@@ -164,7 +164,7 @@ function TaskPanel({ task, projects, onSave, onDelete, onClose }) {
             value={form.title}
             onChange={e => set('title', e.target.value)}
             placeholder="Task title…"
-            style={{ flex: 1, fontSize: '13px', fontWeight: 600 }}
+            style={{ flex: 1, fontSize: '14px', fontWeight: 600 }}
           />
           <button
             type="button"
@@ -271,8 +271,8 @@ function PanelTaskRow({ task, onUpdate, onDelete }) {
   return (
     <div
       style={{
-        display: 'flex', alignItems: 'center', gap: '7px',
-        padding: '5px 6px', borderRadius: '5px', opacity: isDone ? 0.55 : 1,
+        display: 'flex', alignItems: 'center', gap: '8px',
+        padding: '7px 8px', borderRadius: '5px', opacity: isDone ? 0.55 : 1,
       }}
       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
@@ -281,35 +281,35 @@ function PanelTaskRow({ task, onUpdate, onDelete }) {
         type="button"
         onClick={() => onUpdate(task.id, { status: isDone ? '02 - Next Step' : '07 - Done' })}
         style={{
-          width: '15px', height: '15px', borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
+          width: '17px', height: '17px', borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
           border: `1.5px solid ${isDone ? '#2ECC71' : 'rgba(255,255,255,0.22)'}`,
           background: isDone ? '#2ECC71' : 'transparent',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'white', fontSize: '8px',
+          color: 'white', fontSize: '9px',
         }}
       >
         {isDone ? '✓' : ''}
       </button>
-      <span style={{ color: priorityColor, fontSize: '7px', flexShrink: 0 }}>●</span>
+      <span style={{ color: priorityColor, fontSize: '9px', flexShrink: 0 }}>●</span>
       <span style={{
-        flex: 1, fontSize: '12px', color: isDone ? 'var(--text-muted)' : 'var(--text-primary)',
+        flex: 1, fontSize: '13px', color: isDone ? 'var(--text-muted)' : 'var(--text-primary)',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         textDecoration: isDone ? 'line-through' : 'none',
       }}>
         {task.title}
       </span>
-      <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: status.color ?? 'var(--text-muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: status.color ?? 'var(--text-muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>
         {status.label}
       </span>
       {task.date_due && (
-        <span style={{ fontSize: '10px', color: overdue ? 'var(--danger, #e74c3c)' : 'var(--text-dimmed)', flexShrink: 0 }}>
+        <span style={{ fontSize: '11px', color: overdue ? 'var(--danger, #e74c3c)' : 'var(--text-dimmed)', flexShrink: 0 }}>
           {formatDaysLeft(daysLeft)}
         </span>
       )}
       <button
         type="button"
         onClick={() => onUpdate(task.id, { is_starred: task.is_starred === 1 ? 0 : 1 })}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', padding: 0, color: task.is_starred === 1 ? '#F1C40F' : 'var(--text-muted)', flexShrink: 0, lineHeight: 1 }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', padding: 0, color: task.is_starred === 1 ? '#F1C40F' : 'var(--text-muted)', flexShrink: 0, lineHeight: 1 }}
       >
         {task.is_starred === 1 ? '★' : '☆'}
       </button>
@@ -406,7 +406,7 @@ function ProjectPanel({ project, projectTasks, projectTasksLoading, areas, onSav
               value={form.title}
               onChange={e => set('title', e.target.value)}
               placeholder="Project title…"
-              style={{ fontSize: '14px', fontWeight: 700, width: '100%', marginBottom: '5px' }}
+              style={{ fontSize: '16px', fontWeight: 700, width: '100%', marginBottom: '6px' }}
             />
             <textarea
               className="form-textarea"
@@ -414,7 +414,7 @@ function ProjectPanel({ project, projectTasks, projectTasksLoading, areas, onSav
               onChange={e => set('description', e.target.value)}
               placeholder="Add a description…"
               rows={2}
-              style={{ width: '100%', fontSize: '12px', resize: 'none' }}
+              style={{ width: '100%', fontSize: '13px', resize: 'none' }}
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
@@ -437,31 +437,31 @@ function ProjectPanel({ project, projectTasks, projectTasksLoading, areas, onSav
         <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
             <div>
-              <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>Area</div>
+              <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>Area</div>
               <select className="form-select" style={{ padding: '3px 6px', height: 'auto', fontSize: '0.75rem', width: '100%' }} value={form.area} onChange={e => set('area', e.target.value)}>
                 {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
             <div>
-              <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>Pillar</div>
+              <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>Pillar</div>
               <select className="form-select" style={{ padding: '3px 6px', height: 'auto', fontSize: '0.75rem', width: '100%' }} value={form.pillar} onChange={e => set('pillar', e.target.value)}>
                 {PILLARS.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
             <div>
-              <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>Person</div>
+              <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>Person</div>
               <PersonPicker value={form.person_id} onSelect={id => set('person_id', id)} placeholder="Unassigned" />
             </div>
             <div>
-              <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>Due Date</div>
+              <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>Due Date</div>
               <input type="date" className="form-input" style={{ padding: '3px 6px', height: 'auto', fontSize: '0.75rem', width: '100%' }} value={form.due_date} onChange={e => set('due_date', e.target.value)} />
             </div>
             <div>
-              <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>Start Date</div>
+              <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>Start Date</div>
               <input type="date" className="form-input" style={{ padding: '3px 6px', height: 'auto', fontSize: '0.75rem', width: '100%' }} value={form.start_date} onChange={e => set('start_date', e.target.value)} />
             </div>
             <div>
-              <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>End Date</div>
+              <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>End Date</div>
               <input type="date" className="form-input" style={{ padding: '3px 6px', height: 'auto', fontSize: '0.75rem', width: '100%' }} value={form.end_date} onChange={e => set('end_date', e.target.value)} />
             </div>
           </div>
@@ -469,7 +469,7 @@ function ProjectPanel({ project, projectTasks, projectTasksLoading, areas, onSav
 
         {/* Goals aligned */}
         <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '5px' }}>Goals Aligned</div>
+          <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '5px' }}>Goals Aligned</div>
           {editingGoals ? (
             <input
               className="form-input"
@@ -503,7 +503,7 @@ function ProjectPanel({ project, projectTasks, projectTasksLoading, areas, onSav
 
         {/* PALM Phase */}
         <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>PALM Phase</div>
+          <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>PALM Phase</div>
           <div className="palm-phases" style={{ margin: 0 }}>
             {PALM_PHASES.map(phase => (
               <span
@@ -521,11 +521,11 @@ function ProjectPanel({ project, projectTasks, projectTasksLoading, areas, onSav
         {/* Progress stats */}
         <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flexShrink: 0 }}>{done} / {total} tasks</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', flexShrink: 0 }}>{done} / {total} tasks</span>
             <div style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
               <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#2ECC71' : 'var(--accent-primary)', borderRadius: '2px', transition: 'width 0.3s ease' }} />
             </div>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flexShrink: 0, minWidth: '30px', textAlign: 'right' }}>{pct}%</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', flexShrink: 0, minWidth: '30px', textAlign: 'right' }}>{pct}%</span>
             {importance && (
               <span style={{ fontSize: '10px', color: IMPORTANCE_COLORS[importance.cssClass] || 'var(--text-dimmed)', fontWeight: 600, flexShrink: 0 }}>
                 {importance.label}
@@ -696,9 +696,9 @@ export default function FocusPage() {
 
       {/* Left: starred list */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--border-subtle)' }}>
-        <div style={{ padding: '20px 24px 14px', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
-          <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 600 }}>Focus</h2>
-          <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>Starred projects and tasks</p>
+        <div className="page-header" style={{ padding: '20px 24px 14px', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0, marginBottom: 0 }}>
+          <h2>Focus</h2>
+          <p className="page-description">Starred projects and tasks</p>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '14px 8px' }}>
           {isEmpty && (
