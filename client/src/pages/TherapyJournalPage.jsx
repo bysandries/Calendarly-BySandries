@@ -160,8 +160,15 @@ function EntryCard({ e, archived, onUnarchive }) {
 }
 
 // ── Quick card ────────────────────────────────────────────────────────────────
-function QuickCard({ q, onArchive, onDelete }) {
+function QuickCard({ q, onArchive, onDelete, onUpdate }) {
   const topic = topicMap[q.topic] || { label: q.topic, color: 'var(--text-dimmed)', icon: '📝' };
+  const [editing, setEditing] = useState(false);
+  const [editTopic, setEditTopic] = useState(q.topic);
+  const [editTitle, setEditTitle] = useState(q.title);
+  const [editDesc, setEditDesc] = useState(q.description || '');
+  const [editDate, setEditDate] = useState(q.entry_date || new Date().toISOString().split('T')[0]);
+  const [editTime, setEditTime] = useState(q.entry_time || '');
+  const [saving, setSaving] = useState(false);
   let timeLabel;
   if (q.entry_date) {
     const d = new Date(q.entry_date + 'T12:00:00');
@@ -169,6 +176,71 @@ function QuickCard({ q, onArchive, onDelete }) {
     timeLabel = q.entry_time ? `${dateStr} · ${q.entry_time}` : dateStr;
   } else {
     timeLabel = fmtRelative(q.created_at);
+  }
+  const handleSave = async () => {
+    if (!editTitle.trim()) return;
+    setSaving(true);
+    try {
+      await updateQuickEntry(q.id, {
+        topic: editTopic,
+        title: editTitle.trim(),
+        description: editDesc.trim() || null,
+        entry_date: editDate || null,
+        entry_time: editTime || null,
+      });
+      setEditing(false);
+      if (onUpdate) onUpdate();
+    } finally { setSaving(false); }
+  };
+  if (editing) {
+    const editTopicMeta = topicMap[editTopic] || { color: 'var(--text-dimmed)' };
+    return (
+      <div className="tj-quick-card" style={{ borderTopColor: editTopicMeta.color }}>
+        <div className="tj-quick-card-edit-form">
+          <div className="tj-quick-topics" style={{ marginBottom: 6 }}>
+            {TOPICS.map(t => (
+              <button key={t.id}
+                className={`tj-quick-topic-btn${editTopic === t.id ? ' active' : ''}`}
+                onClick={() => setEditTopic(t.id)}
+                style={{ '--topic-color': t.color, padding: '3px 8px', fontSize: 11 }}>
+                {t.icon}
+              </button>
+            ))}
+          </div>
+          <input className="tj-quick-input" value={editTitle}
+            onChange={e => setEditTitle(e.target.value)}
+            placeholder="Title"
+          />
+          <textarea className="tj-quick-textarea" value={editDesc}
+            onChange={e => setEditDesc(e.target.value)}
+            placeholder="Description (optional)"
+            rows={2}
+          />
+          <div className="tj-quick-dt-row">
+            <input type="date" className="tj-quick-input tj-quick-dt" value={editDate}
+              onChange={e => setEditDate(e.target.value)} />
+            <input type="time" className="tj-quick-input tj-quick-dt" value={editTime}
+              onChange={e => setEditTime(e.target.value)} />
+          </div>
+          <div className="tj-quick-form-row">
+            <button className="tj-btn-primary" onClick={handleSave}
+              disabled={saving || !editTitle.trim()}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <button className="tj-btn-secondary" onClick={() => {
+              setEditing(false);
+              setEditTopic(q.topic);
+              setEditTitle(q.title);
+              setEditDesc(q.description || '');
+              setEditDate(q.entry_date || new Date().toISOString().split('T')[0]);
+              setEditTime(q.entry_time || '');
+            }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
   return (
     <div className="tj-quick-card" style={{ borderTopColor: topic.color }}>
@@ -179,6 +251,7 @@ function QuickCard({ q, onArchive, onDelete }) {
       {q.description && <div className="tj-quick-card-desc">{q.description}</div>}
       <div className="tj-quick-card-time">{timeLabel}</div>
       <div className="tj-quick-card-actions">
+        <button className="tj-quick-card-btn" onClick={() => setEditing(true)}>Edit</button>
         <button className="tj-quick-card-btn" onClick={() => onArchive(q.id)}>Archive</button>
         <button className="tj-quick-card-btn danger" onClick={() => onDelete(q.id)}>Delete</button>
       </div>
@@ -209,6 +282,7 @@ export default function TherapyJournalPage() {
   const [quickTime,    setQuickTime]    = useState(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
   const [savingQuick,  setSavingQuick]  = useState(false);
   const [showMobileQuick, setShowMobileQuick] = useState(false);
+  const [mobileQuickTab, setMobileQuickTab] = useState('capture');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -340,7 +414,7 @@ export default function TherapyJournalPage() {
             title="Import a previously exported JSON entry">
             {importing ? 'Importing…' : 'Import ↑'}
           </button>
-          <button className="tj-btn-quick-log" onClick={() => setShowMobileQuick(true)}>⏱ Quick Log</button>
+          <button className="tj-btn-quick-log" onClick={() => { setShowMobileQuick(true); setMobileQuickTab('capture'); }}>⏱ Quick Log</button>
           <button className="tj-btn-primary" onClick={() => navigate('/personal-care/journal/new')}>+ New Entry</button>
         </div>
       </div>
@@ -454,7 +528,8 @@ export default function TherapyJournalPage() {
                   {quickList.map(q => (
                     <QuickCard key={q.id} q={q}
                       onArchive={handleArchiveQuick}
-                      onDelete={handleDeleteQuick} />
+                      onDelete={handleDeleteQuick}
+                      onUpdate={load} />
                   ))}
                 </div>
               )}
@@ -507,51 +582,78 @@ export default function TherapyJournalPage() {
               <span>Quick Capture</span>
               <button className="tj-mobile-quick-close" onClick={() => setShowMobileQuick(false)}>×</button>
             </div>
-            <div className="tj-quick-topics">
-              {TOPICS.map(t => (
-                <button key={t.id}
-                  className={`tj-quick-topic-btn${activeTopic === t.id ? ' active' : ''}`}
-                  onClick={() => handleTopicClick(t.id)}
-                  style={{ '--topic-color': t.color }}>
-                  {t.icon} {t.label}
-                </button>
-              ))}
+            <div className="tj-mobile-quick-tabs">
+              <button className={`tj-mobile-quick-tab${mobileQuickTab === 'capture' ? ' active' : ''}`}
+                onClick={() => setMobileQuickTab('capture')}>New</button>
+              <button className={`tj-mobile-quick-tab${mobileQuickTab === 'saved' ? ' active' : ''}`}
+                onClick={() => setMobileQuickTab('saved')}>Saved ({quickList.length})</button>
             </div>
-            {activeTopic && (
-              <div className="tj-quick-form">
-                <div style={{ fontSize: 11, color: topicMap[activeTopic]?.color, fontWeight: 700, marginBottom: 2 }}>
-                  {topicMap[activeTopic]?.icon} {topicMap[activeTopic]?.label}
+            {mobileQuickTab === 'capture' ? (
+              <>
+                <div className="tj-quick-topics">
+                  {TOPICS.map(t => (
+                    <button key={t.id}
+                      className={`tj-quick-topic-btn${activeTopic === t.id ? ' active' : ''}`}
+                      onClick={() => handleTopicClick(t.id)}
+                      style={{ '--topic-color': t.color }}>
+                      {t.icon} {t.label}
+                    </button>
+                  ))}
                 </div>
-                <input autoFocus className="tj-quick-input" value={quickTitle}
-                  onChange={e => setQuickTitle(e.target.value)}
-                  placeholder="What's on your mind?"
-                  onKeyDown={e => e.key === 'Escape' && (setActiveTopic(null), setQuickTitle(''), setQuickDesc(''))}
-                />
-                <textarea className="tj-quick-textarea" value={quickDesc}
-                  onChange={e => setQuickDesc(e.target.value)}
-                  placeholder="Add more detail… (optional)"
-                  rows={3}
-                />
-                <div className="tj-quick-dt-row">
-                  <input type="date" className="tj-quick-input tj-quick-dt" value={quickDate}
-                    onChange={e => setQuickDate(e.target.value)} />
-                  <input type="time" className="tj-quick-input tj-quick-dt" value={quickTime}
-                    onChange={e => setQuickTime(e.target.value)} />
-                </div>
-                <div className="tj-quick-form-row">
-                  <button className="tj-btn-primary" onClick={async () => { await handleQuickSave(); setShowMobileQuick(false); }}
-                    disabled={savingQuick || !quickTitle.trim()}>
-                    {savingQuick ? 'Saving…' : 'Save'}
-                  </button>
-                  <button className="tj-btn-secondary" onClick={() => {
-                    setActiveTopic(null); setQuickTitle(''); setQuickDesc('');
-                    setQuickDate(new Date().toISOString().split('T')[0]);
-                    setQuickTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
-                    setShowMobileQuick(false);
-                  }}>
-                    Cancel
-                  </button>
-                </div>
+                {activeTopic && (
+                  <div className="tj-quick-form">
+                    <div style={{ fontSize: 11, color: topicMap[activeTopic]?.color, fontWeight: 700, marginBottom: 2 }}>
+                      {topicMap[activeTopic]?.icon} {topicMap[activeTopic]?.label}
+                    </div>
+                    <input autoFocus className="tj-quick-input" value={quickTitle}
+                      onChange={e => setQuickTitle(e.target.value)}
+                      placeholder="What's on your mind?"
+                      onKeyDown={e => e.key === 'Escape' && (setActiveTopic(null), setQuickTitle(''), setQuickDesc(''))}
+                    />
+                    <textarea className="tj-quick-textarea" value={quickDesc}
+                      onChange={e => setQuickDesc(e.target.value)}
+                      placeholder="Add more detail… (optional)"
+                      rows={3}
+                    />
+                    <div className="tj-quick-dt-row">
+                      <input type="date" className="tj-quick-input tj-quick-dt" value={quickDate}
+                        onChange={e => setQuickDate(e.target.value)} />
+                      <input type="time" className="tj-quick-input tj-quick-dt" value={quickTime}
+                        onChange={e => setQuickTime(e.target.value)} />
+                    </div>
+                    <div className="tj-quick-form-row">
+                      <button className="tj-btn-primary" onClick={async () => { await handleQuickSave(); setShowMobileQuick(false); }}
+                        disabled={savingQuick || !quickTitle.trim()}>
+                        {savingQuick ? 'Saving…' : 'Save'}
+                      </button>
+                      <button className="tj-btn-secondary" onClick={() => {
+                        setActiveTopic(null); setQuickTitle(''); setQuickDesc('');
+                        setQuickDate(new Date().toISOString().split('T')[0]);
+                        setQuickTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
+                        setShowMobileQuick(false);
+                      }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="tj-mobile-quick-saved">
+                {quickList.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-dimmed)', fontSize: 13, padding: '20px 0' }}>
+                    No saved quick entries yet.
+                  </div>
+                ) : (
+                  <div className="tj-quick-entries" style={{ flexDirection: 'column', flexWrap: 'nowrap' }}>
+                    {quickList.map(q => (
+                      <QuickCard key={q.id} q={q}
+                        onArchive={handleArchiveQuick}
+                        onDelete={handleDeleteQuick}
+                        onUpdate={load} />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

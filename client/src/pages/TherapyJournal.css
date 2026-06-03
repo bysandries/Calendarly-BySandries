@@ -1563,6 +1563,43 @@
   color: var(--text-primary);
 }
 
+/* ── Mobile quick tabs ─────────────────────────────────────────────────── */
+.tj-mobile-quick-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.tj-mobile-quick-tab {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dimmed);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color .12s, border-color .12s;
+}
+.tj-mobile-quick-tab.active {
+  color: var(--accent, #FF6B9D);
+  border-bottom-color: var(--accent, #FF6B9D);
+}
+.tj-mobile-quick-tab:hover { color: var(--text-secondary); }
+
+.tj-mobile-quick-saved {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+/* ── Quick card edit form ───────────────────────────────────────────────── */
+.tj-quick-card-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .tj-detail-columns { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
