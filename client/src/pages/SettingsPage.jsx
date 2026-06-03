@@ -74,6 +74,13 @@ export default function SettingsPage() {
   const dbSettingsRef = useRef(dbSettings);
   useEffect(() => { dbSettingsRef.current = dbSettings; }, [dbSettings]);
 
+  // Broadcast nav config changes to the Sidebar for live preview (without saving)
+  useEffect(() => {
+    if (!navConfigDirtyRef.current) return;
+    navConfigDirtyRef.current = false;
+    window.dispatchEvent(new CustomEvent('nav-preview-changed', { detail: dbSettings.navigation_config }));
+  }, [dbSettings.navigation_config]);
+
   const [people, setPeople] = useState([]);
 
   const [envSettings, setEnvSettings] = useState({
@@ -96,6 +103,7 @@ export default function SettingsPage() {
   const [dbProfiles, setDbProfiles] = useState([]);
   const [draggedGroupId, setDraggedGroupId] = useState(null);
   const [draggedItemId, setDraggedItemId] = useState(null);
+  const navConfigDirtyRef = useRef(false);
   
   // Decryption verification modal
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -597,8 +605,10 @@ export default function SettingsPage() {
   };
 
   // ── UI Navigation Customization ──
-  const setNavCfg = (updater) =>
+  const setNavCfg = (updater) => {
+    navConfigDirtyRef.current = true;
     setDbSettings(prev => ({ ...prev, navigation_config: updater(prev.navigation_config) }));
+  };
 
   // Group handlers
   const handleGroupLabel   = (id, label) => setNavCfg(c => ({ ...c, groups: c.groups.map(g => g.id === id ? { ...g, label } : g) }));

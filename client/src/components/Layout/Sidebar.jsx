@@ -22,6 +22,45 @@ import {
   IconFocus,
 } from './NavIcons';
 
+function parseNavConfig(config) {
+  let savedItems, savedGroups;
+  if (Array.isArray(config)) {
+    savedItems = config;
+    savedGroups = null;
+  } else if (config?.items && config?.groups) {
+    savedItems = config.items;
+    savedGroups = config.groups;
+  } else {
+    return null;
+  }
+
+  const enabledGroupIds = savedGroups
+    ? new Set(savedGroups.filter(g => g.enabled !== false).map(g => g.id))
+    : null;
+
+  const orderedItems = savedItems
+    .filter(c => c.enabled !== false)
+    .filter(c => !enabledGroupIds || !c.group || enabledGroupIds.has(c.group))
+    .map(c => {
+      const original = NAV_ITEMS.find(item => item.to === c.id);
+      return original ? { ...original, label: c.label, group: c.group ?? original.group } : null;
+    })
+    .filter(Boolean);
+
+  const configuredIds = new Set(savedItems.map(c => c.id));
+  const missing = NAV_ITEMS.filter(item => !configuredIds.has(item.to));
+  if (missing.length) {
+    const settingsIdx = orderedItems.findIndex(i => i.to === '/settings');
+    if (settingsIdx >= 0) orderedItems.splice(settingsIdx, 0, ...missing);
+    else orderedItems.push(...missing);
+  }
+
+  const labels = {};
+  if (savedGroups) savedGroups.forEach(g => { labels[g.id] = g.label; });
+
+  return { items: orderedItems, groupLabels: labels };
+}
+
 const NAV_ITEMS = [
   { to: '/focus',        icon: IconFocus,    label: 'Focus',               group: 'Focus' },
   { to: '/pomodoro',     icon: IconClock,    label: 'Pomodoro',            group: 'Focus', mobileOnly: true },
@@ -45,6 +84,8 @@ export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, o
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [navItems, setNavItems] = useState(NAV_ITEMS);
   const [groupLabels, setGroupLabels] = useState({});
+  const [previewNavItems, setPreviewNavItems] = useState(null);
+  const [previewGroupLabels, setPreviewGroupLabels] = useState(null);
   const [contextPresets, setContextPresets] = useState([]);
   const [activeContext, setActiveContext] = useState(null); // null = "All"
 
@@ -61,56 +102,20 @@ export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, o
         const res = await fetch('/api/settings');
         const data = await res.json();
         if (data.success && data.database) {
-          // Navigation config — handles both old flat-array and new {groups,items} format
           if (data.database.navigation_config) {
             let config = data.database.navigation_config;
             if (typeof config === 'string') {
               try { config = JSON.parse(config); } catch { config = null; }
             }
             if (config) {
-              let savedItems, savedGroups;
-              if (Array.isArray(config)) {
-                savedItems = config;
-                savedGroups = null;
-              } else if (config.items && config.groups) {
-                savedItems = config.items;
-                savedGroups = config.groups;
-              }
-              if (savedItems) {
-                // Build set of enabled group IDs so hidden groups collapse their tabs
-                const enabledGroupIds = savedGroups
-                  ? new Set(savedGroups.filter(g => g.enabled !== false).map(g => g.id))
-                  : null;
-
-                const orderedItems = savedItems
-                  .filter(c => c.enabled !== false)
-                  .filter(c => !enabledGroupIds || !c.group || enabledGroupIds.has(c.group))
-                  .map(c => {
-                    const original = NAV_ITEMS.find(item => item.to === c.id);
-                    return original ? { ...original, label: c.label, group: c.group ?? original.group } : null;
-                  })
-                  .filter(Boolean);
-
-                const configuredIds = new Set(savedItems.map(c => c.id));
-                const missing = NAV_ITEMS.filter(item => !configuredIds.has(item.to));
-                if (missing.length) {
-                  const settingsIdx = orderedItems.findIndex(i => i.to === '/settings');
-                  if (settingsIdx >= 0) orderedItems.splice(settingsIdx, 0, ...missing);
-                  else orderedItems.push(...missing);
-                }
-                setNavItems(orderedItems);
-
-                // Apply group label overrides
-                if (savedGroups) {
-                  const labels = {};
-                  savedGroups.forEach(g => { labels[g.id] = g.label; });
-                  setGroupLabels(labels);
-                }
+              const parsed = parseNavConfig(config);
+              if (parsed) {
+                setNavItems(parsed.items);
+                setGroupLabels(parsed.groupLabels);
               }
             }
           }
 
-          // Context presets
           if (data.database.context_presets) {
             let presets = data.database.context_presets;
             if (typeof presets === 'string') {
@@ -123,12 +128,29 @@ export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, o
         console.error('Failed to load sidebar UI config', err);
       }
     };
+
+    const handleSaved = () => {
+      setPreviewNavItems(null);
+      setPreviewGroupLabels(null);
+      fetchUIConfig();
+    };
+
+    const handlePreview = (e) => {
+      const parsed = parseNavConfig(e.detail);
+      if (parsed) {
+        setPreviewNavItems(parsed.items);
+        setPreviewGroupLabels(parsed.groupLabels);
+      }
+    };
+
     fetchUIConfig();
-    window.addEventListener('nav-settings-saved', fetchUIConfig);
+    window.addEventListener('nav-settings-saved', handleSaved);
+    window.addEventListener('nav-preview-changed', handlePreview);
     const interval = setInterval(fetchUIConfig, 30000);
     return () => {
       clearInterval(interval);
-      window.removeEventListener('nav-settings-saved', fetchUIConfig);
+      window.removeEventListener('nav-settings-saved', handleSaved);
+      window.removeEventListener('nav-preview-changed', handlePreview);
     };
   }, []);
 
@@ -169,10 +191,14 @@ export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, o
     return () => clearInterval(interval);
   }, []);
 
+  // Use preview (live) or saved nav items
+  const activeNavItems = previewNavItems ?? navItems;
+  const activeGroupLabels = previewGroupLabels ?? groupLabels;
+
   // Filter nav items by active context preset
   const visibleItems = activeContext
-    ? navItems.filter(item => activeContext.navItems.includes(item.to))
-    : navItems;
+    ? activeNavItems.filter(item => activeContext.navItems.includes(item.to))
+    : activeNavItems;
 
   const ToggleIcon = collapsed ? IconChevronRight : IconChevronLeft;
 
@@ -268,7 +294,7 @@ export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, o
             if (item.mobileOnly && !isMobile) return [];
             const nodes = [];
             if (item.group && item.group !== lastGroup) {
-              const displayLabel = groupLabels[item.group] ?? item.group;
+              const displayLabel = activeGroupLabels[item.group] ?? item.group;
               nodes.push(
                 <div key={`group-${item.group}`} className="sidebar-section-label">
                   {!collapsed ? displayLabel : <span style={{ display: 'block', height: '1px', background: 'rgba(255,255,255,0.07)', margin: '4px 8px' }} />}
