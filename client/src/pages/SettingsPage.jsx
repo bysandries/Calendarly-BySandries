@@ -36,21 +36,32 @@ export default function SettingsPage() {
     theme: 'midnight-abyss',
     default_assignee: '',
     context_presets: [],
-    navigation_config: [
-      { id: '/tasks', label: 'Tasks', enabled: true },
-      { id: '/projects', label: 'Projects', enabled: true },
-      { id: '/team', label: 'Team', enabled: true },
-      { id: '/gtd', label: 'GTD Inbox', enabled: true },
-      { id: '/kanban', label: 'Kanban Board', enabled: true },
-      { id: '/notes', label: 'Extracts', enabled: true },
-      { id: '/habits', label: 'Habits', enabled: true },
-      { id: '/calendar', label: 'Calendar Tracking', enabled: true },
-      { id: '/timeline', label: 'Life Map', enabled: true },
-      { id: '/pomodoro', label: 'Pomodoro', enabled: true },
-      { id: '/analytics', label: 'Reflection Dashboard', enabled: true },
-      { id: '/agents', label: 'Code Agents', enabled: true },
-      { id: '/settings', label: 'Settings', enabled: true }
-    ],
+    navigation_config: {
+      groups: [
+        { id: 'Focus',   label: 'Focus',   enabled: true },
+        { id: 'Work',    label: 'Work',    enabled: true },
+        { id: 'Capture', label: 'Capture', enabled: true },
+        { id: 'Life',    label: 'Life',    enabled: true },
+        { id: 'System',  label: 'System',  enabled: true },
+      ],
+      items: [
+        { id: '/focus',         label: 'Focus',                enabled: true, group: 'Focus'   },
+        { id: '/pomodoro',      label: 'Pomodoro',             enabled: true, group: 'Focus'   },
+        { id: '/tasks',         label: 'Tasks',                enabled: true, group: 'Work'    },
+        { id: '/projects',      label: 'Projects',             enabled: true, group: 'Work'    },
+        { id: '/team',          label: 'Team',                 enabled: true, group: 'Work'    },
+        { id: '/gtd',           label: 'GTD Inbox',            enabled: true, group: 'Capture' },
+        { id: '/kanban',        label: 'Kanban Board',         enabled: true, group: 'Capture' },
+        { id: '/notes',         label: 'Extracts',             enabled: true, group: 'Capture' },
+        { id: '/habits',        label: 'Habits',               enabled: true, group: 'Life'    },
+        { id: '/personal-care', label: 'Personal Care',        enabled: true, group: 'Life'    },
+        { id: '/calendar',      label: 'Calendar Tracking',    enabled: true, group: 'Life'    },
+        { id: '/timeline',      label: 'Life Map',             enabled: true, group: 'Life'    },
+        { id: '/analytics',     label: 'Reflection Dashboard', enabled: true, group: 'System'  },
+        { id: '/agents',        label: 'Code Agents',          enabled: true, group: 'System'  },
+        { id: '/settings',      label: 'Settings',             enabled: true, group: 'System'  },
+      ],
+    },
     palm_pillars: {
       Kindness: 'Kindness',
       Authenticity: 'Authenticity',
@@ -79,7 +90,8 @@ export default function SettingsPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [dbProfiles, setDbProfiles] = useState([]);
-  const [draggedNavIndex, setDraggedNavIndex] = useState(null);
+  const [draggedGroupId, setDraggedGroupId] = useState(null);
+  const [draggedItemId, setDraggedItemId] = useState(null);
   
   // Decryption verification modal
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -131,22 +143,35 @@ export default function SettingsPage() {
                 if (Array.isArray(cp)) base.context_presets = cp;
               }
 
-              // Merge navigation_config safely
+              // Merge navigation_config — handles both old flat-array and new {groups,items} format
               if (settingsData.database.navigation_config) {
                 let saved = settingsData.database.navigation_config;
                 if (typeof saved === 'string') {
-                  try { saved = JSON.parse(saved); } catch (e) { saved = null; }
+                  try { saved = JSON.parse(saved); } catch { saved = null; }
                 }
 
-                if (saved && Array.isArray(saved)) {
-                  const defaults = prev.navigation_config;
-                  const merged = [...saved];
-                  defaults.forEach(def => {
-                    if (!merged.find(m => m.id === def.id)) {
-                      merged.push(def);
-                    }
-                  });
-                  base.navigation_config = merged;
+                if (saved) {
+                  const defaultCfg = prev.navigation_config;
+
+                  if (Array.isArray(saved)) {
+                    // Old format → migrate: keep user's label/enabled, add group from default
+                    const migratedItems = defaultCfg.items.map(def => {
+                      const s = saved.find(x => x.id === def.id);
+                      return s ? { ...def, label: s.label, enabled: s.enabled } : def;
+                    });
+                    base.navigation_config = { groups: defaultCfg.groups, items: migratedItems };
+                  } else if (saved.groups && saved.items) {
+                    // New format → merge in any items/groups that were added since last save
+                    const mergedItems = [...saved.items];
+                    defaultCfg.items.forEach(def => {
+                      if (!mergedItems.find(m => m.id === def.id)) mergedItems.push(def);
+                    });
+                    const mergedGroups = [...saved.groups];
+                    defaultCfg.groups.forEach(def => {
+                      if (!mergedGroups.find(g => g.id === def.id)) mergedGroups.push(def);
+                    });
+                    base.navigation_config = { groups: mergedGroups, items: mergedItems };
+                  }
                 }
               }
               return base;
@@ -566,35 +591,51 @@ export default function SettingsPage() {
   };
 
   // ── UI Navigation Customization ──
-  const handleToggleNav = (id) => {
-    setDbSettings(prev => {
-      const newConfig = prev.navigation_config.map(item => 
-        item.id === id ? { ...item, enabled: !item.enabled } : item
-      );
-      return { ...prev, navigation_config: newConfig };
+  const setNavCfg = (updater) =>
+    setDbSettings(prev => ({ ...prev, navigation_config: updater(prev.navigation_config) }));
+
+  // Group handlers
+  const handleGroupLabel   = (id, label) => setNavCfg(c => ({ ...c, groups: c.groups.map(g => g.id === id ? { ...g, label } : g) }));
+  const handleGroupToggle  = (id)        => setNavCfg(c => ({ ...c, groups: c.groups.map(g => g.id === id ? { ...g, enabled: !g.enabled } : g) }));
+
+  const handleGroupDragStart = (e, id) => { setDraggedGroupId(id); e.dataTransfer.effectAllowed = 'move'; };
+  const handleGroupDragOver  = (e, id) => {
+    e.preventDefault();
+    if (!draggedGroupId || draggedGroupId === id) return;
+    setNavCfg(c => {
+      const groups = [...c.groups];
+      const from = groups.findIndex(g => g.id === draggedGroupId);
+      const to   = groups.findIndex(g => g.id === id);
+      if (from < 0 || to < 0) return c;
+      const [moved] = groups.splice(from, 1);
+      groups.splice(to, 0, moved);
+      return { ...c, groups };
     });
   };
+  const handleGroupDragEnd = () => setDraggedGroupId(null);
 
-  const handleNavDragStart = (e, index) => {
-    setDraggedNavIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
+  // Item handlers
+  const handleItemLabel  = (id, label) => setNavCfg(c => ({ ...c, items: c.items.map(i => i.id === id ? { ...i, label } : i) }));
+  const handleItemToggle = (id)        => setNavCfg(c => ({ ...c, items: c.items.map(i => i.id === id ? { ...i, enabled: !i.enabled } : i) }));
+  const handleItemGroup  = (id, group) => setNavCfg(c => ({ ...c, items: c.items.map(i => i.id === id ? { ...i, group } : i) }));
+
+  const handleItemDragStart = (e, id) => { e.stopPropagation(); setDraggedItemId(id); e.dataTransfer.effectAllowed = 'move'; };
+  const handleItemDragOver  = (e, id, groupId) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!draggedItemId || draggedItemId === id) return;
+    setNavCfg(c => {
+      const dragged = c.items.find(i => i.id === draggedItemId);
+      if (!dragged || dragged.group !== groupId) return c; // only within same group
+      const items = [...c.items];
+      const from = items.findIndex(i => i.id === draggedItemId);
+      const to   = items.findIndex(i => i.id === id);
+      if (from < 0 || to < 0) return c;
+      const [moved] = items.splice(from, 1);
+      items.splice(to, 0, moved);
+      return { ...c, items };
+    });
   };
-
-  const handleNavDragOver = (e, index) => {
-    e.preventDefault();
-    if (draggedNavIndex === null || draggedNavIndex === index) return;
-
-    const newConfig = [...dbSettings.navigation_config];
-    const item = newConfig.splice(draggedNavIndex, 1)[0];
-    newConfig.splice(index, 0, item);
-    
-    setDbSettings(prev => ({ ...prev, navigation_config: newConfig }));
-    setDraggedNavIndex(index);
-  };
-
-  const handleNavDragEnd = () => {
-    setDraggedNavIndex(null);
-  };
+  const handleItemDragEnd = () => setDraggedItemId(null);
 
   if (loading) {
     return (
@@ -1128,40 +1169,128 @@ export default function SettingsPage() {
           {activeTab === 'ui' && (
             <form onSubmit={handleSaveDbSettings}>
               <div className="panel-header">
-                <h2>Interface & Navigation</h2>
-                <p>Customize your main menu. Drag items to reorder and toggle visibility with switches.</p>
+                <h2>Interface &amp; Navigation</h2>
+                <p>Organize your sidebar into groups. Drag to reorder groups and tabs, rename labels, hide what you don't need, or move tabs between groups.</p>
               </div>
 
-              <div className="ui-config-list">
-                {dbSettings.navigation_config.map((item, index) => (
-                  <div 
-                    key={item.id}
-                    className={`ui-config-item ${draggedNavIndex === index ? 'dragging' : ''}`}
-                    draggable
-                    onDragStart={(e) => handleNavDragStart(e, index)}
-                    onDragOver={(e) => handleNavDragOver(e, index)}
-                    onDragEnd={handleNavDragEnd}
-                  >
-                    <div className="ui-item-info">
-                      <span className="ui-drag-handle">☰</span>
-                      <span className="ui-item-label">{item.label}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {(dbSettings.navigation_config?.groups || []).map(group => {
+                  const groupItems = (dbSettings.navigation_config?.items || []).filter(i => i.group === group.id);
+                  const isDraggingThisGroup = draggedGroupId === group.id;
+                  return (
+                    <div
+                      key={group.id}
+                      draggable
+                      onDragStart={e => handleGroupDragStart(e, group.id)}
+                      onDragOver={e => handleGroupDragOver(e, group.id)}
+                      onDragEnd={handleGroupDragEnd}
+                      style={{
+                        border: `1px solid ${isDraggingThisGroup ? 'rgba(52,152,219,0.45)' : 'var(--glass-border)'}`,
+                        borderRadius: '10px',
+                        background: 'var(--glass-bg)',
+                        overflow: 'hidden',
+                        opacity: isDraggingThisGroup ? 0.45 : 1,
+                        transition: 'opacity 120ms',
+                      }}
+                    >
+                      {/* Group header row */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderBottom: group.enabled && groupItems.length ? '1px solid var(--glass-border)' : 'none', cursor: 'grab' }}>
+                        <span style={{ color: 'var(--text-dimmed)', fontSize: '13px', flexShrink: 0 }}>☰</span>
+                        <input
+                          type="text"
+                          value={group.label}
+                          onChange={e => handleGroupLabel(group.id, e.target.value)}
+                          onClick={e => e.stopPropagation()}
+                          onMouseDown={e => e.stopPropagation()}
+                          placeholder="Group name…"
+                          style={{
+                            flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                            color: 'var(--text-primary)', fontSize: '12px', fontWeight: 700,
+                            letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'text',
+                          }}
+                        />
+                        <span style={{ fontSize: '11px', color: 'var(--text-dimmed)', flexShrink: 0 }}>
+                          {groupItems.filter(i => i.enabled).length}/{groupItems.length} visible
+                        </span>
+                        <label className="switch-toggle" style={{ flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                          <input type="checkbox" checked={group.enabled} onChange={() => handleGroupToggle(group.id)} />
+                          <span className="slider-round" />
+                        </label>
+                      </div>
+
+                      {/* Items within group */}
+                      {group.enabled && (
+                        <div>
+                          {groupItems.length === 0 && (
+                            <div style={{ padding: '10px 44px', fontSize: '12px', color: 'var(--text-dimmed)', fontStyle: 'italic' }}>
+                              No tabs — move some here using the group selector on each tab.
+                            </div>
+                          )}
+                          {groupItems.map(item => (
+                            <div
+                              key={item.id}
+                              draggable
+                              onDragStart={e => handleItemDragStart(e, item.id)}
+                              onDragOver={e => handleItemDragOver(e, item.id, group.id)}
+                              onDragEnd={handleItemDragEnd}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '10px',
+                                padding: '7px 14px 7px 32px',
+                                borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                opacity: draggedItemId === item.id ? 0.35 : (item.enabled ? 1 : 0.4),
+                                background: draggedItemId === item.id ? 'rgba(255,255,255,0.03)' : 'transparent',
+                                cursor: 'grab',
+                              }}
+                            >
+                              <span style={{ color: 'var(--text-dimmed)', fontSize: '12px', flexShrink: 0 }}>☰</span>
+                              <input
+                                type="text"
+                                value={item.label}
+                                onChange={e => handleItemLabel(item.id, e.target.value)}
+                                onClick={e => e.stopPropagation()}
+                                onMouseDown={e => e.stopPropagation()}
+                                style={{
+                                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                                  borderBottom: '1px solid rgba(255,255,255,0.07)',
+                                  color: item.enabled ? 'var(--text-primary)' : 'var(--text-muted)',
+                                  fontSize: '13px', padding: '1px 0', cursor: 'text',
+                                }}
+                              />
+                              <span style={{ fontSize: '10px', color: 'var(--text-dimmed)', flexShrink: 0, fontFamily: 'monospace' }}>
+                                {item.id}
+                              </span>
+                              {/* Move to group */}
+                              <select
+                                value={item.group}
+                                onChange={e => handleItemGroup(item.id, e.target.value)}
+                                onClick={e => e.stopPropagation()}
+                                title="Move to group"
+                                style={{
+                                  background: 'var(--bg-card)', border: '1px solid var(--glass-border)',
+                                  borderRadius: '4px', color: 'var(--text-muted)', fontSize: '11px',
+                                  padding: '2px 4px', cursor: 'pointer', flexShrink: 0,
+                                }}
+                              >
+                                {(dbSettings.navigation_config?.groups || []).map(g => (
+                                  <option key={g.id} value={g.id}>{g.label}</option>
+                                ))}
+                              </select>
+                              <label className="switch-toggle" style={{ flexShrink: 0, transform: 'scale(0.8)', transformOrigin: 'right' }} onClick={e => e.stopPropagation()}>
+                                <input type="checkbox" checked={item.enabled} onChange={() => handleItemToggle(item.id)} />
+                                <span className="slider-round" />
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    
-                    <label className="switch-toggle">
-                      <input 
-                        type="checkbox" 
-                        checked={item.enabled}
-                        onChange={() => handleToggleNav(item.id)}
-                      />
-                      <span className="slider-round"></span>
-                    </label>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              <div style={{ marginTop: '30px' }}>
+              <div style={{ marginTop: '24px' }}>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Saving...' : 'Save Navigation Order'}
+                  {saving ? 'Saving...' : 'Save Navigation'}
                 </button>
               </div>
 
@@ -1213,7 +1342,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
-                    {dbSettings.navigation_config.filter(i => i.enabled).map(item => {
+                    {(dbSettings.navigation_config?.items || []).filter(i => i.enabled).map(item => {
                       const selected = newPresetItems.includes(item.id);
                       return (
                         <button

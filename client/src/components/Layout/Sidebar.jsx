@@ -44,6 +44,7 @@ export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, o
   const [isOnline, setIsOnline] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [navItems, setNavItems] = useState(NAV_ITEMS);
+  const [groupLabels, setGroupLabels] = useState({});
   const [contextPresets, setContextPresets] = useState([]);
   const [activeContext, setActiveContext] = useState(null); // null = "All"
 
@@ -60,29 +61,52 @@ export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, o
         const res = await fetch('/api/settings');
         const data = await res.json();
         if (data.success && data.database) {
-          // Navigation config
+          // Navigation config — handles both old flat-array and new {groups,items} format
           if (data.database.navigation_config) {
             let config = data.database.navigation_config;
             if (typeof config === 'string') {
               try { config = JSON.parse(config); } catch { config = null; }
             }
-            if (config && Array.isArray(config)) {
-              const orderedItems = config
-                .filter(c => c.enabled)
-                .map(c => {
-                  const original = NAV_ITEMS.find(item => item.to === c.id);
-                  return original ? { ...original, label: c.label } : null;
-                })
-                .filter(Boolean);
-
-              const configuredIds = new Set(config.map(c => c.id));
-              const missing = NAV_ITEMS.filter(item => !configuredIds.has(item.to));
-              if (missing.length) {
-                const settingsIdx = orderedItems.findIndex(i => i.to === '/settings');
-                if (settingsIdx >= 0) orderedItems.splice(settingsIdx, 0, ...missing);
-                else orderedItems.push(...missing);
+            if (config) {
+              let savedItems, savedGroups;
+              if (Array.isArray(config)) {
+                savedItems = config;
+                savedGroups = null;
+              } else if (config.items && config.groups) {
+                savedItems = config.items;
+                savedGroups = config.groups;
               }
-              setNavItems(orderedItems);
+              if (savedItems) {
+                // Build set of enabled group IDs so hidden groups collapse their tabs
+                const enabledGroupIds = savedGroups
+                  ? new Set(savedGroups.filter(g => g.enabled !== false).map(g => g.id))
+                  : null;
+
+                const orderedItems = savedItems
+                  .filter(c => c.enabled !== false)
+                  .filter(c => !enabledGroupIds || !c.group || enabledGroupIds.has(c.group))
+                  .map(c => {
+                    const original = NAV_ITEMS.find(item => item.to === c.id);
+                    return original ? { ...original, label: c.label, group: c.group ?? original.group } : null;
+                  })
+                  .filter(Boolean);
+
+                const configuredIds = new Set(savedItems.map(c => c.id));
+                const missing = NAV_ITEMS.filter(item => !configuredIds.has(item.to));
+                if (missing.length) {
+                  const settingsIdx = orderedItems.findIndex(i => i.to === '/settings');
+                  if (settingsIdx >= 0) orderedItems.splice(settingsIdx, 0, ...missing);
+                  else orderedItems.push(...missing);
+                }
+                setNavItems(orderedItems);
+
+                // Apply group label overrides
+                if (savedGroups) {
+                  const labels = {};
+                  savedGroups.forEach(g => { labels[g.id] = g.label; });
+                  setGroupLabels(labels);
+                }
+              }
             }
           }
 
@@ -240,9 +264,10 @@ export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, o
             if (item.mobileOnly && !isMobile) return [];
             const nodes = [];
             if (item.group && item.group !== lastGroup) {
+              const displayLabel = groupLabels[item.group] ?? item.group;
               nodes.push(
                 <div key={`group-${item.group}`} className="sidebar-section-label">
-                  {!collapsed ? item.group : <span style={{ display: 'block', height: '1px', background: 'rgba(255,255,255,0.07)', margin: '4px 8px' }} />}
+                  {!collapsed ? displayLabel : <span style={{ display: 'block', height: '1px', background: 'rgba(255,255,255,0.07)', margin: '4px 8px' }} />}
                 </div>
               );
               lastGroup = item.group;
