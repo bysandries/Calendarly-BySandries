@@ -298,21 +298,32 @@ function PanelTaskRow({ task, onUpdate, onDelete, onStartTask }) {
       }}>
         {task.title}
       </span>
-      <select
-        value={task.status}
-        onChange={e => onUpdate(task.id, { status: e.target.value })}
-        onClick={e => e.stopPropagation()}
-        style={{
-          fontSize: '11px', padding: '1px 4px', borderRadius: '8px',
-          background: 'rgba(255,255,255,0.05)', border: `1px solid ${status.color ?? 'rgba(255,255,255,0.1)'}`,
-          color: status.color ?? 'var(--text-muted)', flexShrink: 0, cursor: 'pointer',
-          appearance: 'none', WebkitAppearance: 'none', outline: 'none',
-        }}
-      >
-        {GTD_STATUSES.map(s => (
-          <option key={s} value={s}>{getStatusInfo(s).label}</option>
-        ))}
-      </select>
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <select
+          value={task.status}
+          onChange={e => onUpdate(task.id, { status: e.target.value })}
+          onClick={e => e.stopPropagation()}
+          style={{
+            fontSize: '11px', paddingTop: '2px', paddingBottom: '2px',
+            paddingLeft: '6px', paddingRight: '16px',
+            borderRadius: '8px',
+            background: 'rgba(255,255,255,0.05)',
+            border: `1px solid ${status.color ?? 'rgba(255,255,255,0.15)'}`,
+            color: status.color ?? 'var(--text-muted)',
+            cursor: 'pointer',
+            appearance: 'none', WebkitAppearance: 'none', outline: 'none',
+          }}
+        >
+          {GTD_STATUSES.map(s => (
+            <option key={s} value={s}>{getStatusInfo(s).label}</option>
+          ))}
+        </select>
+        <span style={{
+          position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)',
+          color: status.color ?? 'var(--text-muted)', fontSize: '8px', pointerEvents: 'none',
+          lineHeight: 1,
+        }}>▾</span>
+      </div>
       {task.date_due && (
         <span style={{ fontSize: '11px', color: overdue ? 'var(--danger, #e74c3c)' : 'var(--text-dimmed)', flexShrink: 0 }}>
           {formatDaysLeft(daysLeft)}
