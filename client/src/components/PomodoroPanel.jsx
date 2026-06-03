@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import './PomodoroPanel.css';
 import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
@@ -17,7 +17,7 @@ const ACTIONABLE_STATUSES = [
   '04 - Delegate It',
 ];
 
-export default function PomodoroPanel({ timezone, isMobileView = false }) {
+const PomodoroPanel = forwardRef(function PomodoroPanel({ timezone, isMobileView = false }, ref) {
   const [isExpanded, setIsExpanded] = useState(isMobileView);
   const [areas, setAreas] = useState([]);
   const { tasks, loading: tasksLoading, refetch: refetchTasks } = useTasks();
@@ -75,6 +75,8 @@ export default function PomodoroPanel({ timezone, isMobileView = false }) {
     }
     pomodoro.selectTask(task);
   };
+
+  useImperativeHandle(ref, () => ({ selectTask: handleSelectTask }), [handleSelectTask]);
 
   const handlePlay = async () => {
     if (!pomodoro.selectedTask) return;
@@ -398,4 +400,6 @@ export default function PomodoroPanel({ timezone, isMobileView = false }) {
       )}
     </div>
   );
-}
+});
+
+export default PomodoroPanel;

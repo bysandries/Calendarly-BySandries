@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
 import { usePeople } from '../hooks/usePeople';
@@ -261,7 +261,7 @@ function TaskPanel({ task, projects, onSave, onDelete, onClose }) {
 
 // ── Compact task row inside the project panel ────────────────────────────────
 
-function PanelTaskRow({ task, onUpdate, onDelete }) {
+function PanelTaskRow({ task, onUpdate, onDelete, onStartTask }) {
   const status = getStatusInfo(task.status);
   const daysLeft = calcDaysLeft(task.date_due);
   const overdue = task.date_due && daysLeft < 0;
@@ -298,13 +298,43 @@ function PanelTaskRow({ task, onUpdate, onDelete }) {
       }}>
         {task.title}
       </span>
-      <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: status.color ?? 'var(--text-muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>
-        {status.label}
-      </span>
+      <select
+        value={task.status}
+        onChange={e => onUpdate(task.id, { status: e.target.value })}
+        onClick={e => e.stopPropagation()}
+        style={{
+          fontSize: '11px', padding: '1px 4px', borderRadius: '8px',
+          background: 'rgba(255,255,255,0.05)', border: `1px solid ${status.color ?? 'rgba(255,255,255,0.1)'}`,
+          color: status.color ?? 'var(--text-muted)', flexShrink: 0, cursor: 'pointer',
+          appearance: 'none', WebkitAppearance: 'none', outline: 'none',
+        }}
+      >
+        {GTD_STATUSES.map(s => (
+          <option key={s} value={s}>{getStatusInfo(s).label}</option>
+        ))}
+      </select>
       {task.date_due && (
         <span style={{ fontSize: '11px', color: overdue ? 'var(--danger, #e74c3c)' : 'var(--text-dimmed)', flexShrink: 0 }}>
           {formatDaysLeft(daysLeft)}
         </span>
+      )}
+      {onStartTask && (
+        <button
+          type="button"
+          onClick={() => onStartTask(task)}
+          title="Focus on this task"
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px',
+            color: 'var(--text-muted)', flexShrink: 0, lineHeight: 1, fontSize: '11px',
+            display: 'flex', alignItems: 'center',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent-primary)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+        </button>
       )}
       <button
         type="button"
@@ -325,7 +355,7 @@ const PANEL_TASK_TABS = [
   { key: 'all', label: 'All' },
 ];
 
-function ProjectPanel({ project, projectTasks, projectTasksLoading, areas, onSave, onDelete, onClose, onUpdateTask, onCreateTask }) {
+function ProjectPanel({ project, projectTasks, projectTasksLoading, areas, onSave, onDelete, onClose, onUpdateTask, onCreateTask, onStartTask }) {
   const [form, setForm] = useState({});
   const [busy, setBusy] = useState(false);
   const [activeTab, setActiveTab] = useState('actionable');
@@ -606,6 +636,7 @@ function ProjectPanel({ project, projectTasks, projectTasksLoading, areas, onSav
                   task={task}
                   onUpdate={onUpdateTask}
                   onDelete={() => {}}
+                  onStartTask={onStartTask}
                 />
               ))
             )}
@@ -640,6 +671,7 @@ export default function FocusPage() {
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [projectTasks, setProjectTasks] = useState([]);
   const [projectTasksLoading, setProjectTasksLoading] = useState(false);
+  const pomodoroRef = useRef(null);
 
   useEffect(() => { fetchAreas().then(setAreas).catch(() => {}); }, []);
 
@@ -771,12 +803,14 @@ export default function FocusPage() {
           onClose={() => setSelectedProjectId(null)}
           onUpdateTask={handleUpdateProjectTask}
           onCreateTask={handleCreateProjectTask}
+          onStartTask={task => pomodoroRef.current?.selectTask(task)}
         />
       )}
 
       {/* Right: Pomodoro — always visible */}
       <div style={{ width: '340px', flexShrink: 0, overflowY: 'auto', overflowX: 'hidden' }}>
         <PomodoroPanel
+          ref={pomodoroRef}
           timezone={Intl.DateTimeFormat().resolvedOptions().timeZone}
           isMobileView={true}
         />
