@@ -18,24 +18,26 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconX,
-  IconClock
+  IconClock,
+  IconFocus,
 } from './NavIcons';
 
 const NAV_ITEMS = [
-  { to: '/tasks', icon: IconDatabase, label: 'Tasks' },
-  { to: '/projects', icon: IconProjects, label: 'Projects' },
-  { to: '/team', icon: IconUsers, label: 'Team' },
-  { to: '/gtd', icon: IconInbox, label: 'GTD Inbox' },
-  { to: '/kanban', icon: IconKanban, label: 'Kanban Board' },
-  { to: '/notes', icon: IconExtracts, label: 'Extracts' },
-  { to: '/habits', icon: IconHabits, label: 'Habits' },
-  { to: '/personal-care', icon: IconHeart, label: 'Personal Care' },
-  { to: '/calendar', icon: IconCalendar, label: 'Calendar Tracking' },
-  { to: '/timeline', icon: IconMap, label: 'Life Map' },
-  { to: '/pomodoro', icon: IconClock, label: 'Pomodoro', mobileOnly: true },
-  { to: '/analytics', icon: IconAnalytics, label: 'Reflection Dashboard' },
-  { to: '/agents', icon: IconAgents, label: 'Code Agents' },
-  { to: '/settings', icon: IconSettings, label: 'Settings' },
+  { to: '/focus',        icon: IconFocus,    label: 'Focus',               group: 'Focus' },
+  { to: '/pomodoro',     icon: IconClock,    label: 'Pomodoro',            group: 'Focus', mobileOnly: true },
+  { to: '/tasks',        icon: IconDatabase, label: 'Tasks',               group: 'Work' },
+  { to: '/projects',     icon: IconProjects, label: 'Projects',            group: 'Work' },
+  { to: '/team',         icon: IconUsers,    label: 'Team',                group: 'Work' },
+  { to: '/gtd',          icon: IconInbox,    label: 'GTD Inbox',           group: 'Capture' },
+  { to: '/kanban',       icon: IconKanban,   label: 'Kanban Board',        group: 'Capture' },
+  { to: '/notes',        icon: IconExtracts, label: 'Extracts',            group: 'Capture' },
+  { to: '/habits',       icon: IconHabits,   label: 'Habits',              group: 'Life' },
+  { to: '/personal-care',icon: IconHeart,    label: 'Personal Care',       group: 'Life' },
+  { to: '/calendar',     icon: IconCalendar, label: 'Calendar Tracking',   group: 'Life' },
+  { to: '/timeline',     icon: IconMap,      label: 'Life Map',            group: 'Life' },
+  { to: '/analytics',    icon: IconAnalytics,label: 'Reflection Dashboard',group: 'System' },
+  { to: '/agents',       icon: IconAgents,   label: 'Code Agents',         group: 'System' },
+  { to: '/settings',     icon: IconSettings, label: 'Settings',            group: 'System' },
 ];
 
 export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, onOpenCapture }) {
@@ -232,24 +234,33 @@ export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, o
       )}
 
       <nav className="sidebar-nav">
-        <div className="sidebar-section-label">Navigation</div>
-
-        {visibleItems.map(({ to, icon: Icon, label, mobileOnly }) => {
-          if (mobileOnly && !isMobile) return null;
-          return (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-              title={label}
-            >
-              <span className="nav-icon">
-                <Icon />
-              </span>
-              <span className="nav-label">{label}</span>
-            </NavLink>
-          );
-        })}
+        {(() => {
+          let lastGroup = null;
+          return visibleItems.flatMap(item => {
+            if (item.mobileOnly && !isMobile) return [];
+            const nodes = [];
+            if (item.group && item.group !== lastGroup) {
+              nodes.push(
+                <div key={`group-${item.group}`} className="sidebar-section-label">
+                  {!collapsed ? item.group : <span style={{ display: 'block', height: '1px', background: 'rgba(255,255,255,0.07)', margin: '4px 8px' }} />}
+                </div>
+              );
+              lastGroup = item.group;
+            }
+            nodes.push(
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                title={item.label}
+              >
+                <span className="nav-icon"><item.icon /></span>
+                <span className="nav-label">{item.label}</span>
+              </NavLink>
+            );
+            return nodes;
+          });
+        })()}
       </nav>
 
       <div className="sidebar-footer">

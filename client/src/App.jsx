@@ -25,6 +25,7 @@ import PersonalGoalDetailPage from './pages/PersonalGoalDetailPage';
 import GoalsHistoryPage from './pages/GoalsHistoryPage';
 import TaskDetailPage from './pages/TaskDetailPage';
 import PomodoroPage from './pages/PomodoroPage';
+import FocusPage from './pages/FocusPage';
 import TimelinePage from './pages/TimelinePage';
 import { IconMenu } from './components/Layout/NavIcons';
 import AuthGate from './components/AuthGate';
@@ -138,6 +139,7 @@ function MainLayout() {
 
       <main className="main-content">
         <Routes>
+          <Route path="/focus" element={<FocusPage />} />
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/tasks/:id" element={<TaskDetailPage />} />
           <Route path="/gtd" element={<GTDPage />} />
@@ -162,7 +164,7 @@ function MainLayout() {
           <Route path="/timeline" element={<TimelinePage />} />
           <Route path="/pomodoro" element={<PomodoroPage />} />
           <Route path="/secret-upload" element={<SecretUploadPage />} />
-          <Route path="*" element={<Navigate to="/gtd" replace />} />
+          <Route path="*" element={<Navigate to="/focus" replace />} />
         </Routes>
       </main>
 
