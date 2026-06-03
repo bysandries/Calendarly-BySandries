@@ -23,6 +23,10 @@ export default function SettingsPage() {
   const [alert, setAlert] = useState(null);
   
   // Settings states
+  // Context preset editor state
+  const [newPresetName, setNewPresetName] = useState('');
+  const [newPresetItems, setNewPresetItems] = useState([]);
+
   const [dbSettings, setDbSettings] = useState({
     base_timezone: 'America/Los_Angeles',
     first_day_of_week: 'sunday',
@@ -31,6 +35,7 @@ export default function SettingsPage() {
     date_format: 'YYYY-MM-DD',
     theme: 'midnight-abyss',
     default_assignee: '',
+    context_presets: [],
     navigation_config: [
       { id: '/tasks', label: 'Tasks', enabled: true },
       { id: '/projects', label: 'Projects', enabled: true },
@@ -116,6 +121,15 @@ export default function SettingsPage() {
                   : prev.palm_pillars,
                 default_assignee: settingsData.database.default_assignee || ''
               };
+
+              // Parse context_presets
+              if (settingsData.database.context_presets) {
+                let cp = settingsData.database.context_presets;
+                if (typeof cp === 'string') {
+                  try { cp = JSON.parse(cp); } catch { cp = []; }
+                }
+                if (Array.isArray(cp)) base.context_presets = cp;
+              }
 
               // Merge navigation_config safely
               if (settingsData.database.navigation_config) {
@@ -874,9 +888,33 @@ export default function SettingsPage() {
                 ))}
               </div>
 
-              <div className="db-actions-group" style={{ marginTop: '24px' }}>
+              <div className="db-actions-group" style={{ marginTop: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                 <button className="btn btn-secondary" onClick={handleIntegrityCheck} disabled={saving}>
                   🛡️ Run Schema Integrity Check on Active DB
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={async () => {
+                    try {
+                      const token = localStorage.getItem('calendarly_api_token') || '';
+                      const res = await fetch('/api/export', {
+                        headers: token ? { Authorization: `Bearer ${token}` } : {}
+                      });
+                      if (!res.ok) throw new Error('Export failed');
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `calendarly-export-${new Date().toISOString().split('T')[0]}.zip`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      triggerAlert('success', 'Export downloaded successfully.');
+                    } catch {
+                      triggerAlert('error', 'Export failed. Try again.');
+                    }
+                  }}
+                >
+                  📦 Export All Data (CSV / JSON / Markdown)
                 </button>
               </div>
             </div>
@@ -1125,6 +1163,110 @@ export default function SettingsPage() {
                 <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? 'Saving...' : 'Save Navigation Order'}
                 </button>
+              </div>
+
+              {/* Focus Context Presets */}
+              <div style={{ marginTop: '40px', borderTop: '1px solid var(--border-subtle)', paddingTop: '32px' }}>
+                <h3 style={{ fontSize: '15px', color: 'var(--text-primary)', marginBottom: '6px' }}>Focus Context Presets</h3>
+                <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px' }}>
+                  Save named nav subsets. Activate a context from the sidebar to instantly filter navigation to only those sections.
+                </p>
+
+                {/* Existing presets */}
+                {(dbSettings.context_presets || []).map(preset => (
+                  <div key={preset.id} style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '12px 16px', marginBottom: '8px',
+                    background: 'var(--glass-bg)', border: '1px solid var(--glass-border)',
+                    borderRadius: '8px',
+                  }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', minWidth: '120px' }}>{preset.name}</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', flex: 1 }}>
+                      {(preset.navItems || []).join(', ')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = (dbSettings.context_presets || []).filter(p => p.id !== preset.id);
+                        setDbSettings(prev => ({ ...prev, context_presets: updated }));
+                      }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-danger)', fontSize: '14px' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+
+                {/* New preset form */}
+                <div style={{
+                  padding: '16px', background: 'var(--glass-bg)',
+                  border: '1px solid var(--glass-border)', borderRadius: '8px', marginTop: '12px',
+                }}>
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      style={{ flex: 1 }}
+                      placeholder="Context name (e.g. Deep Work, Wellness)"
+                      value={newPresetName}
+                      onChange={e => setNewPresetName(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
+                    {dbSettings.navigation_config.filter(i => i.enabled).map(item => {
+                      const selected = newPresetItems.includes(item.id);
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setNewPresetItems(prev =>
+                            selected ? prev.filter(x => x !== item.id) : [...prev, item.id]
+                          )}
+                          style={{
+                            fontSize: '11px', padding: '4px 10px', borderRadius: '20px', cursor: 'pointer',
+                            border: `1px solid ${selected ? 'rgba(52,152,219,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                            background: selected ? 'rgba(52,152,219,0.15)' : 'transparent',
+                            color: selected ? 'var(--accent-primary)' : 'var(--text-muted)',
+                            fontWeight: selected ? 600 : 400,
+                          }}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={!newPresetName.trim() || newPresetItems.length === 0}
+                    onClick={() => {
+                      const preset = {
+                        id: `ctx-${Date.now()}`,
+                        name: newPresetName.trim(),
+                        navItems: newPresetItems,
+                      };
+                      setDbSettings(prev => ({
+                        ...prev,
+                        context_presets: [...(prev.context_presets || []), preset],
+                      }));
+                      setNewPresetName('');
+                      setNewPresetItems([]);
+                    }}
+                  >
+                    + Save Context Preset
+                  </button>
+                </div>
+
+                <div style={{ marginTop: '16px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={saving}
+                    onClick={handleSaveDbSettings}
+                  >
+                    {saving ? 'Saving...' : 'Save Presets'}
+                  </button>
+                </div>
               </div>
             </form>
           )}

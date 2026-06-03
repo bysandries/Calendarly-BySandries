@@ -1,6 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Layout/Sidebar';
+import CaptureModal from './components/CaptureModal';
 import TasksPage from './pages/TasksPage';
 import GTDPage from './pages/GTDPage';
 import KanbanPage from './pages/KanbanPage';
@@ -30,23 +31,74 @@ import AuthGate from './components/AuthGate';
 
 function MainLayout() {
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [zenMode, setZenMode] = useState(() => localStorage.getItem('zen-mode') === 'true');
+  const [showCapture, setShowCapture] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Close sidebar on route change
   useEffect(() => {
     setMobileSidebarOpen(false);
   }, [location.pathname]);
 
+  // Persist zen mode
+  useEffect(() => {
+    localStorage.setItem('zen-mode', String(zenMode));
+    document.body.classList.toggle('zen-mode', zenMode);
+  }, [zenMode]);
+
+  // Open capture modal when ?capture=true is in the URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('capture') === 'true') {
+      setShowCapture(true);
+    }
+  }, [location.search]);
+
+  const closeCapture = useCallback(() => {
+    setShowCapture(false);
+    // Strip the query param without re-navigating away from current page
+    const params = new URLSearchParams(location.search);
+    if (params.has('capture')) {
+      params.delete('capture');
+      const newSearch = params.toString();
+      navigate(location.pathname + (newSearch ? `?${newSearch}` : ''), { replace: true });
+    }
+  }, [location, navigate]);
+
+  // Global keyboard shortcuts (skip when focus is inside an input/textarea)
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const isTyping = tag === 'input' || tag === 'textarea' || document.activeElement?.isContentEditable;
+      if (isTyping) return;
+
+      // F — toggle Zen mode
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        setZenMode(prev => !prev);
+      }
+
+      // G — global quick-capture (same as ?capture=true)
+      if (e.key === 'g' || e.key === 'G') {
+        e.preventDefault();
+        setShowCapture(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${zenMode ? 'zen-mode' : ''}`}>
       {/* Mobile Header */}
       <header className="mobile-header">
         <div className="mobile-brand">
           <h1>C</h1>
           <span>Calendarly</span>
         </div>
-        <button 
-          className="hamburger-btn" 
+        <button
+          className="hamburger-btn"
           onClick={() => setMobileSidebarOpen(true)}
           aria-label="Open menu"
         >
@@ -55,15 +107,34 @@ function MainLayout() {
       </header>
 
       {/* Overlay for mobile sidebar */}
-      <div 
+      <div
         className={`sidebar-overlay ${isMobileSidebarOpen ? 'active' : ''}`}
         onClick={() => setMobileSidebarOpen(false)}
       />
 
-      <Sidebar 
-        isMobileOpen={isMobileSidebarOpen} 
-        onClose={() => setMobileSidebarOpen(false)} 
+      <Sidebar
+        isMobileOpen={isMobileSidebarOpen}
+        onClose={() => setMobileSidebarOpen(false)}
+        zenMode={zenMode}
+        onToggleZen={() => setZenMode(prev => !prev)}
+        onOpenCapture={() => setShowCapture(true)}
       />
+
+      {/* Zen mode exit strip */}
+      {zenMode && (
+        <button
+          onClick={() => setZenMode(false)}
+          title="Exit Zen Mode (F)"
+          style={{
+            position: 'fixed', bottom: '20px', right: '20px', zIndex: 100,
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '20px', padding: '6px 14px', cursor: 'pointer',
+            fontSize: '11px', color: 'var(--text-secondary)', letterSpacing: '0.06em',
+          }}
+        >
+          exit zen · F
+        </button>
+      )}
 
       <main className="main-content">
         <Routes>
@@ -94,6 +165,8 @@ function MainLayout() {
           <Route path="*" element={<Navigate to="/gtd" replace />} />
         </Routes>
       </main>
+
+      {showCapture && <CaptureModal onClose={closeCapture} />}
     </div>
   );
 }

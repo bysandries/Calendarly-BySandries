@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useTasks } from '../hooks/useTasks';
 import { useProjects } from '../hooks/useProjects';
 import { syncEventBlock } from '../utils/api/events';
@@ -16,8 +16,39 @@ export default function GTDInbox() {
   const { tasks, loading, error, createTask, updateTask, deleteTask } = useTasks({ status: '01 - Inbox' });
   const { createProject } = useProjects();
   const [newTitle, setNewTitle] = useState('');
-  const [captureType, setCaptureType] = useState('task'); // 'task', 'project', 'event'
-  const [energyQuadrant, setEnergyQuadrant] = useState(null); // { energy, emotion }
+  const [captureType, setCaptureType] = useState('task');
+  const [energyQuadrant, setEnergyQuadrant] = useState(null);
+
+  // Undo state for triage actions
+  const [undoToast, setUndoToast] = useState(null); // { taskId, prevStatus, message, timer }
+  const undoToastRef = useRef(undoToast);
+  useEffect(() => { undoToastRef.current = undoToast; }, [undoToast]);
+
+  const dismissUndo = useCallback(() => {
+    if (undoToastRef.current?.timer) clearTimeout(undoToastRef.current.timer);
+    setUndoToast(null);
+  }, []);
+
+  const triageWithUndo = useCallback(async (taskId, newStatus, label) => {
+    const task = tasks.find(t => t.id === taskId);
+    await updateTask(taskId, { status: newStatus });
+
+    if (undoToastRef.current?.timer) clearTimeout(undoToastRef.current.timer);
+    const timer = setTimeout(dismissUndo, 5000);
+    setUndoToast({
+      taskId,
+      prevStatus: task?.status || '01 - Inbox',
+      message: `Moved to ${label}`,
+      timer,
+    });
+  }, [tasks, updateTask, dismissUndo]);
+
+  const handleUndo = useCallback(async () => {
+    const toast = undoToastRef.current;
+    if (!toast) return;
+    dismissUndo();
+    await updateTask(toast.taskId, { status: toast.prevStatus });
+  }, [updateTask, dismissUndo]);
 
   const handleQuickAdd = async (e) => {
     e.preventDefault();
@@ -25,10 +56,7 @@ export default function GTDInbox() {
 
     try {
       if (captureType === 'task') {
-        const task = await createTask({
-          title: newTitle,
-          status: '01 - Inbox'
-        });
+        const task = await createTask({ title: newTitle, status: '01 - Inbox' });
         if (task?.id && energyQuadrant) {
           createEnergyLog({
             entity_type:  'task',
@@ -70,17 +98,9 @@ export default function GTDInbox() {
     }
   };
 
-  const triageUnder2Min = async (taskId) => {
-    await updateTask(taskId, { status: '07 - Done' });
-  };
-
-  const triageActionable = async (taskId) => {
-    await updateTask(taskId, { status: '02 - Next Step' });
-  };
-
-  const triageSomeday = async (taskId) => {
-    await updateTask(taskId, { status: '06 - Someday / Maybe' });
-  };
+  const triageUnder2Min = (taskId) => triageWithUndo(taskId, '07 - Done', 'Done');
+  const triageActionable = (taskId) => triageWithUndo(taskId, '02 - Next Step', 'Next Steps');
+  const triageSomeday    = (taskId) => triageWithUndo(taskId, '06 - Someday / Maybe', 'Someday');
 
   if (loading && tasks.length === 0) return <div className="skeleton-row" style={{ height: '200px' }} />;
 
@@ -149,9 +169,9 @@ export default function GTDInbox() {
             </div>
           )}
           <div style={{ marginTop: '8px', fontSize: '0.8rem', color: 'var(--text-dimmed)' }}>
-            {captureType === 'task' && "Creates an actionable item in your Inbox."}
+            {captureType === 'task' && 'Creates an actionable item in your Inbox.'}
             {captureType === 'project' && "Creates a new Project in 'On-Hold' status."}
-            {captureType === 'event' && "Schedules a planned block for today at the current hour."}
+            {captureType === 'event' && 'Schedules a planned block for today at the current hour.'}
           </div>
         </form>
       </div>
@@ -166,11 +186,11 @@ export default function GTDInbox() {
           </div>
         ) : (
           tasks.map(task => (
-            <div key={task.id} className="glass-panel inbox-item" style={{ 
-              padding: '16px 20px', 
-              marginBottom: '12px', 
-              display: 'flex', 
-              alignItems: 'center', 
+            <div key={task.id} className="glass-panel inbox-item" style={{
+              padding: '16px 20px',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
               gap: '16px',
               borderLeft: '4px solid var(--accent-primary)'
             }}>
@@ -182,8 +202,8 @@ export default function GTDInbox() {
               </div>
 
               <div className="triage-actions" style={{ display: 'flex', gap: '8px' }}>
-                <button 
-                  className="btn btn-ghost btn-sm" 
+                <button
+                  className="btn btn-ghost btn-sm"
                   onClick={() => triageUnder2Min(task.id)}
                   type="button"
                   title="Under 2 minutes (Mark as Done)"
@@ -191,8 +211,8 @@ export default function GTDInbox() {
                 >
                   <span style={{ marginRight: '4px' }}>⚡</span> 2m
                 </button>
-                <button 
-                  className="btn btn-ghost btn-sm" 
+                <button
+                  className="btn btn-ghost btn-sm"
                   onClick={() => triageActionable(task.id)}
                   type="button"
                   title="Actionable (Move to Next Steps)"
@@ -200,8 +220,8 @@ export default function GTDInbox() {
                 >
                   <span style={{ marginRight: '4px' }}>➡️</span> Next
                 </button>
-                <button 
-                  className="btn btn-ghost btn-sm" 
+                <button
+                  className="btn btn-ghost btn-sm"
                   onClick={() => triageSomeday(task.id)}
                   type="button"
                   title="Someday/Maybe"
@@ -209,13 +229,11 @@ export default function GTDInbox() {
                 >
                   <span style={{ marginRight: '4px' }}>📅</span> Someday
                 </button>
-                <button 
-                  className="btn btn-ghost btn-sm" 
-                  onClick={() => {
-                    if (confirm('Trash this task?')) deleteTask(task.id);
-                  }}
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => deleteTask(task.id)}
                   type="button"
-                  title="Trash"
+                  title="Move to Trash"
                   style={{ color: 'var(--accent-danger)' }}
                 >
                   ✕
@@ -225,6 +243,36 @@ export default function GTDInbox() {
           ))
         )}
       </div>
+
+      {/* Triage Undo Toast */}
+      {undoToast && (
+        <div style={{
+          position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+          zIndex: 1000, display: 'flex', alignItems: 'center', gap: '16px',
+          background: 'rgba(20,20,28,0.95)', border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: '10px', padding: '10px 18px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          fontSize: '13px', color: 'var(--text-secondary)',
+        }}>
+          <span>↪ {undoToast.message}</span>
+          <button
+            onClick={handleUndo}
+            style={{
+              background: 'none', border: '1px solid var(--accent-primary)',
+              borderRadius: '6px', padding: '3px 10px', cursor: 'pointer',
+              color: 'var(--accent-primary)', fontSize: '12px', fontWeight: 600,
+            }}
+          >
+            Undo
+          </button>
+          <button
+            onClick={dismissUndo}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }

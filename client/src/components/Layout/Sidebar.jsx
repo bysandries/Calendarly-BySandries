@@ -15,7 +15,6 @@ import {
   IconHeart,
   IconMap,
   IconSettings,
-
   IconChevronLeft,
   IconChevronRight,
   IconX,
@@ -39,10 +38,12 @@ const NAV_ITEMS = [
   { to: '/settings', icon: IconSettings, label: 'Settings' },
 ];
 
-export default function Sidebar({ isMobileOpen, onClose }) {
+export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, onOpenCapture }) {
   const [isOnline, setIsOnline] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [navItems, setNavItems] = useState(NAV_ITEMS);
+  const [contextPresets, setContextPresets] = useState([]);
+  const [activeContext, setActiveContext] = useState(null); // null = "All"
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -50,42 +51,46 @@ export default function Sidebar({ isMobileOpen, onClose }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Fetch UI Config on mount
+  // Fetch UI Config + context presets on mount
   useEffect(() => {
     const fetchUIConfig = async () => {
       try {
         const res = await fetch('/api/settings');
         const data = await res.json();
-        if (data.success && data.database && data.database.navigation_config) {
-          let config = data.database.navigation_config;
-          
-          // Safety: Parse if string
-          if (typeof config === 'string') {
-            try { config = JSON.parse(config); } catch (e) { config = null; }
+        if (data.success && data.database) {
+          // Navigation config
+          if (data.database.navigation_config) {
+            let config = data.database.navigation_config;
+            if (typeof config === 'string') {
+              try { config = JSON.parse(config); } catch { config = null; }
+            }
+            if (config && Array.isArray(config)) {
+              const orderedItems = config
+                .filter(c => c.enabled)
+                .map(c => {
+                  const original = NAV_ITEMS.find(item => item.to === c.id);
+                  return original ? { ...original, label: c.label } : null;
+                })
+                .filter(Boolean);
+
+              const configuredIds = new Set(config.map(c => c.id));
+              const missing = NAV_ITEMS.filter(item => !configuredIds.has(item.to));
+              if (missing.length) {
+                const settingsIdx = orderedItems.findIndex(i => i.to === '/settings');
+                if (settingsIdx >= 0) orderedItems.splice(settingsIdx, 0, ...missing);
+                else orderedItems.push(...missing);
+              }
+              setNavItems(orderedItems);
+            }
           }
 
-          if (config && Array.isArray(config)) {
-            // Reconstruct NAV_ITEMS based on config
-            const orderedItems = config
-              .filter(c => c.enabled)
-              .map(c => {
-                const original = NAV_ITEMS.find(item => item.to === c.id);
-                return original ? { ...original, label: c.label } : null;
-              })
-              .filter(Boolean);
-
-            // Show nav items added in code that aren't in the saved config yet
-            // (e.g. newly shipped features). Insert them just above Settings so
-            // they're visible without forcing the user to re-save nav prefs.
-            const configuredIds = new Set(config.map(c => c.id));
-            const missing = NAV_ITEMS.filter(item => !configuredIds.has(item.to));
-            if (missing.length) {
-              const settingsIdx = orderedItems.findIndex(i => i.to === '/settings');
-              if (settingsIdx >= 0) orderedItems.splice(settingsIdx, 0, ...missing);
-              else orderedItems.push(...missing);
+          // Context presets
+          if (data.database.context_presets) {
+            let presets = data.database.context_presets;
+            if (typeof presets === 'string') {
+              try { presets = JSON.parse(presets); } catch { presets = []; }
             }
-
-            setNavItems(orderedItems);
+            if (Array.isArray(presets)) setContextPresets(presets);
           }
         }
       } catch (err) {
@@ -93,9 +98,6 @@ export default function Sidebar({ isMobileOpen, onClose }) {
       }
     };
     fetchUIConfig();
-
-    // Listen for storage events (if user saves settings in another tab or we want to trigger refresh)
-    // For now, we'll just poll every 30s like the health check or assume page refresh
     const interval = setInterval(fetchUIConfig, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -113,11 +115,9 @@ export default function Sidebar({ isMobileOpen, onClose }) {
     localStorage.setItem('sidebar-collapsed', String(collapsed));
   }, [collapsed]);
 
-  // Auto-collapse on resize below 1024, auto-expand above 1280 (only if user hasn't manually toggled)
   useEffect(() => {
     const handleResize = () => {
       const w = window.innerWidth;
-      // Don't fight manual toggles: only auto-react when crossing thresholds
       if (w <= 1024 && !collapsed) setCollapsed(true);
       if (w >= 1280 && collapsed) setCollapsed(false);
     };
@@ -139,17 +139,25 @@ export default function Sidebar({ isMobileOpen, onClose }) {
     return () => clearInterval(interval);
   }, []);
 
+  // Filter nav items by active context preset
+  const visibleItems = activeContext
+    ? navItems.filter(item => activeContext.navItems.includes(item.to))
+    : navItems;
+
   const ToggleIcon = collapsed ? IconChevronRight : IconChevronLeft;
+
+  // Hide sidebar completely in zen mode (except on mobile where it's an overlay)
+  if (zenMode && !isMobile) return null;
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-logo">
         <h1>C</h1>
         <span className="sidebar-logo-full">Calendarly</span>
-        
+
         {/* Mobile Close Button */}
-        <button 
-          className="mobile-close-btn" 
+        <button
+          className="mobile-close-btn"
           onClick={onClose}
           aria-label="Close menu"
         >
@@ -167,10 +175,66 @@ export default function Sidebar({ isMobileOpen, onClose }) {
         </button>
       </div>
 
+      {/* Quick Capture Button */}
+      <button
+        type="button"
+        onClick={onOpenCapture}
+        title="Quick Capture (G)"
+        style={{
+          display: 'flex', alignItems: 'center', gap: '10px',
+          margin: '0 12px 4px', padding: collapsed ? '10px' : '10px 14px',
+          background: 'rgba(52,152,219,0.1)', border: '1px solid rgba(52,152,219,0.25)',
+          borderRadius: '8px', cursor: 'pointer', color: 'var(--accent-primary)',
+          fontSize: '13px', fontWeight: 600, justifyContent: collapsed ? 'center' : 'flex-start',
+          transition: 'background 150ms',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(52,152,219,0.18)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(52,152,219,0.1)'}
+      >
+        <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span>
+        {!collapsed && <span>Capture</span>}
+        {!collapsed && <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--text-dimmed)', fontWeight: 400 }}>G</span>}
+      </button>
+
+      {/* Context Preset Switcher */}
+      {!collapsed && contextPresets.length > 0 && (
+        <div style={{ margin: '0 12px 4px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setActiveContext(null)}
+            style={{
+              fontSize: '10px', padding: '3px 8px', borderRadius: '12px', cursor: 'pointer',
+              border: `1px solid ${!activeContext ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)'}`,
+              background: !activeContext ? 'rgba(255,255,255,0.08)' : 'transparent',
+              color: !activeContext ? 'var(--text-primary)' : 'var(--text-muted)',
+              fontWeight: !activeContext ? 600 : 400,
+            }}
+          >
+            All
+          </button>
+          {contextPresets.map(preset => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => setActiveContext(activeContext?.id === preset.id ? null : preset)}
+              style={{
+                fontSize: '10px', padding: '3px 8px', borderRadius: '12px', cursor: 'pointer',
+                border: `1px solid ${activeContext?.id === preset.id ? 'rgba(52,152,219,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                background: activeContext?.id === preset.id ? 'rgba(52,152,219,0.15)' : 'transparent',
+                color: activeContext?.id === preset.id ? 'var(--accent-primary)' : 'var(--text-muted)',
+                fontWeight: activeContext?.id === preset.id ? 600 : 400,
+              }}
+            >
+              {preset.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <nav className="sidebar-nav">
         <div className="sidebar-section-label">Navigation</div>
 
-        {navItems.map(({ to, icon: Icon, label, mobileOnly }) => {
+        {visibleItems.map(({ to, icon: Icon, label, mobileOnly }) => {
           if (mobileOnly && !isMobile) return null;
           return (
             <NavLink
@@ -189,6 +253,24 @@ export default function Sidebar({ isMobileOpen, onClose }) {
       </nav>
 
       <div className="sidebar-footer">
+        {/* Zen Mode Toggle */}
+        <button
+          type="button"
+          onClick={onToggleZen}
+          title={zenMode ? 'Exit Zen Mode (F)' : 'Enter Zen Mode (F)'}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+            padding: collapsed ? '8px' : '8px 12px', justifyContent: collapsed ? 'center' : 'flex-start',
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: zenMode ? 'var(--accent-primary)' : 'var(--text-muted)',
+            fontSize: '12px', borderRadius: '6px', marginBottom: '8px',
+          }}
+        >
+          <span style={{ fontSize: '14px' }}>{zenMode ? '◉' : '◎'}</span>
+          {!collapsed && <span>Zen Mode</span>}
+          {!collapsed && <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--text-dimmed)' }}>F</span>}
+        </button>
+
         <div className="connection-status" title={isOnline ? 'API Connected' : 'API Offline'}>
           <div className={`connection-dot ${isOnline ? '' : 'offline'}`} />
           <span className="connection-text">{isOnline ? 'API Connected' : 'API Offline'}</span>

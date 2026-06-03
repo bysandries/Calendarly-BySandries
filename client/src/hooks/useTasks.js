@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchTasks, createTask as apiCreateTask, updateTask as apiUpdateTask, deleteTask as apiDeleteTask } from '../utils/api/tasks';
+import { fetchTasks, createTask as apiCreateTask, updateTask as apiUpdateTask, deleteTask as apiDeleteTask, fetchTrash as apiFetchTrash, restoreTask as apiRestoreTask, hardDeleteTask as apiHardDeleteTask, emptyTrash as apiEmptyTrash } from '../utils/api/tasks';
 
 export function useTasks(initialFilters = {}) {
   const [tasks, setTasks] = useState([]);
@@ -77,5 +77,23 @@ export function useTasks(initialFilters = {}) {
     loadTasks(newFilters);
   };
 
-  return { tasks, loading, error, createTask, updateTask, deleteTask, refetch, filters, setFilters };
+  const fetchTrash = async () => {
+    const data = await apiFetchTrash();
+    return data;
+  };
+
+  const restoreTask = async (id) => {
+    const restored = await apiRestoreTask(id);
+    return restored;
+  };
+
+  const hardDeleteTask = async (id) => {
+    await apiHardDeleteTask(id);
+  };
+
+  const emptyTrash = async () => {
+    await apiEmptyTrash();
+  };
+
+  return { tasks, loading, error, createTask, updateTask, deleteTask, refetch, filters, setFilters, fetchTrash, restoreTask, hardDeleteTask, emptyTrash };
 }

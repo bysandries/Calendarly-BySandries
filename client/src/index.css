@@ -5065,3 +5065,26 @@ body {
     font-size: 14px;
   }
 }
+
+/* ── Zen Mode ── */
+.app-layout.zen-mode .main-content {
+  margin-left: 0;
+}
+
+/* ── Undo Toast Slide-Up Animation ── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Prefers Reduced Motion ──
+   Zero out all transitions, animations, and spring physics
+   for users who have flagged motion sensitivity in their OS settings. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

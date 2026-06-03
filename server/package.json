@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@journeyapps/sqlcipher": "^5.3.1",
+    "archiver": "^8.0.0",
     "cors": "^2.8.5",
     "csv-parse": "^6.2.1",
     "decompress": "^4.2.1",

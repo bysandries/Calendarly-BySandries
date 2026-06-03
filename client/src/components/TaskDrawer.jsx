@@ -72,16 +72,14 @@ export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, o
   };
 
   const handleDelete = async () => {
-    if (confirm(`Delete ${isBulk ? tasks.length + ' tasks' : 'this task'}?`)) {
-      setBusy(true);
-      try {
-        for (const t of tasks) {
-          await onDelete(t.id);
-        }
-        onClose();
-      } finally {
-        setBusy(false);
+    setBusy(true);
+    try {
+      for (const t of tasks) {
+        await onDelete(t.id);
       }
+      onClose();
+    } finally {
+      setBusy(false);
     }
   };
 

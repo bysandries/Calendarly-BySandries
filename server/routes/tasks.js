@@ -8,7 +8,7 @@ router.get('/', async (req, res) => {
     const db = await getDbConnection();
     let query = 'SELECT * FROM tasks';
     const params = [];
-    
+
     const conditions = [];
 
     if (req.query.project_id) {
@@ -44,8 +44,74 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/tasks/trash — list soft-deleted tasks
+router.get('/trash', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const tasks = await db.all(
+      'SELECT * FROM deleted_tasks ORDER BY deleted_at DESC'
+    );
+    res.json(tasks);
+  } catch (error) {
+    console.error('Error fetching trash:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/tasks/trash/restore/:id — restore a task from trash
+router.post('/trash/restore/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const db = await getDbConnection();
+    const deleted = await db.get('SELECT * FROM deleted_tasks WHERE id = ?', [id]);
+    if (!deleted) return res.status(404).json({ error: 'Task not found in trash' });
+
+    await db.run(
+      `INSERT INTO tasks (id, title, status, project_id, date_due, priority, notes, estimated_minutes, received_date, finished_date, is_starred, person_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        deleted.id, deleted.title, deleted.status, deleted.project_id,
+        deleted.date_due, deleted.priority, deleted.notes, deleted.estimated_minutes,
+        deleted.received_date, deleted.finished_date, deleted.is_starred, deleted.person_id
+      ]
+    );
+    await db.run('DELETE FROM deleted_tasks WHERE id = ?', [id]);
+
+    const restored = await db.get('SELECT * FROM tasks WHERE id = ?', [id]);
+    res.json(restored);
+  } catch (error) {
+    console.error('Error restoring task:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/tasks/trash — permanently empty the entire trash
+router.delete('/trash', async (req, res) => {
+  try {
+    const db = await getDbConnection();
+    const result = await db.run('DELETE FROM deleted_tasks');
+    res.json({ message: `Trash emptied. ${result.changes} task(s) permanently deleted.` });
+  } catch (error) {
+    console.error('Error emptying trash:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/tasks/trash/:id — permanently delete a single trashed task
+router.delete('/trash/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const db = await getDbConnection();
+    const result = await db.run('DELETE FROM deleted_tasks WHERE id = ?', [id]);
+    if (result.changes === 0) return res.status(404).json({ error: 'Task not found in trash' });
+    res.json({ message: 'Task permanently deleted.' });
+  } catch (error) {
+    console.error('Error hard-deleting task:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/tasks
-// Creates a new task (GTD capture or Kanban card)
 router.post('/', async (req, res) => {
   const { title, status, project_id, date_due, priority, notes, estimated_minutes, is_starred, person_id } = req.body;
 
@@ -54,13 +120,13 @@ router.post('/', async (req, res) => {
   }
 
   const taskId = `task-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-  const finalStatus = status || 'inbox'; // default to GTD Inbox
+  const finalStatus = status || 'inbox';
   const receivedDate = new Date().toISOString();
   const finishedDate = finalStatus === '07 - Done' ? receivedDate : null;
 
   try {
     const db = await getDbConnection();
-    
+
     let finalPersonId = person_id;
     if (!finalPersonId) {
       const defaultAssigneeSetting = await db.get('SELECT value FROM settings WHERE key = ?', ['default_assignee']);
@@ -88,22 +154,12 @@ router.post('/', async (req, res) => {
       `INSERT INTO tasks (id, title, status, project_id, date_due, priority, notes, estimated_minutes, received_date, finished_date, is_starred, person_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        task.id,
-        task.title,
-        task.status,
-        task.project_id,
-        task.date_due,
-        task.priority,
-        task.notes,
-        task.estimated_minutes,
-        task.received_date,
-        task.finished_date,
-        task.is_starred,
-        task.person_id
+        task.id, task.title, task.status, task.project_id, task.date_due,
+        task.priority, task.notes, task.estimated_minutes, task.received_date,
+        task.finished_date, task.is_starred, task.person_id
       ]
     );
 
-    // Respond with the in-memory record instead of a second round trip to the DB.
     res.status(201).json(task);
   } catch (error) {
     console.error('Error creating task:', error);
@@ -118,15 +174,13 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/tasks/:id
-// Partially updates a task (e.g. changing status, priority, project_id)
 router.patch('/:id', async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
 
   try {
     const db = await getDbConnection();
-    
-    // Check if task exists
+
     const existingTask = await db.get('SELECT * FROM tasks WHERE id = ?', [id]);
     if (!existingTask) {
       return res.status(404).json({ error: 'Task not found' });
@@ -134,7 +188,6 @@ router.patch('/:id', async (req, res) => {
 
     const merged = { ...existingTask, ...updates };
 
-    // Auto-manage finished_date on status transitions to/from Done
     const wasDone = existingTask.status === '07 - Done';
     const isDone = merged.status === '07 - Done';
     if (isDone && !wasDone) {
@@ -153,18 +206,10 @@ router.patch('/:id', async (req, res) => {
            estimated_minutes = ?, received_date = ?, finished_date = ?, is_starred = ?, person_id = ?
        WHERE id = ?`,
       [
-        merged.title,
-        merged.status,
-        merged.project_id || null,
-        merged.date_due || null,
-        merged.priority,
-        merged.notes,
-        estimatedMinutes,
-        merged.received_date || null,
-        merged.finished_date || null,
-        merged.is_starred ? 1 : 0,
-        merged.person_id || null,
-        id
+        merged.title, merged.status, merged.project_id || null,
+        merged.date_due || null, merged.priority, merged.notes,
+        estimatedMinutes, merged.received_date || null, merged.finished_date || null,
+        merged.is_starred ? 1 : 0, merged.person_id || null, id
       ]
     );
 
@@ -182,18 +227,31 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/tasks/:id
+// DELETE /api/tasks/:id — soft-delete (moves to deleted_tasks)
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const db = await getDbConnection();
-    const result = await db.run('DELETE FROM tasks WHERE id = ?', [id]);
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Task not found' });
-    }
-    res.json({ message: 'Task deleted successfully' });
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', [id]);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+
+    await db.run(
+      `INSERT OR REPLACE INTO deleted_tasks
+         (id, title, status, project_id, date_due, priority, notes, estimated_minutes,
+          received_date, finished_date, is_starred, person_id, deleted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        task.id, task.title, task.status, task.project_id, task.date_due,
+        task.priority, task.notes, task.estimated_minutes, task.received_date,
+        task.finished_date, task.is_starred, task.person_id,
+        new Date().toISOString()
+      ]
+    );
+    await db.run('DELETE FROM tasks WHERE id = ?', [id]);
+
+    res.json({ message: 'Task moved to trash.' });
   } catch (error) {
-    console.error('Error deleting task:', error);
+    console.error('Error soft-deleting task:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
