@@ -1,0 +1,127 @@
+/* ── Task Favorites Panel ── */
+
+.task-favorites-panel {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  height: 260px;
+}
+
+/* Search row */
+
+.tfp-search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+
+.tfp-search-icon {
+  color: var(--text-muted, rgba(255,255,255,0.3));
+  flex-shrink: 0;
+}
+
+.tfp-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.tfp-search-input::placeholder {
+  color: var(--text-muted, rgba(255,255,255,0.25));
+}
+
+.tfp-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, rgba(255,255,255,0.3));
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+
+.tfp-clear-btn:hover {
+  color: var(--text-secondary);
+}
+
+/* Task list */
+
+.tfp-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.tfp-task-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  transition: background 0.12s ease;
+}
+
+.tfp-task-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tfp-star-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--text-muted, rgba(255,255,255,0.25));
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.15s ease, transform 0.1s ease;
+}
+
+.tfp-star-btn:hover {
+  color: #F1C40F;
+  transform: scale(1.15);
+}
+
+.tfp-star-btn.starred {
+  color: #F1C40F;
+}
+
+.tfp-task-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tfp-task-title {
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tfp-task-project {
+  font-size: 11px;
+  color: var(--text-muted, rgba(255,255,255,0.35));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tfp-empty {
+  padding: 16px 14px;
+  font-size: 12px;
+  color: var(--text-muted, rgba(255,255,255,0.3));
+  text-align: center;
+  margin: 0;
+}

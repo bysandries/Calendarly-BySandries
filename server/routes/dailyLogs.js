@@ -48,6 +48,17 @@ router.post('/', async (req, res) => {
     // We use a simple query first
     const existingLog = await db.get('SELECT id FROM DailyLogs WHERE date_id = ? AND user_id = ?', [date_id, userId]);
 
+    // Ensure CalendarDays row exists — required by FK constraint
+    const parts = date_id.split('-');
+    const year = parseInt(parts[0]), month = parseInt(parts[1]), day = parseInt(parts[2]);
+    const jsDate = new Date(`${date_id}T12:00:00`);
+    const dayOfWeek = jsDate.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6 ? 1 : 0;
+    await db.run(
+      `INSERT OR IGNORE INTO CalendarDays (date_id, year, month, day, day_of_week, is_weekend) VALUES (?, ?, ?, ?, ?, ?)`,
+      [date_id, year, month, day, dayOfWeek, isWeekend]
+    );
+
     if (existingLog) {
       console.log(`[DailyLogs] Updating existing record: ${existingLog.id}`);
       await db.run(

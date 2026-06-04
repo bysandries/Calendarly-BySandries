@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { DateTime } from 'luxon';
 import CalendarGrid from '../components/Calendar/CalendarGrid';
-import PomodoroPanel from '../components/PomodoroPanel';
+import DayPlannerPanel from '../components/DayPlannerPanel';
+import TaskFavoritesPanel from '../components/TaskFavoritesPanel';
 
 const CalendarPage = () => {
   const scrollAreaRef = useRef(null);
@@ -14,6 +15,7 @@ const CalendarPage = () => {
   });
 
   // Mobile day view state
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [viewMode, setViewMode] = useState('week');
   const [dayOffset, setDayOffset] = useState(0);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -189,7 +191,10 @@ const CalendarPage = () => {
             <CalendarGrid timezone={timezone} baseDate={baseDate} viewMode={viewMode} dayOffset={dayOffset} />
           </div>
         </div>
-        <PomodoroPanel timezone={timezone} />
+        <div className={`right-panel-column ${rightPanelOpen ? 'rpc-expanded' : 'rpc-collapsed'}`}>
+          <DayPlannerPanel isOpen={rightPanelOpen} onToggle={() => setRightPanelOpen(p => !p)} />
+          {rightPanelOpen && <TaskFavoritesPanel />}
+        </div>
       </div>
     </div>
   );
