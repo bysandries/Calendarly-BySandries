@@ -24,7 +24,11 @@ function WebBrowserTab() {
   const normalizeUrl = (raw) => {
     const t = raw.trim();
     if (!t) return '';
-    return /^https?:\/\//i.test(t) ? t : `https://${t}`;
+    if (/^https?:\/\//i.test(t)) return t;
+    // Looks like a bare domain (no spaces, has a dot) → prepend https
+    if (/^[^\s]+\.[^\s]{2,}$/.test(t)) return `https://${t}`;
+    // Otherwise treat as a search query
+    return `https://www.google.com/search?q=${encodeURIComponent(t)}`;
   };
 
   const navigate = useCallback((raw) => {
@@ -59,20 +63,9 @@ function WebBrowserTab() {
     };
   }, [loadedUrl]);
 
-  const handleReload = () => {
-    if (isElectron) { viewRef.current?.reload?.(); }
-    else if (viewRef.current && loadedUrl) { viewRef.current.src = loadedUrl; }
-  };
-
-  const handleBack = () => {
-    if (isElectron) { viewRef.current?.goBack?.(); }
-    else { try { viewRef.current?.contentWindow?.history.back(); } catch {} }
-  };
-
-  const handleForward = () => {
-    if (isElectron) { viewRef.current?.goForward?.(); }
-    else { try { viewRef.current?.contentWindow?.history.forward(); } catch {} }
-  };
+  const handleReload = () => viewRef.current?.reload?.();
+  const handleBack = () => viewRef.current?.goBack?.();
+  const handleForward = () => viewRef.current?.goForward?.();
 
   return (
     <div className="workspace-browser">
@@ -99,48 +92,41 @@ function WebBrowserTab() {
             type="text"
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
-            placeholder="Enter URL — e.g. https://codestepbystep.com"
+            placeholder="Search or enter URL…"
             spellCheck={false}
             autoComplete="off"
+            disabled={!isElectron}
           />
-          <button type="submit" className="workspace-browser-go-btn">Go</button>
+          <button type="submit" className="workspace-browser-go-btn" disabled={!isElectron}>Go</button>
         </form>
         {isElectron && (
           <span className="workspace-browser-mode-badge">Electron</span>
         )}
       </div>
       <div className="workspace-browser-content">
-        {loadedUrl ? (
-          isElectron ? (
-            <webview
-              ref={viewRef}
-              src={loadedUrl}
-              className="workspace-browser-iframe"
-              allowpopups="true"
-            />
-          ) : (
-            <iframe
-              ref={viewRef}
-              src={loadedUrl}
-              className="workspace-browser-iframe"
-              title="Browser"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-            />
-          )
+        {!isElectron ? (
+          <div className="workspace-browser-home">
+            <div className="workspace-browser-home-icon">🖥️</div>
+            <p>Browser requires the Electron app</p>
+            <p className="workspace-browser-home-note">
+              Run <code>npm run electron</code> from the <code>client/</code> directory,
+              then use this tab to browse any site — Google, YouTube, codestepbystep.com, and more.
+            </p>
+          </div>
+        ) : loadedUrl ? (
+          <webview
+            ref={viewRef}
+            src={loadedUrl}
+            className="workspace-browser-iframe"
+            allowpopups="true"
+          />
         ) : (
           <div className="workspace-browser-home">
             <div className="workspace-browser-home-icon">🌐</div>
-            <p>Enter a URL above to browse the web</p>
-            {isElectron ? (
-              <p className="workspace-browser-home-note workspace-browser-home-note--electron">
-                Running in Electron — all sites supported, no iframe restrictions.
-              </p>
-            ) : (
-              <p className="workspace-browser-home-note">
-                Some sites block embedding (Google, YouTube, Twitter/X).
-                Run via <code>npm run electron</code> in <code>client/</code> for full browser support.
-              </p>
-            )}
+            <p>Search or enter a URL above</p>
+            <p className="workspace-browser-home-note workspace-browser-home-note--electron">
+              Type anything to search Google, or paste a URL to navigate directly.
+            </p>
           </div>
         )}
       </div>
