@@ -48,6 +48,27 @@ function MainLayout() {
     document.body.classList.toggle('zen-mode', zenMode);
   }, [zenMode]);
 
+  const toggleZen = useCallback(() => {
+    setZenMode(prev => {
+      const next = !prev;
+      if (next) {
+        document.documentElement.requestFullscreen?.().catch(() => {});
+      } else if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => {});
+      }
+      return next;
+    });
+  }, []);
+
+  // Sync state when user exits fullscreen via ESC
+  useEffect(() => {
+    const onFsChange = () => {
+      if (!document.fullscreenElement) setZenMode(false);
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
   // Open capture modal when ?capture=true is in the URL
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -77,7 +98,7 @@ function MainLayout() {
       // F — toggle Zen mode
       if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
-        setZenMode(prev => !prev);
+        toggleZen();
       }
 
       // G — global quick-capture (same as ?capture=true)
@@ -117,14 +138,14 @@ function MainLayout() {
         isMobileOpen={isMobileSidebarOpen}
         onClose={() => setMobileSidebarOpen(false)}
         zenMode={zenMode}
-        onToggleZen={() => setZenMode(prev => !prev)}
+        onToggleZen={toggleZen}
         onOpenCapture={() => setShowCapture(true)}
       />
 
       {/* Zen mode exit strip */}
       {zenMode && (
         <button
-          onClick={() => setZenMode(false)}
+          onClick={toggleZen}
           title="Exit Zen Mode (F)"
           style={{
             position: 'fixed', bottom: '20px', right: '20px', zIndex: 100,
