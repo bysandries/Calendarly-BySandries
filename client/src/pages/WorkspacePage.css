@@ -1,0 +1,206 @@
+/* ── Workspace Page Root ── */
+.workspace-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Tab Bar ── */
+.workspace-tab-bar {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+
+/* Uses existing .task-tabs / .task-tab classes from index.css */
+
+/* ── Body: tab content + planner column side by side ── */
+.workspace-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Tab content area ── */
+.workspace-tab-content {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Persistent Day Planner column ── */
+/* Inherits .right-panel-column and .rpc-expanded from DayPlannerPanel.css */
+.workspace-planner-column {
+  transition: none !important;
+}
+
+/* Hide the collapse/expand toggle since planner is always open */
+.workspace-planner-column .day-planner-toggle {
+  display: none;
+}
+
+/* ── Web Browser Tab ── */
+.workspace-browser {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.workspace-browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  background: var(--glass-bg);
+}
+
+.workspace-browser-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  padding: 0;
+}
+
+.workspace-browser-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.workspace-browser-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.workspace-browser-url-form {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+
+.workspace-browser-url-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 5px 12px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.workspace-browser-url-input:focus {
+  border-color: var(--accent-primary);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.workspace-browser-go-btn {
+  background: rgba(52, 152, 219, 0.15);
+  border: 1px solid rgba(52, 152, 219, 0.3);
+  color: var(--accent-primary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.workspace-browser-go-btn:hover {
+  background: rgba(52, 152, 219, 0.25);
+}
+
+.workspace-browser-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+}
+
+.workspace-browser-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
+  display: block;
+}
+
+.workspace-browser-home {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 40px;
+}
+
+.workspace-browser-home-icon {
+  font-size: 48px;
+  opacity: 0.4;
+}
+
+.workspace-browser-home p {
+  font-size: 14px;
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.workspace-browser-home-note {
+  font-size: 12px !important;
+  color: var(--text-muted) !important;
+  max-width: 420px;
+  line-height: 1.6;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+}
+
+.workspace-browser-home-note--electron {
+  border-color: rgba(46, 204, 113, 0.3);
+  background: rgba(46, 204, 113, 0.05);
+  color: #2ECC71 !important;
+}
+
+.workspace-browser-mode-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(46, 204, 113, 0.12);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  color: #2ECC71;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* webview fills the same space as iframe */
+webview.workspace-browser-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: flex;
+}

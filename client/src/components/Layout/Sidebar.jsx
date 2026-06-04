@@ -62,8 +62,8 @@ function parseNavConfig(config) {
 }
 
 const NAV_ITEMS = [
-  { to: '/focus',        icon: IconFocus,    label: 'Focus',               group: 'Focus' },
-  { to: '/pomodoro',     icon: IconClock,    label: 'Pomodoro',            group: 'Focus', mobileOnly: true },
+  { to: '/focus',        icon: IconFocus,    label: 'Workspace',           group: 'Workspace' },
+  { to: '/pomodoro',     icon: IconClock,    label: 'Pomodoro',            group: 'Workspace', mobileOnly: true },
   { to: '/tasks',        icon: IconDatabase, label: 'Tasks',               group: 'Work' },
   { to: '/projects',     icon: IconProjects, label: 'Projects',            group: 'Work' },
   { to: '/team',         icon: IconUsers,    label: 'Team',                group: 'Work' },
@@ -72,7 +72,7 @@ const NAV_ITEMS = [
   { to: '/notes',        icon: IconExtracts, label: 'Extracts',            group: 'Capture' },
   { to: '/habits',       icon: IconHabits,   label: 'Habits',              group: 'Life' },
   { to: '/personal-care',icon: IconHeart,    label: 'Personal Care',       group: 'Life' },
-  { to: '/calendar',     icon: IconCalendar, label: 'Calendar Tracking',   group: 'Life' },
+
   { to: '/timeline',     icon: IconMap,      label: 'Life Map',            group: 'Life' },
   { to: '/analytics',    icon: IconAnalytics,label: 'Reflection Dashboard',group: 'System' },
   { to: '/agents',       icon: IconAgents,   label: 'Code Agents',         group: 'System' },

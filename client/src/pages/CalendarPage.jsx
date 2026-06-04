@@ -4,7 +4,7 @@ import CalendarGrid from '../components/Calendar/CalendarGrid';
 import DayPlannerPanel from '../components/DayPlannerPanel';
 import TaskFavoritesPanel from '../components/TaskFavoritesPanel';
 
-const CalendarPage = () => {
+const CalendarPage = ({ hideDayPlanner = false }) => {
   const scrollAreaRef = useRef(null);
   const [timezone, setTimezone] = useState(localStorage.getItem('calendarly_tz') || 'America/Los_Angeles');
   
@@ -217,25 +217,27 @@ const CalendarPage = () => {
             <CalendarGrid timezone={timezone} baseDate={baseDate} viewMode={viewMode} dayOffset={dayOffset} />
           </div>
         </div>
-        <div
-          ref={plannerColRef}
-          className={`right-panel-column ${rightPanelOpen ? 'rpc-expanded' : 'rpc-collapsed'}`}
-          style={rightPanelOpen ? { width: plannerWidth } : undefined}
-        >
-          {rightPanelOpen && (
-            <div
-              className="rpc-resize-handle"
-              onMouseDown={e => {
-                e.preventDefault();
-                if (plannerColRef.current) plannerColRef.current.style.transition = 'none';
-                plannerResizeRef.current = { startX: e.clientX, startWidth: plannerWidth };
-                document.body.style.cursor = 'col-resize';
-              }}
-            />
-          )}
-          <DayPlannerPanel isOpen={rightPanelOpen} onToggle={() => setRightPanelOpen(p => !p)} />
-          {rightPanelOpen && <TaskFavoritesPanel />}
-        </div>
+        {!hideDayPlanner && (
+          <div
+            ref={plannerColRef}
+            className={`right-panel-column ${rightPanelOpen ? 'rpc-expanded' : 'rpc-collapsed'}`}
+            style={rightPanelOpen ? { width: plannerWidth } : undefined}
+          >
+            {rightPanelOpen && (
+              <div
+                className="rpc-resize-handle"
+                onMouseDown={e => {
+                  e.preventDefault();
+                  if (plannerColRef.current) plannerColRef.current.style.transition = 'none';
+                  plannerResizeRef.current = { startX: e.clientX, startWidth: plannerWidth };
+                  document.body.style.cursor = 'col-resize';
+                }}
+              />
+            )}
+            <DayPlannerPanel isOpen={rightPanelOpen} onToggle={() => setRightPanelOpen(p => !p)} />
+            {rightPanelOpen && <TaskFavoritesPanel />}
+          </div>
+        )}
       </div>
     </div>
   );
