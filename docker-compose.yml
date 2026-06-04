@@ -59,6 +59,21 @@ services:
     networks:
       - app-net
 
+  chromium:
+    image: ghcr.io/linuxserver/chromium:latest
+    container_name: calendarly-chromium
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - CHROME_CLI=https://www.google.com
+    ports:
+      - "3010:3000"
+    shm_size: "1gb"
+    security_opt:
+      - seccomp:unconfined
+    restart: unless-stopped
+
 volumes:
   db-data:
     driver: local
