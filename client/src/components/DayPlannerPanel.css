@@ -1,4 +1,4 @@
-/* ── Right panel column (wraps DayPlannerPanel + TaskFavoritesPanel) ── */
+/* ── Right panel column wrapper ── */
 
 .right-panel-column {
   display: flex;
@@ -9,12 +9,29 @@
   transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   overflow: hidden;
   flex-shrink: 0;
+  position: relative;
+}
+
+.rpc-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 20;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.rpc-resize-handle:hover {
+  background: rgba(52, 152, 219, 0.3);
 }
 
 .right-panel-column.rpc-collapsed { width: 48px; }
-.right-panel-column.rpc-expanded  { width: 360px; }
+.right-panel-column.rpc-expanded  { width: 400px; }
 
-/* ── Day Planner Panel ── */
+/* ── Panel shell ── */
 
 .day-planner-panel {
   display: flex;
@@ -63,11 +80,11 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   min-width: 0;
 }
 
-/* Header */
+/* ── Header ── */
 
 .day-planner-header {
   padding: 12px 14px 10px;
@@ -165,16 +182,16 @@
   background: rgba(46, 204, 113, 0.08);
 }
 
-/* Toolbar */
+/* ── Toolbar ── */
 
 .dp-toolbar {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 6px 10px;
+  padding: 5px 10px;
   border-bottom: 1px solid var(--glass-border);
-  flex-wrap: wrap;
   flex-shrink: 0;
+  overflow: visible;
 }
 
 .dp-toolbar-group {
@@ -207,12 +224,194 @@
   flex-shrink: 0;
 }
 
-.dp-toolbar-btn:hover {
+.dp-toolbar-btn:hover,
+.dp-toolbar-btn.active {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
 }
 
-/* Editor area */
+.dp-toolbar-btn.mono {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 700;
+  width: 26px;
+}
+
+/* ── Heading selector ── */
+
+.dp-popover-wrapper {
+  position: relative;
+}
+
+.dp-heading-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 7px;
+  height: 28px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dp-heading-selector:hover,
+.dp-heading-selector.active {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--text-primary);
+}
+
+.dp-heading-label {
+  min-width: 38px;
+  text-align: left;
+}
+
+.dp-heading-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: rgba(18, 18, 26, 0.97);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 50;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  min-width: 160px;
+}
+
+.dp-heading-opt {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 5px;
+  text-align: left;
+  transition: background 0.12s ease;
+}
+
+.dp-heading-opt:hover { background: rgba(255, 255, 255, 0.07); }
+.dp-heading-opt.active { background: rgba(52, 152, 219, 0.15); }
+
+/* Heading preview styles inside the popover */
+.dp-opt-normal { font-size: 13px; color: var(--text-secondary); }
+.dp-opt-h1 { font-size: 19px; font-weight: 700; line-height: 1.2; }
+.dp-opt-h2 { font-size: 15px; font-weight: 700; }
+.dp-opt-h3 { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.dp-opt-h4 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted, rgba(255,255,255,0.45)); }
+
+/* ── Split color buttons ── */
+
+.dp-split-btn {
+  display: flex;
+  align-items: stretch;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  transition: border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.dp-split-btn:hover {
+  border-color: var(--glass-border);
+}
+
+.dp-split-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 3px 6px;
+  height: 28px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dp-split-main:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
+
+.dp-split-bar {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.dp-split-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--glass-border);
+  color: var(--text-muted, rgba(255,255,255,0.3));
+  cursor: pointer;
+  width: 16px;
+  height: 28px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dp-split-arrow:hover,
+.dp-split-arrow.active { background: rgba(255,255,255,0.07); color: var(--text-secondary); }
+
+/* Text color "A" icon */
+.dp-textcolor-icon {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tc, currentColor);
+  line-height: 1;
+}
+
+/* ── Color popover ── */
+
+.dp-color-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: rgba(18, 18, 26, 0.97);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  z-index: 50;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  min-width: 130px;
+  max-width: 180px;
+}
+
+.dp-color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  outline: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  flex-shrink: 0;
+}
+
+.dp-color-swatch:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
+}
+
+/* ── Editor ── */
 
 .day-planner-body {
   flex: 1;
@@ -230,6 +429,7 @@
   font-size: 13px;
   line-height: 1.7;
   word-break: break-word;
+  caret-color: var(--accent, #3498DB);
 }
 
 .day-planner-editor:empty::before {
@@ -238,15 +438,58 @@
   pointer-events: none;
 }
 
+/* Heading styles inside the editor */
+
+.day-planner-editor h1 {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 10px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--glass-border);
+  padding-bottom: 6px;
+}
+
+.day-planner-editor h2 {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 12px 0 6px;
+  color: var(--text-primary);
+}
+
+.day-planner-editor h3 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 10px 0 4px;
+  color: var(--text-secondary);
+}
+
+.day-planner-editor h4 {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 8px 0 4px;
+  color: var(--text-muted, rgba(255,255,255,0.45));
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
 .day-planner-editor ul,
 .day-planner-editor ol {
   padding-left: 20px;
-  margin: 4px 0;
+  margin: 4px 0 8px;
 }
 
-.day-planner-editor li { margin: 2px 0; }
+.day-planner-editor li { margin: 3px 0; }
+
 .day-planner-editor b,
 .day-planner-editor strong { font-weight: 700; }
+
 .day-planner-editor i,
 .day-planner-editor em { font-style: italic; }
+
 .day-planner-editor u { text-decoration: underline; }
+
+.day-planner-editor p { margin: 0 0 6px; }
