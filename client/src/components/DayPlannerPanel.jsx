@@ -206,7 +206,10 @@ const DayPlannerPanel = ({ isOpen, onToggle }) => {
     }, 800);
   }, [saveNote, dateId]);
 
-  const handleInput = () => triggerSave();
+  const handleInput = () => {
+    tryChecklistShortcut();
+    triggerSave();
+  };
 
   const handleSave = () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -255,79 +258,225 @@ const DayPlannerPanel = ({ isOpen, onToggle }) => {
 
   // ── Checklist ─────────────────────────────────────────────────
 
-  const makeCheckbox = () => {
-    const span = document.createElement('span');
-    span.className = 'dp-checkbox';
-    span.contentEditable = 'false';
-    return span;
+  // A checklist item is a PLAIN editable <li>; its checkbox is drawn in CSS
+  // (li::before). There is no contenteditable=false node inside it — that is what
+  // keeps the caret alive and the line typeable (the earlier "frozen line" bug).
+  // Empty items carry a bogus <br> so the browser gives them a caret line.
+  const makeItem = (checked = false) => {
+    const li = document.createElement('li');
+    if (checked) li.classList.add('dp-checked');
+    return li;
   };
 
-  const insertChecklist = () => {
-    editorRef.current?.focus();
+  const ensureFiller = (li) => {
+    if (!li.firstChild) li.appendChild(document.createElement('br'));
+  };
+
+  // Drop the caret into a line: at the end of real content, or at the start when
+  // the line is empty (before its bogus <br>).
+  const caretInto = (li) => {
     const sel = window.getSelection();
-    if (!sel?.rangeCount) return;
-    const node = sel.getRangeAt(0).startContainer;
-    const el = node.nodeType === 1 ? node : node.parentElement;
-    const existingLi = el?.closest('.dp-checklist li');
-
-    if (existingLi) {
-      // Toggle off: convert current item back to paragraph
-      const ul = existingLi.closest('.dp-checklist');
-      const p = document.createElement('p');
-      Array.from(existingLi.childNodes)
-        .filter(n => !(n.nodeType === 1 && n.classList.contains('dp-checkbox')))
-        .forEach(n => p.appendChild(n.cloneNode(true)));
-      if (!p.textContent.trim()) p.innerHTML = '<br>';
-      if (ul.children.length === 1) {
-        ul.parentNode.replaceChild(p, ul);
-      } else {
-        existingLi.remove();
-        ul.parentNode.insertBefore(p, ul.nextSibling);
-      }
-      const newRange = document.createRange();
-      newRange.setStart(p, 0);
-      newRange.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
+    if (!li || !sel) return;
+    const range = document.createRange();
+    if (li.lastChild && li.lastChild.nodeName !== 'BR') {
+      range.selectNodeContents(li);
+      range.collapse(false);
     } else {
-      // Walk up to find the direct child of the editor (the current top-level block)
-      const editor = editorRef.current;
-      let topBlock = el;
-      while (topBlock && topBlock.parentElement !== editor) {
-        topBlock = topBlock.parentElement;
-      }
+      range.setStart(li, 0);
+      range.collapse(true);
+    }
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
 
+  // Strip a leading literal "[ ] " / "[x] " / "- [ ] " from a line's first text node.
+  const stripLeadingMarker = (el) => {
+    let n = el.firstChild;
+    while (n?.nodeType === 3 && n.textContent === '') n = n.nextSibling;
+    if (n?.nodeType === 3) n.textContent = n.textContent.replace(/^(?:- )?\[[ xX]?\]\s?/, '');
+  };
+
+  // Move a source block's inline content into a checklist <li> (drop <br> fillers),
+  // then clean a leading literal marker and ensure the item stays caret-friendly.
+  const fillItem = (li, source) => {
+    Array.from(source.childNodes).forEach(n => {
+      if (n.nodeType === 1 && n.nodeName === 'BR') return;
+      li.appendChild(n);
+    });
+    stripLeadingMarker(li);
+    ensureFiller(li);
+  };
+
+  // Live markdown shortcut: typing "- [ ] " / "- [x] " at the start of a line
+  // converts that line into a checklist item with the caret in the text.
+  const tryChecklistShortcut = () => {
+    const editor = editorRef.current;
+    if (!editor) return false;
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return false;
+    const startNode = sel.getRangeAt(0).startContainer;
+    const el = startNode.nodeType === 1 ? startNode : startNode.parentElement;
+    if (el?.closest('.dp-checklist')) return false; // already a checklist item
+
+    // The "line" we transform: a top-level block, or a bare text node child of the editor.
+    let block = el?.closest('h1,h2,h3,h4,p,div');
+    if (block && block !== editor) {
+      while (block.parentElement && block.parentElement !== editor) block = block.parentElement;
+      if (block.parentElement !== editor) block = null;
+    } else {
+      block = null;
+    }
+
+    let text, replaceTarget, fromBlock;
+    if (block) {
+      text = block.textContent;
+      replaceTarget = block;
+      fromBlock = true;
+    } else {
+      if (startNode.nodeType !== 3 || startNode.parentNode !== editor) return false;
+      text = startNode.textContent;
+      replaceTarget = startNode;
+      fromBlock = false;
+    }
+
+    const m = text.match(/^- \[([ xX]?)\] /);
+    if (!m) return false;
+    const checked = /[xX]/.test(m[1]);
+    const prefixLen = m[0].length;
+
+    const li = makeItem(checked);
+
+    if (fromBlock) {
+      // Strip the "- [ ] " prefix from the leading text node(s), keep formatting after it.
+      // Leading <br> (empty placeholder paragraphs render as <p><br></p>) are removed too.
+      let toRemove = prefixLen;
+      let n = block.firstChild;
+      while (n && toRemove > 0) {
+        if (n.nodeType === 3) {
+          const len = n.textContent.length;
+          if (len <= toRemove) { toRemove -= len; const next = n.nextSibling; n.remove(); n = next; }
+          else { n.textContent = n.textContent.slice(toRemove); toRemove = 0; }
+        } else if (n.nodeName === 'BR') {
+          const next = n.nextSibling; n.remove(); n = next;
+        } else {
+          break; // hit formatted content before the prefix was consumed
+        }
+      }
+      while (block.firstChild) li.appendChild(block.firstChild);
+    } else {
+      const remaining = text.slice(prefixLen);
+      if (remaining) li.appendChild(document.createTextNode(remaining));
+    }
+    ensureFiller(li);
+
+    // Append to an adjacent checklist if one precedes this line, else make a new one.
+    const prev = replaceTarget.previousSibling;
+    if (prev?.nodeType === 1 && prev.classList?.contains('dp-checklist')) {
+      prev.appendChild(li);
+      replaceTarget.remove();
+    } else {
       const ul = document.createElement('ul');
       ul.className = 'dp-checklist';
-      const li = document.createElement('li');
-      const checkbox = makeCheckbox();
-      li.appendChild(checkbox);
       ul.appendChild(li);
-
-      if (topBlock && topBlock !== editor) {
-        // Insert after the current top-level block
-        editor.insertBefore(ul, topBlock.nextSibling);
-        // Remove if it was an empty placeholder paragraph
-        if (topBlock.tagName === 'P' && (!topBlock.textContent.trim() || topBlock.innerHTML === '<br>')) {
-          topBlock.remove();
-        }
-      } else {
-        editor.appendChild(ul);
-      }
-
-      const newRange = document.createRange();
-      newRange.setStartAfter(checkbox);
-      newRange.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
+      editor.replaceChild(ul, replaceTarget);
     }
+
+    caretInto(li);
+    return true;
+  };
+
+  // Toolbar checklist button: convert the current line/list in place (and toggle back).
+  const insertChecklist = () => {
+    const editor = editorRef.current;
+    editor?.focus();
+    const sel = window.getSelection();
+    if (!sel?.rangeCount || !editor || !editor.contains(sel.anchorNode)) return;
+    const node = sel.getRangeAt(0).startContainer;
+    const el = node.nodeType === 1 ? node : node.parentElement;
+
+    // 1) Already a checklist item → toggle it back to a paragraph, in place.
+    const existingLi = el?.closest('.dp-checklist li');
+    if (existingLi) {
+      const ul = existingLi.closest('.dp-checklist');
+      const p = document.createElement('p');
+      Array.from(existingLi.childNodes).forEach(n => {
+        if (n.nodeType === 1 && n.nodeName === 'BR') return;
+        p.appendChild(n);
+      });
+      if (!p.textContent.trim()) p.innerHTML = '<br>';
+      // Split the list around this item so order is preserved wherever it sat.
+      const after = document.createElement('ul');
+      after.className = 'dp-checklist';
+      let s = existingLi.nextSibling;
+      while (s) { const next = s.nextSibling; after.appendChild(s); s = next; }
+      existingLi.remove();
+      ul.parentNode.insertBefore(p, ul.nextSibling);
+      if (after.children.length) ul.parentNode.insertBefore(after, p.nextSibling);
+      if (ul.children.length === 0) ul.remove();
+      const range = document.createRange();
+      range.setStart(p, 0); range.collapse(true);
+      sel.removeAllRanges(); sel.addRange(range);
+      triggerSave();
+      return;
+    }
+
+    // 2) Inside a plain bullet/numbered list → convert the whole list to a checklist.
+    const plainLi = el?.closest('li');
+    if (plainLi) {
+      const list = plainLi.closest('ul,ol');
+      const ul = document.createElement('ul');
+      ul.className = 'dp-checklist';
+      let firstItem = null;
+      Array.from(list.children).forEach(srcLi => {
+        if (srcLi.nodeName !== 'LI') return;
+        const li = makeItem();
+        fillItem(li, srcLi);
+        ul.appendChild(li);
+        firstItem = firstItem || li;
+      });
+      list.parentNode.replaceChild(ul, list);
+      caretInto(firstItem);
+      triggerSave();
+      return;
+    }
+
+    // 3) A top-level block (p/div/heading) or the empty editor.
+    let block = el;
+    while (block && block !== editor && block.parentElement !== editor) block = block.parentElement;
+    const target = block && block !== editor ? block : null;
+
+    const li = makeItem();
+    if (target) fillItem(li, target);
+    else ensureFiller(li);
+
+    // Merge with an adjacent checklist if one touches this line; else make a new list.
+    const prev = target?.previousSibling;
+    const next = target?.nextSibling;
+    if (prev?.nodeType === 1 && prev.classList?.contains('dp-checklist')) {
+      prev.appendChild(li);
+      target.remove();
+    } else if (next?.nodeType === 1 && next.classList?.contains('dp-checklist')) {
+      next.insertBefore(li, next.firstChild);
+      target.remove();
+    } else {
+      const ul = document.createElement('ul');
+      ul.className = 'dp-checklist';
+      ul.appendChild(li);
+      if (target) editor.replaceChild(ul, target);
+      else editor.appendChild(ul);
+    }
+
+    caretInto(li);
     triggerSave();
   };
 
+  // Toggle a checklist item by clicking its CSS checkbox (the left ~22px zone).
   const handleEditorClick = (e) => {
-    if (e.target.classList.contains('dp-checkbox')) {
-      e.target.classList.toggle('checked');
-      e.target.closest('li')?.classList.toggle('dp-checked');
+    const li = e.target.closest?.('.dp-checklist li');
+    if (!li) return;
+    const rect = li.getBoundingClientRect();
+    if (e.clientX - rect.left <= 22) {
+      li.classList.toggle('dp-checked');
       triggerSave();
     }
   };
@@ -342,12 +491,8 @@ const DayPlannerPanel = ({ isOpen, onToggle }) => {
     if (!li) return;
     e.preventDefault();
 
-    const textContent = Array.from(li.childNodes)
-      .filter(n => !(n.nodeType === 1 && n.classList.contains('dp-checkbox')))
-      .map(n => n.textContent).join('').trim();
-
-    if (textContent === '') {
-      // Empty item → exit checklist, insert paragraph
+    if (li.textContent.trim() === '') {
+      // Empty item → exit checklist, insert a paragraph after the list.
       const ul = li.closest('.dp-checklist');
       const p = document.createElement('p');
       p.innerHTML = '<br>';
@@ -360,15 +505,10 @@ const DayPlannerPanel = ({ isOpen, onToggle }) => {
       sel.removeAllRanges();
       sel.addRange(range);
     } else {
-      const newLi = document.createElement('li');
-      const checkbox = makeCheckbox();
-      newLi.appendChild(checkbox);
+      const newLi = makeItem();
+      ensureFiller(newLi);
       li.parentNode.insertBefore(newLi, li.nextSibling);
-      const range = document.createRange();
-      range.setStartAfter(checkbox);
-      range.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(range);
+      caretInto(newLi);
     }
     triggerSave();
   };

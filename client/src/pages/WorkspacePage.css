@@ -1,8 +1,18 @@
 /* ── Workspace Page Root ── */
+/* Fill the viewport exactly: drop the shared .main-content padding and
+   min-height:100vh that otherwise push the workspace past the viewport
+   and cause page-level scrolling. */
+.main-content--workspace {
+  padding: 0;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .workspace-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100vh;
   overflow: hidden;
 }
 

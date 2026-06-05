@@ -10,6 +10,11 @@ function inlineToHtml(text) {
     .replace(/\*(.+?)\*/g, '<em>$1</em>');
 }
 
+// Checklist line: "- [ ] text" / "- [x] text". The space after "]" and the
+// trailing text are both optional, so an empty item that serialises (and gets
+// trimmed) to "- [ ]" still parses back as a checklist rather than a bullet.
+const CHECK_RE = /^- \[([ xX]?)\] ?/;
+
 export function markdownToHtml(md) {
   if (!md) return '';
   // Legacy HTML notes: pass through unchanged
@@ -28,27 +33,26 @@ export function markdownToHtml(md) {
     if (line.startsWith('## '))   { out.push(`<h2>${inlineToHtml(line.slice(3))}</h2>`); i++; continue; }
     if (line.startsWith('# '))    { out.push(`<h1>${inlineToHtml(line.slice(2))}</h1>`); i++; continue; }
 
-    // Checklist: - [ ] or - [x] / - [X]
-    if (/^- \[[ xX]\] /.test(line)) {
+    // Checklist: - [ ] / - [x] / - [X]
+    if (CHECK_RE.test(line)) {
       const items = [];
-      while (i < lines.length && /^- \[[ xX]\] /.test(lines[i])) {
-        const checked = lines[i][3] !== ' ';
-        const text = inlineToHtml(lines[i].slice(6));
-        items.push(
-          `<li class="${checked ? 'dp-checked' : ''}">` +
-          `<span class="dp-checkbox${checked ? ' checked' : ''}" contenteditable="false"></span>` +
-          `${text}</li>`
-        );
+      while (i < lines.length && CHECK_RE.test(lines[i])) {
+        const mm = lines[i].match(CHECK_RE);
+        const checked = /[xX]/.test(mm[1]);
+        const text = inlineToHtml(lines[i].slice(mm[0].length));
+        // Plain <li> (checkbox is CSS-drawn). Empty items get a <br> so they
+        // render a caret line and stay editable.
+        items.push(`<li${checked ? ' class="dp-checked"' : ''}>${text || '<br>'}</li>`);
         i++;
       }
       out.push(`<ul class="dp-checklist">${items.join('')}</ul>`);
       continue;
     }
 
-    // Unordered list
+    // Unordered list — never swallow checklist lines into a bullet list.
     if (/^[-*] /.test(line)) {
       const items = [];
-      while (i < lines.length && /^[-*] /.test(lines[i])) {
+      while (i < lines.length && /^[-*] /.test(lines[i]) && !CHECK_RE.test(lines[i])) {
         items.push(`<li>${inlineToHtml(lines[i].slice(2))}</li>`);
         i++;
       }
@@ -104,9 +108,7 @@ function nodeToMd(node) {
       if (node.classList.contains('dp-checklist')) {
         return Array.from(node.children).map(li => {
           const checked = li.classList.contains('dp-checked');
-          const text = Array.from(li.childNodes)
-            .filter(n => !(n.nodeType === 1 && n.classList?.contains('dp-checkbox')))
-            .map(nodeToMd).join('').trim();
+          const text = Array.from(li.childNodes).map(nodeToMd).join('').trim();
           return `- [${checked ? 'x' : ' '}] ${text}\n`;
         }).join('');
       }

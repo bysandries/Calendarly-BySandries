@@ -158,7 +158,7 @@ function MainLayout() {
         </button>
       )}
 
-      <main className="main-content">
+      <main className={`main-content ${location.pathname === '/focus' ? 'main-content--workspace' : ''}`}>
         <Routes>
           <Route path="/focus" element={<WorkspacePage />} />
           <Route path="/tasks" element={<TasksPage />} />

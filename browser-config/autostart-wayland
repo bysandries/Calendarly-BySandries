@@ -4,4 +4,47 @@
 # decorations (the — □ × caption buttons) and ignores the labwc window
 # manager. Running under XWayland lets labwc own the decorations, and with
 # the empty <titlebar> layout in labwc.xml the window has no buttons at all.
+
+# Keep-maximized watcher. The browser window is otherwise locked: labwc has no
+# move or resize mousebinds. But Chromium itself still toggles maximize when
+# the empty tab-strip caption area is double-clicked, sending a _NET_WM_STATE
+# toggle that un-maximizes (shrinks) the window to a small floating size the
+# user can no longer restore. Re-assert full-screen geometry whenever the
+# maximized state is dropped. Event-driven via xprop -spy (no polling); the
+# outer loop re-finds the window if Chromium relaunches.
+keep_maximized() {
+  while true; do
+    WID=""
+    for w in $(xdotool search --class chromium 2>/dev/null); do
+      # Only the managed top-level window carries WM_STATE; skip helper /
+      # override-redirect windows (clipboard, 200x200 GPU helper, etc.).
+      if xprop -id "$w" WM_STATE 2>/dev/null | grep -q "window state"; then
+        WID="$w"; break
+      fi
+    done
+    if [ -z "$WID" ]; then sleep 1; continue; fi
+
+    force_full() {
+      local g; g=$(xdotool getdisplaygeometry) || return
+      xdotool windowsize "$WID" ${g% *} ${g#* }
+      xdotool windowmove "$WID" 0 0
+    }
+
+    # Assert once up front, then react to every state change.
+    case "$(xprop -id "$WID" _NET_WM_STATE 2>/dev/null)" in
+      *MAXIMIZED_VERT*) : ;;
+      *) force_full ;;
+    esac
+    xprop -spy -id "$WID" _NET_WM_STATE 2>/dev/null | while read -r line; do
+      case "$line" in
+        *MAXIMIZED_VERT*) : ;;
+        *) force_full ;;
+      esac
+    done
+    # xprop -spy exited: the window went away, re-find it.
+    sleep 1
+  done
+}
+keep_maximized &
+
 wrapped-chromium --enable-features=UseOzonePlatform --ozone-platform=x11 ${CHROME_CLI}

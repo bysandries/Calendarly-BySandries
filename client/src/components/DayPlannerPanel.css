@@ -495,62 +495,62 @@
 .day-planner-editor p { margin: 0 0 6px; }
 
 /* ── Checklist ── */
+/* The checkbox is drawn entirely in CSS (::before/::after) so each <li> stays a
+   plain editable text line. There is NO contenteditable=false element inside the
+   item — that is what keeps the caret working and the line typeable. */
 
-.dp-checklist {
+/* Override the generic editor `ul` padding (higher specificity) so checklist
+   items align flush-left with the surrounding body text. */
+.day-planner-editor ul.dp-checklist {
   list-style: none;
   padding-left: 0;
-  margin: 4px 0 8px;
+  margin: 4px 0;
 }
 
-.dp-checklist li {
+.day-planner-editor ul.dp-checklist li {
   position: relative;
-  padding: 2px 0 2px 26px;
+  padding: 0 0 0 24px;   /* room for the CSS checkbox on the left */
   margin: 2px 0;
   min-height: 20px;
+  outline: none;
   transition: color 0.15s ease;
 }
 
-.dp-checkbox {
+/* The box */
+.day-planner-editor ul.dp-checklist li::before {
+  content: '';
   position: absolute;
   left: 0;
-  top: 4px;
+  top: 3px;
   width: 15px;
   height: 15px;
   border: 1.5px solid rgba(255, 255, 255, 0.25);
   border-radius: 3px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   background: transparent;
-  transition: background 0.15s ease, border-color 0.15s ease;
-  user-select: none;
-  flex-shrink: 0;
+  cursor: pointer;
   box-sizing: border-box;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.dp-checkbox:hover {
-  border-color: var(--accent, #3498db);
-  background: rgba(52, 152, 219, 0.08);
-}
-
-.dp-checkbox.checked {
+.day-planner-editor ul.dp-checklist li.dp-checked::before {
   background: var(--accent, #3498db);
   border-color: var(--accent, #3498db);
 }
 
-.dp-checkbox.checked::after {
+/* The checkmark (only when checked) */
+.day-planner-editor ul.dp-checklist li.dp-checked::after {
   content: '';
-  display: block;
-  width: 8px;
-  height: 5px;
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  width: 7px;
+  height: 4px;
   border-left: 2px solid #fff;
   border-bottom: 2px solid #fff;
-  transform: rotate(-45deg) translateY(-1px);
-  flex-shrink: 0;
+  transform: rotate(-45deg);
 }
 
-.dp-checklist li.dp-checked {
+.day-planner-editor ul.dp-checklist li.dp-checked {
   color: var(--text-muted, rgba(255, 255, 255, 0.35));
   text-decoration: line-through;
   text-decoration-color: rgba(255, 255, 255, 0.2);
