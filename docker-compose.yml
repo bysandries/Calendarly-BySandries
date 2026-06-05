@@ -66,7 +66,7 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
-      - CHROME_CLI=--no-first-run --no-default-browser-check --disable-sync --disable-translate --disable-session-crashed-bubble --hide-crash-restore-bubble --start-maximized https://www.google.com
+      - CHROME_CLI=--no-first-run --no-default-browser-check --disable-sync --disable-translate --disable-session-crashed-bubble --hide-crash-restore-bubble --start-maximized https://github.com/bysandries
       - CUSTOM_WIDTH=1920
       - CUSTOM_HEIGHT=1080
       - GTK_CSD=0

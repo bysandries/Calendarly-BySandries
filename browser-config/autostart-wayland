@@ -5,6 +5,40 @@
 # manager. Running under XWayland lets labwc own the decorations, and with
 # the empty <titlebar> layout in labwc.xml the window has no buttons at all.
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Ensure Chromium UI preferences are set correctly on every container start.
+# Only touches: custom_chrome_frame (removes caption buttons) and homepage.
+# ═══════════════════════════════════════════════════════════════════════════
+setup_chromium_prefs() {
+    local prefs_dir="/config/chromium/Default"
+    local prefs_file="$prefs_dir/Preferences"
+
+    if [ -f "$prefs_file" ]; then
+        python3 -c "
+import json, sys
+try:
+    with open('$prefs_file', 'r') as f:
+        data = json.load(f)
+except Exception as e:
+    print('Preferences parse error:', e, file=sys.stderr)
+    sys.exit(0)
+
+# 1. Remove Chromium's own client-side frame (min/max/close buttons)
+data.setdefault('browser', {})['custom_chrome_frame'] = False
+
+# 2. Set homepage to GitHub profile
+data['homepage'] = 'https://github.com/bysandries'
+data['homepage_is_newtabpage'] = False
+
+with open('$prefs_file', 'w') as f:
+    json.dump(data, f, separators=(',', ':'))
+print('Chromium UI preferences applied.')
+"
+    fi
+}
+
+setup_chromium_prefs
+
 # Keep-maximized watcher. The browser window is otherwise locked: labwc has no
 # move or resize mousebinds. But Chromium itself still toggles maximize when
 # the empty tab-strip caption area is double-clicked, sending a _NET_WM_STATE
