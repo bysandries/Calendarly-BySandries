@@ -103,6 +103,10 @@ GEMINI.md
 # ─── Graphify generated cache (AST + semantic snapshots) ───
 graphify-out/
 
+# ─── Browser container persistent data (Docker volume mounts) ─
+browser-data/
+chromium-data/
+
 # ─── Upload temp directory ─────────────────────────────────
 .tmp-uploads/
 server/opencode-cache/*

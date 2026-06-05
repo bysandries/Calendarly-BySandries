@@ -17,6 +17,8 @@
 
 /* Uses existing .task-tabs / .task-tab classes from index.css */
 
+/* Tabs are permanent — no close/reopen machinery needed */
+
 /* ── Body: tab content + planner column side by side ── */
 .workspace-body {
   display: flex;
@@ -49,8 +51,62 @@
 .workspace-browser {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
+}
+
+.workspace-browser-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  background: var(--bg-secondary, rgba(255,255,255,0.03));
+  min-height: 34px;
+}
+
+.workspace-browser-clip-btn {
+  background: rgba(52, 152, 219, 0.12);
+  border: 1px solid rgba(52, 152, 219, 0.3);
+  color: var(--accent-primary, #3498db);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.workspace-browser-clip-btn:hover:not(:disabled) {
+  background: rgba(52, 152, 219, 0.22);
+}
+
+.workspace-browser-clip-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.workspace-browser-clip-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+
+.workspace-browser-clip-badge--on {
+  background: rgba(46, 204, 113, 0.10);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  color: #2ECC71;
+}
+
+.workspace-browser-clip-badge--off {
+  background: rgba(231, 76, 60, 0.10);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  color: #E74C3C;
+  font-size: 11px;
 }
 
 .workspace-browser-bar {
@@ -203,4 +259,80 @@ webview.workspace-browser-iframe {
   height: 100%;
   border: none;
   display: flex;
+}
+
+/* ── Docker loading / error states ── */
+.workspace-browser-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  height: 100%;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 40px;
+}
+
+@keyframes wb-spin {
+  to { transform: rotate(360deg); }
+}
+
+.workspace-browser-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.08);
+  border-top-color: var(--accent-primary, #3498db);
+  border-radius: 50%;
+  animation: wb-spin 0.9s linear infinite;
+  flex-shrink: 0;
+}
+
+.workspace-browser-deploy-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 12px;
+  background: rgba(46, 204, 113, 0.10);
+  border: 1px solid rgba(46, 204, 113, 0.35);
+  color: #2ECC71;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.workspace-browser-deploy-badge--error {
+  background: rgba(231, 76, 60, 0.10);
+  border-color: rgba(231, 76, 60, 0.35);
+  color: #E74C3C;
+}
+
+.workspace-browser-loading-label {
+  font-size: 13px;
+  color: var(--text-muted, rgba(255, 255, 255, 0.35));
+  margin: 0;
+  max-width: 360px;
+  line-height: 1.6;
+}
+
+.workspace-browser-error-icon {
+  font-size: 36px;
+  opacity: 0.7;
+}
+
+.workspace-browser-retry-btn {
+  margin-top: 4px;
+  padding: 7px 20px;
+  background: rgba(52, 152, 219, 0.15);
+  border: 1px solid rgba(52, 152, 219, 0.35);
+  color: var(--accent-primary, #3498db);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.workspace-browser-retry-btn:hover {
+  background: rgba(52, 152, 219, 0.28);
 }

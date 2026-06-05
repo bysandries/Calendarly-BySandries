@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { DateTime } from 'luxon';
 import { api } from '../utils/api/core';
 import { fetchAreas } from '../utils/api/areas';
+import { markdownToHtml, htmlToMarkdown } from '../utils/mdEditor';
 import './DayPlannerPanel.css';
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -42,10 +43,10 @@ const HEADING_OPTIONS = [
 const BLOCK_LABEL = { p: 'Normal', div: 'Normal', h1: 'H1', h2: 'H2', h3: 'H3', h4: 'H4' };
 
 // ── Toolbar helpers ───────────────────────────────────────────────
-const TBtn = ({ title, onClick, children }) => (
+const TBtn = ({ title, onClick, children, active }) => (
   <button
     type="button"
-    className="dp-toolbar-btn"
+    className={`dp-toolbar-btn${active ? ' active' : ''}`}
     title={title}
     onMouseDown={(e) => { e.preventDefault(); onClick(); }}
   >
@@ -112,6 +113,9 @@ const DayPlannerPanel = ({ isOpen, onToggle }) => {
   const [lastTextColor, setLastTextColor] = useState(null);
   const [textColorOpen, setTextColorOpen] = useState(false);
 
+  // Checklist cursor tracking
+  const [isInChecklist, setIsInChecklist] = useState(false);
+
   const editorRef = useRef(null);
   const debounceRef = useRef(null);
   const loadedDateRef = useRef(null);
@@ -144,7 +148,7 @@ const DayPlannerPanel = ({ isOpen, onToggle }) => {
       .catch(() => {});
   }, []);
 
-  // Detect current block level from selection
+  // Detect current block level and checklist state from selection
   useEffect(() => {
     const handler = () => {
       if (!editorRef.current) return;
@@ -154,6 +158,7 @@ const DayPlannerPanel = ({ isOpen, onToggle }) => {
       const el = node.nodeType === 1 ? node : node.parentElement;
       const block = el?.closest('h1,h2,h3,h4,p,div');
       if (block) setCurrentBlock(block.tagName.toLowerCase());
+      setIsInChecklist(!!el?.closest('.dp-checklist'));
     };
     document.addEventListener('selectionchange', handler);
     return () => document.removeEventListener('selectionchange', handler);
@@ -178,7 +183,7 @@ const DayPlannerPanel = ({ isOpen, onToggle }) => {
     api.get('/daily-logs', { date: dateId })
       .then(rows => {
         if (loadedDateRef.current !== dateId) return;
-        editorRef.current.innerHTML = rows[0]?.note || '';
+        editorRef.current.innerHTML = markdownToHtml(rows[0]?.note || '');
       })
       .catch(() => {});
   }, [currentDate, isOpen]); // eslint-disable-line
@@ -187,7 +192,8 @@ const DayPlannerPanel = ({ isOpen, onToggle }) => {
 
   const saveNote = useCallback((html, dId) => {
     setSaveStatus('saving');
-    api.post('/daily-logs', { date_id: dId, note: html })
+    const note = htmlToMarkdown(html);
+    api.post('/daily-logs', { date_id: dId, note })
       .then(() => setSaveStatus('saved'))
       .catch(() => setSaveStatus('idle'));
   }, []);
@@ -246,6 +252,126 @@ const DayPlannerPanel = ({ isOpen, onToggle }) => {
   const handlePrevDay = () => setCurrentDate(d => d.minus({ days: 1 }));
   const handleNextDay = () => setCurrentDate(d => d.plus({ days: 1 }));
   const handleToday = () => setCurrentDate(DateTime.now().startOf('day'));
+
+  // ── Checklist ─────────────────────────────────────────────────
+
+  const makeCheckbox = () => {
+    const span = document.createElement('span');
+    span.className = 'dp-checkbox';
+    span.contentEditable = 'false';
+    return span;
+  };
+
+  const insertChecklist = () => {
+    editorRef.current?.focus();
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return;
+    const node = sel.getRangeAt(0).startContainer;
+    const el = node.nodeType === 1 ? node : node.parentElement;
+    const existingLi = el?.closest('.dp-checklist li');
+
+    if (existingLi) {
+      // Toggle off: convert current item back to paragraph
+      const ul = existingLi.closest('.dp-checklist');
+      const p = document.createElement('p');
+      Array.from(existingLi.childNodes)
+        .filter(n => !(n.nodeType === 1 && n.classList.contains('dp-checkbox')))
+        .forEach(n => p.appendChild(n.cloneNode(true)));
+      if (!p.textContent.trim()) p.innerHTML = '<br>';
+      if (ul.children.length === 1) {
+        ul.parentNode.replaceChild(p, ul);
+      } else {
+        existingLi.remove();
+        ul.parentNode.insertBefore(p, ul.nextSibling);
+      }
+      const newRange = document.createRange();
+      newRange.setStart(p, 0);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    } else {
+      // Walk up to find the direct child of the editor (the current top-level block)
+      const editor = editorRef.current;
+      let topBlock = el;
+      while (topBlock && topBlock.parentElement !== editor) {
+        topBlock = topBlock.parentElement;
+      }
+
+      const ul = document.createElement('ul');
+      ul.className = 'dp-checklist';
+      const li = document.createElement('li');
+      const checkbox = makeCheckbox();
+      li.appendChild(checkbox);
+      ul.appendChild(li);
+
+      if (topBlock && topBlock !== editor) {
+        // Insert after the current top-level block
+        editor.insertBefore(ul, topBlock.nextSibling);
+        // Remove if it was an empty placeholder paragraph
+        if (topBlock.tagName === 'P' && (!topBlock.textContent.trim() || topBlock.innerHTML === '<br>')) {
+          topBlock.remove();
+        }
+      } else {
+        editor.appendChild(ul);
+      }
+
+      const newRange = document.createRange();
+      newRange.setStartAfter(checkbox);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    }
+    triggerSave();
+  };
+
+  const handleEditorClick = (e) => {
+    if (e.target.classList.contains('dp-checkbox')) {
+      e.target.classList.toggle('checked');
+      e.target.closest('li')?.classList.toggle('dp-checked');
+      triggerSave();
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key !== 'Enter') return;
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return;
+    const node = sel.getRangeAt(0).startContainer;
+    const el = node.nodeType === 1 ? node : node.parentElement;
+    const li = el?.closest('.dp-checklist li');
+    if (!li) return;
+    e.preventDefault();
+
+    const textContent = Array.from(li.childNodes)
+      .filter(n => !(n.nodeType === 1 && n.classList.contains('dp-checkbox')))
+      .map(n => n.textContent).join('').trim();
+
+    if (textContent === '') {
+      // Empty item → exit checklist, insert paragraph
+      const ul = li.closest('.dp-checklist');
+      const p = document.createElement('p');
+      p.innerHTML = '<br>';
+      ul.parentNode.insertBefore(p, ul.nextSibling);
+      li.remove();
+      if (ul.children.length === 0) ul.remove();
+      const range = document.createRange();
+      range.setStart(p, 0);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } else {
+      const newLi = document.createElement('li');
+      const checkbox = makeCheckbox();
+      newLi.appendChild(checkbox);
+      li.parentNode.insertBefore(newLi, li.nextSibling);
+      const range = document.createRange();
+      range.setStartAfter(checkbox);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    triggerSave();
+  };
 
   const isToday = currentDate.hasSame(DateTime.now(), 'day');
   const blockLabel = BLOCK_LABEL[currentBlock] ?? 'Normal';
@@ -350,6 +476,15 @@ const DayPlannerPanel = ({ isOpen, onToggle }) => {
                   <text x="2" y="20" fontSize="7" fill="currentColor" stroke="none" fontFamily="sans-serif">3.</text>
                 </svg>
               </TBtn>
+              <TBtn title="Checklist" active={isInChecklist} onClick={insertChecklist}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="6" height="6" rx="1.2"/>
+                  <polyline points="4.2 7 5.8 9 8.8 5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1="13" y1="7" x2="21" y2="7"/>
+                  <rect x="3" y="14" width="6" height="6" rx="1.2"/>
+                  <line x1="13" y1="17" x2="21" y2="17"/>
+                </svg>
+              </TBtn>
             </div>
 
             <div className="dp-toolbar-divider" />
@@ -403,6 +538,8 @@ const DayPlannerPanel = ({ isOpen, onToggle }) => {
               contentEditable
               suppressContentEditableWarning
               onInput={handleInput}
+              onClick={handleEditorClick}
+              onKeyDown={handleKeyDown}
               data-placeholder="What's important today?"
             />
           </div>

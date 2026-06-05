@@ -493,3 +493,65 @@
 .day-planner-editor u { text-decoration: underline; }
 
 .day-planner-editor p { margin: 0 0 6px; }
+
+/* ── Checklist ── */
+
+.dp-checklist {
+  list-style: none;
+  padding-left: 0;
+  margin: 4px 0 8px;
+}
+
+.dp-checklist li {
+  position: relative;
+  padding: 2px 0 2px 26px;
+  margin: 2px 0;
+  min-height: 20px;
+  transition: color 0.15s ease;
+}
+
+.dp-checkbox {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.dp-checkbox:hover {
+  border-color: var(--accent, #3498db);
+  background: rgba(52, 152, 219, 0.08);
+}
+
+.dp-checkbox.checked {
+  background: var(--accent, #3498db);
+  border-color: var(--accent, #3498db);
+}
+
+.dp-checkbox.checked::after {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translateY(-1px);
+  flex-shrink: 0;
+}
+
+.dp-checklist li.dp-checked {
+  color: var(--text-muted, rgba(255, 255, 255, 0.35));
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 255, 255, 0.2);
+}

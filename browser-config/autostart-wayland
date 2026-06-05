@@ -1,0 +1,7 @@
+#!/bin/bash
+# Launch Chromium as an X11 (XWayland) client instead of a native Wayland
+# client. On native Wayland, Chromium draws its OWN client-side window
+# decorations (the — □ × caption buttons) and ignores the labwc window
+# manager. Running under XWayland lets labwc own the decorations, and with
+# the empty <titlebar> layout in labwc.xml the window has no buttons at all.
+wrapped-chromium --enable-features=UseOzonePlatform --ozone-platform=x11 ${CHROME_CLI}

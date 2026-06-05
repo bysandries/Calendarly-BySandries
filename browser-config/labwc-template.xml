@@ -1,0 +1,66 @@
+<labwc_config>
+
+  <core>
+    <decoration>server</decoration>
+    <gap>0</gap>
+  </core>
+
+  <theme>
+    <name>Clearlooks</name>
+    <titlebar>
+      <layout></layout>
+      <showTitle>no</showTitle>
+    </titlebar>
+    <cornerRadius>0</cornerRadius>
+  </theme>
+
+  <keyboard>
+    <!-- Fully locked window: no <default /> and no window-management keybinds,
+         so the window cannot be moved, resized, minimized, maximized, closed, or
+         have a window menu opened from the keyboard. Browser shortcuts (Ctrl+L,
+         Ctrl+T, etc.) still work because they are delivered to Chromium, not the
+         compositor. -->
+  </keyboard>
+
+  <mouse>
+    <!-- Fully locked window: no <default /> and no move/resize/menu mousebinds,
+         so the window cannot be moved (including Alt+drag), resized, or open a
+         WM context menu. Page clicks, scrolling and drag-select are still
+         delivered to Chromium by the compositor, so the browser stays usable. -->
+  </mouse>
+
+  <windowRules>
+    <!-- IMPORTANT: no double hyphen is allowed inside an XML comment, or the
+         whole rc.xml fails to parse and labwc silently falls back to its default
+         titlebar (icon, title and caption buttons).
+         Browsers run under XWayland (see autostart-wayland, ozone platform x11)
+         with Chromium's "Use system title bar and borders" preference enabled
+         (browser.custom_chrome_frame=false in the profile). That makes Chromium
+         defer its window frame to the compositor instead of drawing its own
+         min/maximize/close caption buttons. We then tell labwc to draw NO
+         decoration for browser windows (serverDecoration="no"), giving a
+         borderless, maximized window with no titlebar and no buttons. -->
+    <windowRule identifier="*" serverDecoration="yes" />
+    <windowRule identifier="*"><action name="Maximize" /></windowRule>
+    <windowRule identifier="brave" serverDecoration="no" />
+    <windowRule identifier="chrome" serverDecoration="no" />
+    <windowRule identifier="chromium" serverDecoration="no" />
+    <windowRule identifier="chromium-browser" serverDecoration="no" />
+    <windowRule identifier="wrapped-chromium" serverDecoration="no" />
+    <windowRule identifier="firefox-esr" serverDecoration="no" />
+    <windowRule identifier="firefox" serverDecoration="no" />
+    <windowRule identifier="google-chrome" serverDecoration="no" />
+    <windowRule identifier="librewolf" serverDecoration="no" />
+    <windowRule identifier="mullvad-browser" serverDecoration="no" />
+    <windowRule identifier="opera-bin" serverDecoration="no" />
+    <windowRule identifier="opera" serverDecoration="no" />
+    <windowRule identifier="vivaldi" serverDecoration="no" />
+    <windowRule identifier="zen" serverDecoration="no" />
+    <windowRule identifier="pcmanfm-qt" type="desktop" title="pcmanfm-desktop0" serverDecoration="no">
+      <action name="Lower" />
+      <action name="ToggleAlwaysOnBottom"/>
+    </windowRule>
+    <windowRule identifier="lxqt-panel" serverDecoration="no" />
+  </windowRules>
+
+</labwc_config>

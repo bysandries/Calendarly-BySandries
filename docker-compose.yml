@@ -66,13 +66,23 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
-      - CHROME_CLI=https://www.google.com
+      - CHROME_CLI=--no-first-run --no-default-browser-check --disable-sync --disable-translate --disable-session-crashed-bubble --hide-crash-restore-bubble --start-maximized https://www.google.com
+      - CUSTOM_WIDTH=1920
+      - CUSTOM_HEIGHT=1080
+      - GTK_CSD=0
+    volumes:
+      - ./browser-data:/config
+      - ./browser-config/labwc-template.xml:/defaults/labwc.xml:ro
+      - ./browser-config/autostart-wayland:/defaults/autostart_wayland:ro
+      - ./browser-policies/managed:/etc/chromium/policies/managed:ro
     ports:
       - "3010:3000"
     shm_size: "1gb"
     security_opt:
       - seccomp:unconfined
     restart: unless-stopped
+    networks:
+      - app-net
 
 volumes:
   db-data:
