@@ -39,7 +39,7 @@ const SECTION_TITLE = {
   marginBottom: '2px',
 };
 
-export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, onClose }) {
+export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, onClose, mode = 'drawer' }) {
   const isOpen = tasks.length > 0;
   const isBulk = tasks.length > 1;
   const singleTask = !isBulk ? tasks[0] : null;
@@ -118,6 +118,7 @@ export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, o
 
   if (!isOpen) return null;
 
+  const isInline = mode === 'inline';
   const currentStatusInfo = formData.status ? getStatusInfo(formData.status) : null;
 
   const daysLeft = calcDaysLeft(formData.date_due);
@@ -126,10 +127,8 @@ export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, o
 
   const isDuePast = formData.date_due && daysLeft !== null && daysLeft < 0;
 
-  return (
-    <div className={`slide-drawer-wrapper ${isOpen ? 'open' : ''} no-backdrop`}>
-      <div className="drawer-backdrop" onClick={onClose} />
-      <div className="drawer-content glass-panel">
+  const content = (
+    <div className="drawer-content glass-panel" style={isInline ? { width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', height: '100%', borderRight: '1px solid var(--border-subtle)', overflow: 'hidden', transform: 'none', boxShadow: 'none' } : undefined}>
 
         {/* ── Header ── */}
         <div className="drawer-header" style={{ gap: '10px', padding: '18px 20px' }}>
@@ -448,6 +447,16 @@ export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, o
           </button>
         </div>
       </div>
+  );
+
+  if (isInline) {
+    return <div style={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border-subtle)', overflow: 'hidden' }}>{content}</div>;
+  }
+
+  return (
+    <div className={`slide-drawer-wrapper ${isOpen ? 'open' : ''} no-backdrop`}>
+      <div className="drawer-backdrop" onClick={onClose} />
+      {content}
     </div>
   );
 }

@@ -727,6 +727,7 @@ export default function FocusPage() {
         onSave={handleUpdateTask}
         onDelete={handleDeleteTask}
         onClose={() => setSelectedTaskId(null)}
+        mode="inline"
       />
       {selectedProject && (
         <ProjectPanel
