@@ -9,6 +9,7 @@ import ProjectStatusBadge from '../components/ProjectStatusBadge';
 import { GTD_STATUSES, getStatusInfo, PRIORITY_COLORS, TASK_TABS } from '../utils/statusMap';
 import { calcDaysLeft, formatDaysLeft, calcProgression, calcImportance, formatDuration } from '../lib/taskMath';
 import { fetchTasks as apiFetchTasks, createTask as apiCreateTask } from '../utils/api/tasks';
+import TaskDrawer from '../components/TaskDrawer';
 
 const PALM_PHASES = ['Plan', 'Act', 'Measure', 'Learn', 'Ignored'];
 const PILLARS = ['Kindness', 'Authenticity', 'Resilience', 'Innovation'];
@@ -118,152 +119,6 @@ function ProjectRow({ project, isSelected, onClick }) {
       <span style={{ fontSize: '12px', color: 'var(--text-dimmed)', flexShrink: 0, width: '30px', textAlign: 'right' }}>
         {total > 0 ? `${pct}%` : '—'}
       </span>
-    </div>
-  );
-}
-
-// ── Inline task detail panel ─────────────────────────────────────────────────
-
-function TaskPanel({ task, projects, onSave, onDelete, onClose }) {
-  const [form, setForm] = useState({});
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    setForm({
-      title:              task.title || '',
-      status:             task.status || '01 - Inbox',
-      project_id:         task.project_id || '',
-      priority:           task.priority ?? 0,
-      date_due:           task.date_due || '',
-      estimated_minutes:  task.estimated_minutes || '',
-      notes:              task.notes || '',
-      is_starred:         task.is_starred || 0,
-      person_id:          task.person_id || '',
-    });
-  }, [task.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
-
-  const handleSave = async () => {
-    setBusy(true);
-    try { await onSave(task.id, form); onClose(); }
-    finally { setBusy(false); }
-  };
-
-  const handleDelete = async () => {
-    setBusy(true);
-    try { await onDelete(task.id); }
-    finally { setBusy(false); }
-  };
-
-  return (
-    <div style={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ padding: '16px 14px 10px', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={() => set('is_starred', form.is_starred === 1 ? 0 : 1)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', padding: 0, color: form.is_starred === 1 ? '#F1C40F' : 'var(--text-muted)', flexShrink: 0 }}
-          >
-            {form.is_starred === 1 ? '★' : '☆'}
-          </button>
-          <input
-            className="inline-edit"
-            value={form.title}
-            onChange={e => set('title', e.target.value)}
-            placeholder="Task title…"
-            style={{ flex: 1, fontSize: '14px', fontWeight: 600 }}
-          />
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '18px', padding: '0 2px', lineHeight: 1 }}
-          >
-            ×
-          </button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        <div className="project-drawer-section">
-          <div className="drawer-section-title">Status &amp; Priority</div>
-          <div className="detail-row">
-            <span className="detail-label">Status</span>
-            <select className="form-select" value={form.status} onChange={e => set('status', e.target.value)}>
-              {GTD_STATUSES.map(s => (
-                <option key={s} value={s}>{getStatusInfo(s).label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">Priority</span>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {[0, 1, 2, 3].map(p => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => set('priority', p)}
-                  style={{
-                    width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer',
-                    border: `2px solid ${form.priority === p ? 'var(--text-primary)' : 'transparent'}`,
-                    background: p === 0 ? 'var(--bg-card)' : PRIORITY_COLORS[p],
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="project-drawer-section">
-          <div className="drawer-section-title">Organization</div>
-          <div className="detail-row">
-            <span className="detail-label">Project</span>
-            <select className="form-select" value={form.project_id} onChange={e => set('project_id', e.target.value)}>
-              <option value="">No Project</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-            </select>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">Due</span>
-            <input type="date" className="form-input" value={form.date_due} onChange={e => set('date_due', e.target.value)} />
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">Person</span>
-            <PersonPicker value={form.person_id} onSelect={id => set('person_id', id)} placeholder="Unassigned" />
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">ECT (min)</span>
-            <input type="number" className="form-input" value={form.estimated_minutes} onChange={e => set('estimated_minutes', e.target.value)} placeholder="0" />
-          </div>
-        </div>
-
-        <div className="project-drawer-section">
-          <div className="drawer-section-title">Notes</div>
-          <textarea
-            className="form-textarea"
-            value={form.notes}
-            onChange={e => set('notes', e.target.value)}
-            placeholder="Notes…"
-            rows={5}
-            style={{ width: '100%', marginTop: '6px' }}
-          />
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '6px', flexShrink: 0 }}>
-        <button type="button" className="btn btn-danger btn-delete" onClick={handleDelete} disabled={busy} style={{ marginRight: 'auto', fontSize: '12px' }}>
-          Delete
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy} style={{ fontSize: '12px' }}>
-          Cancel
-        </button>
-        <button type="button" className="btn btn-primary" onClick={handleSave} disabled={busy} style={{ fontSize: '12px' }}>
-          {busy ? 'Saving…' : 'Save'}
-        </button>
-      </div>
     </div>
   );
 }
@@ -865,16 +720,14 @@ export default function FocusPage() {
       </div>
 
       {/* Middle: inline detail panel — appears when something is selected */}
-      {selectedTask && (
-        <TaskPanel
-          task={selectedTask}
-          projects={projects}
-          areas={areas}
-          onSave={handleUpdateTask}
-          onDelete={handleDeleteTask}
-          onClose={() => setSelectedTaskId(null)}
-        />
-      )}
+      <TaskDrawer
+        tasks={selectedTask ? [selectedTask] : []}
+        projects={projects}
+        areas={areas}
+        onSave={handleUpdateTask}
+        onDelete={handleDeleteTask}
+        onClose={() => setSelectedTaskId(null)}
+      />
       {selectedProject && (
         <ProjectPanel
           project={selectedProject}
