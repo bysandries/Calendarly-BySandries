@@ -52,6 +52,21 @@ export function formatIsoDateShort(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+/**
+ * Urgency emoji using the exact Notion formula logic.
+ * ⚠️ missing data · ✔️ done · 🔴 due today · 🟢 >3 days · ☠️ overdue · 🟡 1-3 days
+ */
+export function calcUrgencyNotion(task) {
+  const { date_due, categoria, status } = task;
+  if (!date_due || !categoria) return '⚠️';
+  if (status === '07 - Done' || status === '00 - Not Actionable') return '✔️';
+  const daysLeft = calcDaysLeft(date_due);
+  if (daysLeft === 0) return '🔴';
+  if (daysLeft > 3) return '🟢';
+  if (daysLeft < 0) return '☠️';
+  return '🟡';
+}
+
 export function calcProgression(completeTasks, totalTasks) {
   if (!totalTasks) return null;
   return Math.round((completeTasks / totalTasks) * 100);

@@ -66,6 +66,7 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
+      - NO_DECOR=true
       - CHROME_CLI=--no-first-run --no-default-browser-check --disable-sync --disable-translate --disable-session-crashed-bubble --hide-crash-restore-bubble --start-maximized https://github.com/bysandries
       - CUSTOM_WIDTH=1920
       - CUSTOM_HEIGHT=1080
@@ -74,6 +75,8 @@ services:
       - ./browser-data:/config
       - ./browser-config/labwc-template.xml:/defaults/labwc.xml:ro
       - ./browser-config/autostart-wayland:/defaults/autostart_wayland:ro
+      - ./browser-config/autostart-wayland:/defaults/autostart:ro
+      - ./browser-config/autostart-wayland:/config/.config/openbox/autostart:ro
       - ./browser-policies/managed:/etc/chromium/policies/managed:ro
     ports:
       - "3010:3000"

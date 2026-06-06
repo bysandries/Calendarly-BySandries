@@ -262,11 +262,15 @@ async function initDatabase(forceReset = false) {
   await addColumnIfMissing(database, 'tasks', 'finished_date', 'TEXT');
   await addColumnIfMissing(database, 'tasks', 'is_starred', 'INTEGER NOT NULL DEFAULT 0');
   await addColumnIfMissing(database, 'tasks', 'person_id', 'TEXT REFERENCES people(id) ON DELETE SET NULL');
+  await addColumnIfMissing(database, 'tasks', 'stage_week', 'TEXT');
+  await addColumnIfMissing(database, 'tasks', 'categoria', 'TEXT');
   await addColumnIfMissing(database, 'deleted_tasks', 'estimated_minutes', 'INTEGER NOT NULL DEFAULT 0');
   await addColumnIfMissing(database, 'deleted_tasks', 'received_date', 'TEXT');
   await addColumnIfMissing(database, 'deleted_tasks', 'finished_date', 'TEXT');
   await addColumnIfMissing(database, 'deleted_tasks', 'is_starred', 'INTEGER NOT NULL DEFAULT 0');
   await addColumnIfMissing(database, 'deleted_tasks', 'person_id', 'TEXT');
+  await addColumnIfMissing(database, 'deleted_tasks', 'stage_week', 'TEXT');
+  await addColumnIfMissing(database, 'deleted_tasks', 'categoria', 'TEXT');
   await addColumnIfMissing(database, 'projects', 'person_in_charge', 'TEXT');
   await addColumnIfMissing(database, 'projects', 'due_date', 'TEXT');
   await addColumnIfMissing(database, 'projects', 'start_date', 'TEXT');

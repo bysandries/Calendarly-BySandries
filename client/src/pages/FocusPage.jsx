@@ -19,6 +19,15 @@ const IMPORTANCE_COLORS = {
   'importance-critical': '#8E44AD',
 };
 
+function isExcludedStatus(status) {
+  const s = (status || '').toLowerCase();
+  return s.includes('cancelled') ||
+         s.includes('done') ||
+         s.includes('not actionable') ||
+         s.includes('due date passed') ||
+         s.includes('someday');
+}
+
 // ── Shared sub-components ────────────────────────────────────────────────────
 
 function SectionLabel({ label, count }) {
@@ -727,10 +736,26 @@ export default function FocusPage() {
 
   const starredTasks    = useMemo(() => tasks.filter(t => t.is_starred),    [tasks]);
   const starredProjects = useMemo(() => projects.filter(p => p.is_starred), [projects]);
+
+  const dueSoonTasks = useMemo(() => {
+    return tasks.filter(t => {
+      if (t.is_starred) return false;               // already shown above
+      if (!t.date_due) return false;
+      const daysLeft = calcDaysLeft(t.date_due);
+      if (daysLeft === null) return false;
+      if (daysLeft > 7) return false;               // not close enough
+      if (isExcludedStatus(t.status)) return false;
+      return true;
+    });
+  }, [tasks]);
+
   const selectedTask    = selectedTaskId    ? tasks.find(t => t.id === selectedTaskId)       : null;
   const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null;
 
-  const isEmpty = !tasksLoading && !projectsLoading && starredTasks.length === 0 && starredProjects.length === 0;
+  const isEmpty = !tasksLoading && !projectsLoading
+    && starredTasks.length === 0
+    && starredProjects.length === 0
+    && dueSoonTasks.length === 0;
 
   const handleUpdateTask = useCallback(async (id, data) => {
     await updateTask(id, data);
@@ -817,6 +842,23 @@ export default function FocusPage() {
                   />
                 ))
               }
+            </div>
+          )}
+          {dueSoonTasks.length > 0 && (
+            <div style={{ marginTop: '20px' }}>
+              <SectionLabel label="Due Soon" count={dueSoonTasks.length} />
+              {dueSoonTasks.map(task => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  projects={projects}
+                  isSelected={selectedTaskId === task.id}
+                  onClick={() => {
+                    setSelectedProjectId(null);
+                    setSelectedTaskId(prev => prev === task.id ? null : task.id);
+                  }}
+                />
+              ))}
             </div>
           )}
         </div>
