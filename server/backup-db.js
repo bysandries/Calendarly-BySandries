@@ -10,6 +10,9 @@ const LOCAL_BACKUP_DIR = path.join(__dirname, 'backups');
 // Common iCloud Drive path on macOS
 const CLOUD_BACKUP_DIR = path.join(os.homedir(), 'Library', 'Mobile Documents', 'com~apple~CloudDocs', 'CalendarlyBackups');
 
+// USB Flash Drive backup path (Linux persistent mount)
+const USB_BACKUP_DIR = '/mnt/calendarly-backups/CalendarlyBackups/server/backups';
+
 // Maximum number of backups to keep per directory
 const MAX_BACKUPS = 100; 
 
@@ -63,6 +66,7 @@ function runBackup() {
   const localDest = path.join(LOCAL_BACKUP_DIR, backupFilename);
   try {
     fs.copyFileSync(SOURCE_DB_PATH, localDest);
+    fs.utimesSync(localDest, now, now); // Ensure backup has current timestamp
     console.log(`✅ Local backup successful: ${localDest}`);
     cleanupOldBackups(LOCAL_BACKUP_DIR);
   } catch (error) {
@@ -74,10 +78,23 @@ function runBackup() {
     ensureDirectoryExists(CLOUD_BACKUP_DIR);
     const cloudDest = path.join(CLOUD_BACKUP_DIR, backupFilename);
     fs.copyFileSync(SOURCE_DB_PATH, cloudDest);
+    fs.utimesSync(cloudDest, now, now);
     console.log(`✅ Cloud backup successful: ${cloudDest}`);
     cleanupOldBackups(CLOUD_BACKUP_DIR);
   } catch (error) {
     console.error('❌ Cloud backup failed. Note: This is expected if iCloud Drive is not enabled or accessible.', error.message);
+  }
+
+  // 3. USB Flash Drive Backup
+  try {
+    ensureDirectoryExists(USB_BACKUP_DIR);
+    const usbDest = path.join(USB_BACKUP_DIR, backupFilename);
+    fs.copyFileSync(SOURCE_DB_PATH, usbDest);
+    fs.utimesSync(usbDest, now, now);
+    console.log(`✅ USB backup successful: ${usbDest}`);
+    cleanupOldBackups(USB_BACKUP_DIR);
+  } catch (error) {
+    console.error('❌ USB backup failed:', error.message);
   }
   
   console.log('Backup process completed.');

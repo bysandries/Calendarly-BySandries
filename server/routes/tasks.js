@@ -67,12 +67,13 @@ router.post('/trash/restore/:id', async (req, res) => {
     if (!deleted) return res.status(404).json({ error: 'Task not found in trash' });
 
     await db.run(
-      `INSERT INTO tasks (id, title, status, project_id, date_due, priority, notes, estimated_minutes, received_date, finished_date, is_starred, person_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (id, title, status, project_id, date_due, priority, notes, estimated_minutes, received_date, finished_date, is_starred, person_id, stage_week, categoria)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         deleted.id, deleted.title, deleted.status, deleted.project_id,
         deleted.date_due, deleted.priority, deleted.notes, deleted.estimated_minutes,
-        deleted.received_date, deleted.finished_date, deleted.is_starred, deleted.person_id
+        deleted.received_date, deleted.finished_date, deleted.is_starred, deleted.person_id,
+        deleted.stage_week || null, deleted.categoria || null
       ]
     );
     await db.run('DELETE FROM deleted_tasks WHERE id = ?', [id]);
@@ -113,7 +114,7 @@ router.delete('/trash/:id', async (req, res) => {
 
 // POST /api/tasks
 router.post('/', async (req, res) => {
-  const { title, status, project_id, date_due, priority, notes, estimated_minutes, is_starred, person_id } = req.body;
+  const { title, status, project_id, date_due, priority, notes, estimated_minutes, is_starred, person_id, stage_week, categoria } = req.body;
 
   if (!title) {
     return res.status(400).json({ error: 'title is required' });
@@ -147,16 +148,18 @@ router.post('/', async (req, res) => {
       received_date: receivedDate,
       finished_date: finishedDate,
       is_starred: is_starred ? 1 : 0,
-      person_id: finalPersonId || null
+      person_id: finalPersonId || null,
+      stage_week: stage_week || null,
+      categoria: categoria || null,
     };
 
     await db.run(
-      `INSERT INTO tasks (id, title, status, project_id, date_due, priority, notes, estimated_minutes, received_date, finished_date, is_starred, person_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (id, title, status, project_id, date_due, priority, notes, estimated_minutes, received_date, finished_date, is_starred, person_id, stage_week, categoria)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         task.id, task.title, task.status, task.project_id, task.date_due,
         task.priority, task.notes, task.estimated_minutes, task.received_date,
-        task.finished_date, task.is_starred, task.person_id
+        task.finished_date, task.is_starred, task.person_id, task.stage_week, task.categoria
       ]
     );
 
@@ -203,13 +206,15 @@ router.patch('/:id', async (req, res) => {
     await db.run(
       `UPDATE tasks
        SET title = ?, status = ?, project_id = ?, date_due = ?, priority = ?, notes = ?,
-           estimated_minutes = ?, received_date = ?, finished_date = ?, is_starred = ?, person_id = ?
+           estimated_minutes = ?, received_date = ?, finished_date = ?, is_starred = ?, person_id = ?,
+           stage_week = ?, categoria = ?
        WHERE id = ?`,
       [
         merged.title, merged.status, merged.project_id || null,
         merged.date_due || null, merged.priority, merged.notes,
         estimatedMinutes, merged.received_date || null, merged.finished_date || null,
-        merged.is_starred ? 1 : 0, merged.person_id || null, id
+        merged.is_starred ? 1 : 0, merged.person_id || null,
+        merged.stage_week || null, merged.categoria || null, id
       ]
     );
 
@@ -238,12 +243,13 @@ router.delete('/:id', async (req, res) => {
     await db.run(
       `INSERT OR REPLACE INTO deleted_tasks
          (id, title, status, project_id, date_due, priority, notes, estimated_minutes,
-          received_date, finished_date, is_starred, person_id, deleted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          received_date, finished_date, is_starred, person_id, stage_week, categoria, deleted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         task.id, task.title, task.status, task.project_id, task.date_due,
         task.priority, task.notes, task.estimated_minutes, task.received_date,
         task.finished_date, task.is_starred, task.person_id,
+        task.stage_week || null, task.categoria || null,
         new Date().toISOString()
       ]
     );

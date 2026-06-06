@@ -13,6 +13,7 @@
 1. [What is Calendarly?](#what-is-calendarly)
 2. [Core Philosophy](#core-philosophy)
 3. [Feature Overview](#feature-overview)
+   - [Workspace](#workspace)
 4. [2e Accessibility & Neurodivergent Design](#2e-accessibility--neurodivergent-design)
 5. [Architecture](#architecture)
 6. [Quick Start](#quick-start)
@@ -106,6 +107,23 @@ All projects align to one of four pillars that guide prioritization:
   - Auto-transitions task status from Inbox/Next Step to In Progress
 - **Distraction Notes** — Capture interruptions during focus sessions for later pattern review
 - **Task Time Tracker** — Aggregated actual minutes spent per task across all Pomodoro sessions
+- **Due Soon Section** — FocusPage automatically surfaces non-starred tasks due within 7 days (excludes cancelled, done, and someday statuses) as a dedicated "Due Soon" section alongside starred items
+
+### Workspace
+- **Multi-Tab Workspace Layout** — Unified workspace with three switchable tabs (persisted across sessions):
+  - **Tasks & Projects** — Full FocusPage view (starred items, due-soon tasks, project panel, task detail)
+  - **Calendar** — Full dual-column weekly calendar embedded in the workspace
+  - **Web Browser** — Dockerized Chromium browser embedded via `iframe` at `/browser/`
+- **Day Planner Panel** — Resizable (240–700 px) right-hand panel visible in all workspace tabs:
+  - Rich markdown editor with toolbar: headings (H1–H4), bold, italic, underline, strikethrough
+  - Text and highlight color pickers with per-area color palette integration
+  - CSS-only checkbox rendering (`- [ ]` / `- [x]`) without JavaScript state
+  - Live markdown shortcut: pressing `-` at the start of a line auto-inserts a checkbox bullet
+  - Content autosaved to `localStorage` per day
+- **Embedded Chromium Browser** — `ghcr.io/linuxserver/chromium` Docker sidecar proxied through Nginx at `/browser/`:
+  - Kiosk-mode: no caption buttons, always-maximized via `autostart-wayland` script enforced on every restart
+  - Startup polling and keepalive — auto-reconnects if Chromium restarts or crashes
+  - Retry button shown if the browser container is unavailable after 90 seconds
 
 ### Knowledge Management
 - **Markdown Notes** — Full markdown editor with live preview, linkable to tasks
@@ -312,16 +330,18 @@ No configuration required — it responds to the OS signal automatically.
 │                     CLIENT (port 5173)                          │
 │  React 19  ·  Vite 8  ·  React Router DOM 7  ·  Luxon          │
 │  Glassmorphic UI  ·  Custom Hooks  ·  React Markdown           │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ HTTP REST (JSON)
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     SERVER (port 3000)                          │
-│  Node.js  ·  Express 4  ·  CORS  ·  Multer  ·  Archiver        │
-│  23 route groups  ·  RRULE engine  ·  Background backup svc    │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ @journeyapps/sqlcipher
-                             ▼
+└────────────────┬──────────────────────────┬─────────────────────┘
+                 │ HTTP REST (JSON)          │ iframe /browser/
+                 ▼                           ▼
+┌────────────────────────────┐  ┌───────────────────────────────┐
+│      SERVER (port 3000)    │  │  CHROMIUM (port 3010)         │
+│  Node.js  ·  Express 4     │  │  linuxserver/chromium Docker  │
+│  23 route groups           │  │  Kiosk mode  ·  Nginx proxy   │
+│  RRULE engine              │  │  autostart-wayland enforced   │
+│  Background backup svc     │  └───────────────────────────────┘
+└────────────────┬───────────┘
+                 │ @journeyapps/sqlcipher
+                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                  DATABASE (SQLite + SQLCipher)                  │
 │  34 tables  ·  WAL mode  ·  Soft-delete  ·  PRAGMA key encrypt │
@@ -344,6 +364,7 @@ No configuration required — it responds to the OS signal automatically.
 | ZIP Export | Archiver | 8 |
 | File Upload | Multer | 2.0 |
 | Proxy | Nginx | (production) |
+| Browser Sidecar | linuxserver/chromium | `ghcr.io/linuxserver/chromium:latest` |
 | Container | Docker + Docker Compose | — |
 
 ### Project Structure
@@ -355,8 +376,11 @@ calendarly/
 │   │   ├── components/         # Reusable UI components
 │   │   │   ├── Calendar/       # CalendarGrid, CreationPopover, resolveOverlaps
 │   │   │   ├── Layout/         # Sidebar (with zen mode + context presets), NavIcons
+│   │   │   ├── DayPlannerPanel.jsx  # Resizable markdown day-planner (Workspace right panel)
 │   │   │   └── CaptureModal.jsx  # Global quick-capture overlay (?capture=true / G key)
 │   │   ├── pages/              # 25 route-level pages (tasks, projects, habits, personal-care, timeline, etc.)
+│   │   │   ├── WorkspacePage.jsx   # Multi-tab workspace (Tasks, Calendar, Browser) + Day Planner panel
+│   │   │   ├── FocusPage.jsx       # Starred items + Due Soon section + project/task detail panels
 │   │   │   └── TasksPage.jsx   # Includes Trash tab + undo toast
 │   │   ├── hooks/              # Custom React hooks (useTasks with trash ops, etc.)
 │   │   ├── utils/              # api/tasks.js (trash/restore/export), statusMap.js
@@ -375,6 +399,10 @@ calendarly/
 │   ├── backup-db.js            # Golden backup service
 │   └── integrity-checker.js
 ├── graphify-out/               # Knowledge graph (AI-readable project map)
+├── browser-config/             # Chromium kiosk configuration
+│   ├── autostart-wayland       # Sets kiosk prefs + keep-maximized watcher on every restart
+│   └── labwc-template.xml      # labwc window manager config (no title bar)
+├── browser-data/               # Chromium profile volume (gitignored)
 ├── docker-compose.yml
 ├── .env.template
 ├── UI_DESIGN_SYSTEM.md
@@ -479,6 +507,14 @@ docker-compose up --build -d
 #### 3. Open the Dashboard
 
 Navigate to [http://localhost:5173](http://localhost:5173).
+
+The stack starts three containers:
+
+| Container | Port | Purpose |
+|-----------|------|---------|
+| `calendarly-frontend` | 5173 | React app (Vite) |
+| `calendarly-backend` | 3000 | Express API |
+| `calendarly-chromium` | 3010 | Chromium browser (proxied at `/browser/`) |
 
 ---
 
@@ -850,7 +886,13 @@ Supports RFC 5545 RRULE recurrence and scope-aware updates (`single` / `series` 
 ## Database Management
 
 ### Automatic Backups
-Every server start creates a timestamped backup in `server/backups/`. These are used for automatic recovery on corruption detection.
+Every server start creates a timestamped backup in `server/backups/`. These are used for automatic recovery on corruption detection. The backup service also writes to two additional locations when available:
+
+| Destination | Path | Notes |
+|-------------|------|-------|
+| Local | `server/backups/` | Always written; used for integrity auto-restore |
+| iCloud Drive | `~/Library/Mobile Documents/com~apple~CloudDocs/CalendarlyBackups/` | macOS only; silently skipped if unavailable |
+| USB Flash Drive | `/mnt/calendarly-backups/CalendarlyBackups/server/backups/` | Linux persistent mount; silently skipped if not mounted |
 
 ### Manual Backup
 Download from Settings → Database Backups, or copy directly:

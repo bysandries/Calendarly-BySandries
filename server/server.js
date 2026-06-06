@@ -230,11 +230,17 @@ async function startServer() {
       console.log(`📂 Environment: ${process.env.NODE_ENV || 'development'}`);
       if (source === 'env') {
         console.log(`🔑 API token: loaded from API_AUTH_TOKEN env var`);
-      } else {
-        console.log(`🔑 API token (${source === 'generated' ? 'generated on first run' : 'loaded from file'}):`);
+      } else if (source === 'generated') {
+        // First run only — user must see the token to log in. Won't repeat on subsequent starts.
+        console.log(`🔑 API token (generated on first run — save this now):`);
         console.log(`   ${token}`);
         console.log(`   stored at: ${tokenFile}`);
         console.log(`   → paste this into the web UI when prompted.`);
+        console.log(`   ⚠  This is the only time the token will be printed.`);
+      } else {
+        // source === 'file': token already saved; don't re-expose it in every Docker log line.
+        console.log(`🔑 API token: loaded from file (${tokenFile})`);
+        console.log(`   (value suppressed — open the file directly if you need to recover it)`);
       }
       console.log(`===============================================`);
     });

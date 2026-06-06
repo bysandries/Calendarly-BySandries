@@ -10,8 +10,13 @@
 # Only touches: custom_chrome_frame (removes caption buttons) and homepage.
 # ═══════════════════════════════════════════════════════════════════════════
 setup_chromium_prefs() {
-    local prefs_dir="/config/chromium/Default"
+    # linuxserver/chromium stores the profile under the user's home dir:
+    # /config/.config/chromium/Default/Preferences
+    local prefs_dir="/config/.config/chromium/Default"
     local prefs_file="$prefs_dir/Preferences"
+
+    # Ensure the profile directory exists so we can seed a new Preferences file.
+    mkdir -p "$prefs_dir"
 
     if [ -f "$prefs_file" ]; then
         python3 -c "
@@ -33,6 +38,22 @@ data['homepage_is_newtabpage'] = False
 with open('$prefs_file', 'w') as f:
     json.dump(data, f, separators=(',', ':'))
 print('Chromium UI preferences applied.')
+"
+    else
+        # First launch: seed a minimal Preferences file with the correct values
+        # so Chromium never starts with its default client-side frame.
+        python3 -c "
+import json
+
+data = {
+    'browser': {'custom_chrome_frame': False},
+    'homepage': 'https://github.com/bysandries',
+    'homepage_is_newtabpage': False
+}
+
+with open('$prefs_file', 'w') as f:
+    json.dump(data, f, separators=(',', ':'))
+print('Chromium UI preferences seeded for first launch.')
 "
     fi
 }
