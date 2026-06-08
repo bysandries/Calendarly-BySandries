@@ -164,6 +164,14 @@ All projects align to one of four pillars that guide prioritization:
   - Quick Entries — Timestamped sub-entries within a session for rapid in-session logging
 - **Personal Goals** — Long-form goal tracking with archive/complete lifecycle, linked resources, and a history view
 - **Sleep & Habit Cross-Links** — Therapy entries can pull in available sleep logs and habit logs for that day
+- **People Tab** — Contact profiling with categorized relationships, memory journal, and file attachments
+
+### Profiling People
+- **Categorized Contacts** — Organize people into categories (Family, Friends, Romantic, Professional, Therapist, Other) with custom colors
+- **Person Profiles** — Full profiles with name, description, first-met date, and avatar upload
+- **Memory Journal** — Per-person memories with markdown details, dates, and linked calendar events
+- **File Attachments** — Drag-and-drop file uploads per person, with memory linking and avatar support
+- **Category History** — Automatic audit trail when a person's category changes
 
 ### Life Map (Timeline)
 - **Life Timeline** — Chronological lane-based view of life events, milestones, and reflections
@@ -336,15 +344,15 @@ No configuration required — it responds to the OS signal automatically.
 ┌────────────────────────────┐  ┌───────────────────────────────┐
 │      SERVER (port 3000)    │  │  CHROMIUM (port 3010)         │
 │  Node.js  ·  Express 4     │  │  linuxserver/chromium Docker  │
-│  23 route groups           │  │  Kiosk mode  ·  Nginx proxy   │
-│  RRULE engine              │  │  autostart-wayland enforced   │
+  │  24 route groups           │  │  Kiosk mode  ·  Nginx proxy   │
+  │  RRULE engine              │  │  autostart-wayland enforced   │
 │  Background backup svc     │  └───────────────────────────────┘
 └────────────────┬───────────┘
                  │ @journeyapps/sqlcipher
                  ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                  DATABASE (SQLite + SQLCipher)                  │
-│  34 tables  ·  WAL mode  ·  Soft-delete  ·  PRAGMA key encrypt │
+  │  40 tables  ·  WAL mode  ·  Soft-delete  ·  PRAGMA key encrypt │
 │  Auto-migration (addColumnIfMissing)  ·  Golden backup system  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -373,31 +381,43 @@ No configuration required — it responds to the OS signal automatically.
 calendarly/
 ├── client/
 │   ├── src/
-│   │   ├── components/         # Reusable UI components
-│   │   │   ├── Calendar/       # CalendarGrid, CreationPopover, resolveOverlaps
-│   │   │   ├── Layout/         # Sidebar (with zen mode + context presets), NavIcons
-│   │   │   ├── DayPlannerPanel.jsx  # Resizable markdown day-planner (Workspace right panel)
-│   │   │   └── CaptureModal.jsx  # Global quick-capture overlay (?capture=true / G key)
-│   │   ├── pages/              # 25 route-level pages (tasks, projects, habits, personal-care, timeline, etc.)
-│   │   │   ├── WorkspacePage.jsx   # Multi-tab workspace (Tasks, Calendar, Browser) + Day Planner panel
-│   │   │   ├── FocusPage.jsx       # Starred items + Due Soon section + project/task detail panels
-│   │   │   └── TasksPage.jsx   # Includes Trash tab + undo toast
+  │   │   ├── components/         # Reusable UI components
+  │   │   │   ├── Calendar/       # CalendarGrid, CreationPopover, resolveOverlaps
+  │   │   │   ├── Layout/         # Sidebar (with zen mode + context presets), NavIcons
+  │   │   │   ├── AuthGate.jsx                # API token authentication gate
+  │   │   │   ├── DayPlannerPanel.jsx        # Resizable markdown day-planner (Workspace right panel)
+  │   │   │   ├── CaptureModal.jsx            # Global quick-capture overlay (?capture=true / G key)
+  │   │   │   └── ProfilingCategoryPicker.jsx # Category selector for people profiling
+  │   │   ├── pages/              # 26 route-level pages (tasks, projects, habits, personal-care, timeline, etc.)
+  │   │   │   ├── WorkspacePage.jsx       # Multi-tab workspace (Tasks, Calendar, Browser) + Day Planner panel
+  │   │   │   ├── FocusPage.jsx           # Starred items + Due Soon section + project/task detail panels
+  │   │   │   ├── TasksPage.jsx           # Includes Trash tab + undo toast
+  │   │   │   ├── ProfilingPeoplePage.jsx      # People list within Personal Care
+  │   │   │   ├── ProfilingPersonDetailPage.jsx  # Person profile, memories, attachments
+  │   │   │   └── SecretUploadPage.jsx         # Password-protected archive upload UI
 │   │   ├── hooks/              # Custom React hooks (useTasks with trash ops, etc.)
-│   │   ├── utils/              # api/tasks.js (trash/restore/export), statusMap.js
-│   │   ├── lib/                # taskMath.js (urgency scoring)
-│   │   └── App.jsx             # Root router, zen mode (F), capture modal (G/?capture=true)
+  │   │   ├── utils/              # api/tasks.js (trash/restore/export), statusMap.js
+  │   │   │   └── api/            # Per-domain API clients
+  │   │   │       ├── profilingPeople.js  # Profiling people API client
+  │   │   │       └── opencode.js         # OpenCode sync API client
+  │   │   ├── lib/                # taskMath.js (urgency scoring)
+  │   │   └── App.jsx             # Root router, zen mode (F), capture modal (G/?capture=true)
 │   ├── public/                 # Static assets
 │   └── index.html
 ├── server/
-│   ├── routes/                 # Express route handlers (one file per resource)
-│   │   ├── tasks.js            # Soft-delete + trash CRUD
-│   │   └── export.js           # GET /api/export — ZIP of CSV/JSON/Markdown
-│   ├── hooks/                  # Claude & Gemini session-stop hooks
-│   ├── scripts/                # Migration and utility scripts
-│   ├── db.js                   # Database connection, schema, migrations
-│   ├── server.js               # Express app bootstrap (mounts all routers)
-│   ├── backup-db.js            # Golden backup service
-│   └── integrity-checker.js
+  │   ├── routes/                 # Express route handlers (one file per resource)
+  │   │   ├── tasks.js            # Soft-delete + trash CRUD
+  │   │   ├── export.js           # GET /api/export — ZIP of CSV/JSON/Markdown
+  │   │   └── profilingPeople.js  # Profiling people, categories, memories, attachments
+  │   ├── middleware/             # Express middleware (auth, rate limiting)
+  │   │   └── auth.js             # API token validation
+  │   ├── hooks/                  # Claude & Gemini session-stop hooks
+  │   ├── scripts/                # Migration and utility scripts
+  │   ├── migrations/             # Idempotent schema migrations (001–011)
+  │   ├── db.js                   # Database connection, schema, migrations
+  │   ├── server.js               # Express app bootstrap (mounts all routers)
+  │   ├── backup-db.js            # Golden backup service
+  │   └── integrity-checker.js
 ├── graphify-out/               # Knowledge graph (AI-readable project map)
 ├── browser-config/             # Chromium kiosk configuration
 │   ├── autostart-wayland       # Sets kiosk prefs + keep-maximized watcher on every restart
@@ -409,7 +429,7 @@ calendarly/
 └── README.md
 ```
 
-### Database Schema (34 Tables)
+### Database Schema (40 Tables)
 
 #### Core
 
@@ -463,6 +483,17 @@ calendarly/
 | `personal_goals` | Long-form personal goals with archive/complete lifecycle |
 | `personal_goal_links` | Links from goals to tasks, projects, or other resources |
 | `activity_energy_log` | Per-entity energy quadrant tags (Performance/Survival/Renewal/Burnout) |
+
+#### Profiling People
+
+| Table | Purpose |
+|-------|---------|
+| `profiling_people_categories` | Contact categories with hex colors |
+| `profiling_people` | Categorized people profiles |
+| `profiling_people_category_history` | Audit trail of category changes |
+| `person_memories` | Per-person memory journal entries |
+| `memory_event_links` | Links between memories and calendar events |
+| `person_attachments` | File attachments per person/memory |
 
 #### Life Map
 
@@ -827,6 +858,34 @@ Supports RFC 5545 RRULE recurrence and scope-aware updates (`single` / `series` 
 
 ---
 
+### Profiling People `/api/profiling-people`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/profiling-people/categories` | List all categories |
+| `POST` | `/api/profiling-people/categories` | Create category `{ name, color_hex, description? }` |
+| `PATCH` | `/api/profiling-people/categories/:id` | Update category |
+| `DELETE` | `/api/profiling-people/categories/:id` | Archive (soft-delete) category |
+| `GET` | `/api/profiling-people` | List people; filter `?category_id=` |
+| `GET` | `/api/profiling-people/:id` | Get single person with category |
+| `POST` | `/api/profiling-people` | Create person `{ name, description?, category_id?, first_met_date? }` |
+| `PATCH` | `/api/profiling-people/:id` | Update person fields |
+| `DELETE` | `/api/profiling-people/:id` | Delete person and all attachments |
+| `GET` | `/api/profiling-people/:id/category-history` | List category change history |
+| `GET` | `/api/profiling-people/:id/memories` | List memories with linked events |
+| `POST` | `/api/profiling-people/:id/memories` | Create memory `{ title, details?, memory_date?, event_ids? }` |
+| `PATCH` | `/api/memories/:memoryId` | Update memory |
+| `DELETE` | `/api/memories/:memoryId` | Delete memory |
+| `POST` | `/api/memories/:memoryId/events` | Link event to memory |
+| `DELETE` | `/api/memories/:memoryId/events/:eventId` | Unlink event from memory |
+| `POST` | `/api/profiling-people/:id/attachments` | Upload file attachment |
+| `GET` | `/api/profiling-people/:id/attachments` | List attachments |
+| `GET` | `/api/attachments/:id/download` | Download attachment |
+| `PATCH` | `/api/attachments/:id` | Update attachment memory link |
+| `DELETE` | `/api/attachments/:id` | Delete attachment |
+
+---
+
 ### Activity Energy Log `/api/activity-energy-log`
 
 | Method | Path | Description |
@@ -952,6 +1011,7 @@ The schema is managed idempotently via `addColumnIfMissing` in `db.js`. New colu
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DB_ENCRYPTION_KEY` | Recommended | SQLCipher passphrase |
+| `API_AUTH_TOKEN` | No | Pre-set shared API token (else auto-generated on first run) |
 | `DATABASE_PATH` | Yes | Absolute path to `.db` file |
 | `PORT` | No (3000) | Express server port |
 | `NODE_ENV` | No | `development` or `production` |
@@ -968,16 +1028,15 @@ The `?capture=true` URL scheme works on mobile via Tailscale. Create a mobile ho
 
 ### Authentication
 
+Calendarly uses a single shared API token (not JWT). The token is printed to the server console on first run and persisted to a file next to the database.
+
 ```js
-const authMiddleware = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
-  try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
-    next();
-  } catch {
-    res.status(401).json({ error: 'Invalid token' });
-  }
+const API_TOKEN = 'paste-token-from-server-console-here';
+
+const headers = {
+  'Authorization': `Bearer ${API_TOKEN}`,
+  // or equivalently:
+  // 'x-api-key': API_TOKEN,
 };
 ```
 
