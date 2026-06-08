@@ -508,6 +508,50 @@ async function initDatabase(forceReset = false) {
   await database.exec(`CREATE INDEX IF NOT EXISTS idx_habit_logs_date ON habit_logs(date_id);`);
   await database.exec(`CREATE INDEX IF NOT EXISTS idx_habit_reminders_habit ON habit_reminders(habit_id);`);
 
+  // Create omni_logs table
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS omni_logs (
+      id TEXT PRIMARY KEY,
+      prompt TEXT NOT NULL,
+      raw_json TEXT NOT NULL,
+      created_entities TEXT NOT NULL,
+      is_hidden INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+  `);
+
+  // Create memories table
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS memories (
+      id TEXT PRIMARY KEY,
+      content TEXT NOT NULL,
+      memory_date TEXT,
+      created_at TEXT NOT NULL
+    );
+  `);
+
+  // Create entity_people_links (generic many-to-many)
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS entity_people_links (
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      person_id TEXT NOT NULL,
+      PRIMARY KEY (entity_type, entity_id, person_id),
+      FOREIGN KEY(person_id) REFERENCES people(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Create entity_project_links (generic many-to-many)
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS entity_project_links (
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      PRIMARY KEY (entity_type, entity_id, project_id),
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+  `);
+
   // Create settings table
   await database.exec(`
     CREATE TABLE IF NOT EXISTS settings (
