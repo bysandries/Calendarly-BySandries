@@ -24,6 +24,7 @@ import TherapyEntryNewPage from './pages/TherapyEntryNewPage';
 import TherapyPatternPage from './pages/TherapyPatternPage';
 import PersonalGoalDetailPage from './pages/PersonalGoalDetailPage';
 import GoalsHistoryPage from './pages/GoalsHistoryPage';
+import OmniHistoryPage from './pages/OmniHistoryPage';
 import TaskDetailPage from './pages/TaskDetailPage';
 import PomodoroPage from './pages/PomodoroPage';
 import WorkspacePage from './pages/WorkspacePage';
@@ -186,6 +187,7 @@ function MainLayout() {
           <Route path="/personal-care/journal/:id" element={<TherapyEntryDetailPage />} />
           <Route path="/personal-care/goals" element={<GoalsHistoryPage />} />
           <Route path="/personal-care/goals/:id" element={<PersonalGoalDetailPage />} />
+          <Route path="/omni-history" element={<OmniHistoryPage />} />
           <Route path="/timeline" element={<TimelinePage />} />
           <Route path="/pomodoro" element={<PomodoroPage />} />
           <Route path="/secret-upload" element={<SecretUploadPage />} />

@@ -70,6 +70,7 @@ const NAV_ITEMS = [
   { to: '/gtd',          icon: IconInbox,    label: 'GTD Inbox',           group: 'Capture' },
   { to: '/kanban',       icon: IconKanban,   label: 'Kanban Board',        group: 'Capture' },
   { to: '/notes',        icon: IconExtracts, label: 'Extracts',            group: 'Capture' },
+  { to: '/omni-history', icon: IconDatabase, label: 'Omni History',        group: 'Capture' },
   { to: '/habits',       icon: IconHabits,   label: 'Habits',              group: 'Life' },
   { to: '/personal-care',icon: IconHeart,    label: 'Personal Care',       group: 'Life' },
 

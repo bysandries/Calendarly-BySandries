@@ -1,0 +1,982 @@
+{
+  "/root/Calendarly-BySandries/package.json": {
+    "mtime": 1780280398.6986668,
+    "ast_hash": "30ecd43be624b98a7efe64112d5e2b94",
+    "semantic_hash": "30ecd43be624b98a7efe64112d5e2b94"
+  },
+  "/root/Calendarly-BySandries/client/package.json": {
+    "mtime": 1780638567.74937,
+    "ast_hash": "19a50e9a91a55af5e9a3c41d9eab9173",
+    "semantic_hash": "19a50e9a91a55af5e9a3c41d9eab9173"
+  },
+  "/root/Calendarly-BySandries/client/vite.config.js": {
+    "mtime": 1779681077.1335247,
+    "ast_hash": "6e5588387b9c55953c3859657ddc79c6",
+    "semantic_hash": "6e5588387b9c55953c3859657ddc79c6"
+  },
+  "/root/Calendarly-BySandries/client/src/App.jsx": {
+    "mtime": 1780909371.6709378,
+    "ast_hash": "0e4810a70f4a44ca14da71dc459b2c71",
+    "semantic_hash": "0e4810a70f4a44ca14da71dc459b2c71"
+  },
+  "/root/Calendarly-BySandries/client/src/main.ts": {
+    "mtime": 1779681077.1295247,
+    "ast_hash": "4ec08956ecf0995f83916143c866c5c2",
+    "semantic_hash": "4ec08956ecf0995f83916143c866c5c2"
+  },
+  "/root/Calendarly-BySandries/client/src/counter.ts": {
+    "mtime": 1779681077.1255248,
+    "ast_hash": "f901580c2252331130bb4d13c0cd858b",
+    "semantic_hash": "f901580c2252331130bb4d13c0cd858b"
+  },
+  "/root/Calendarly-BySandries/client/src/main.jsx": {
+    "mtime": 1779681077.1295247,
+    "ast_hash": "e13723e2574429d9a6d849727e3ff695",
+    "semantic_hash": "e13723e2574429d9a6d849727e3ff695"
+  },
+  "/root/Calendarly-BySandries/client/src/hooks/useExtracts.js": {
+    "mtime": 1780284273.3866668,
+    "ast_hash": "82b8f05f2a102abadd278508f96af044",
+    "semantic_hash": "82b8f05f2a102abadd278508f96af044"
+  },
+  "/root/Calendarly-BySandries/client/src/hooks/useTasks.js": {
+    "mtime": 1780488127.245176,
+    "ast_hash": "cba27169cf6c3e831a4a32ea32adedb7",
+    "semantic_hash": "cba27169cf6c3e831a4a32ea32adedb7"
+  },
+  "/root/Calendarly-BySandries/client/src/hooks/useNotes.js": {
+    "mtime": 1780284273.3866668,
+    "ast_hash": "ad7258015a9feb32a521f4e701156b26",
+    "semantic_hash": "ad7258015a9feb32a521f4e701156b26"
+  },
+  "/root/Calendarly-BySandries/client/src/hooks/useProjects.js": {
+    "mtime": 1780284273.3906667,
+    "ast_hash": "c722a2b1d6d35efefaf8fdb5a37d0d47",
+    "semantic_hash": "c722a2b1d6d35efefaf8fdb5a37d0d47"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/GTDPage.jsx": {
+    "mtime": 1779681077.1295247,
+    "ast_hash": "8d2b8f027a1ee0bbea1b357625a286e2",
+    "semantic_hash": "8d2b8f027a1ee0bbea1b357625a286e2"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/ProjectDetailPage.jsx": {
+    "mtime": 1780133355.2555704,
+    "ast_hash": "a871159150bb1e421fc95507b45f872e",
+    "semantic_hash": "a871159150bb1e421fc95507b45f872e"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/SettingsPage.jsx": {
+    "mtime": 1780491559.7571762,
+    "ast_hash": "6b53e88179282ab69727fa485c802c92",
+    "semantic_hash": "6b53e88179282ab69727fa485c802c92"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/ProjectsPage.jsx": {
+    "mtime": 1780133355.2595704,
+    "ast_hash": "1d67c30c4ffc1be5ba1f803173462ba7",
+    "semantic_hash": "1d67c30c4ffc1be5ba1f803173462ba7"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/SecretUploadPage.jsx": {
+    "mtime": 1780280398.6986668,
+    "ast_hash": "759f4134ba990bfec859ea8ac4915d04",
+    "semantic_hash": "759f4134ba990bfec859ea8ac4915d04"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/KanbanPage.jsx": {
+    "mtime": 1779681077.1295247,
+    "ast_hash": "9b67915926beb4186fd0100c1ae99e21",
+    "semantic_hash": "9b67915926beb4186fd0100c1ae99e21"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/TasksPage.jsx": {
+    "mtime": 1780488127.249176,
+    "ast_hash": "025fd1d4ac41c798263df382f062e2a5",
+    "semantic_hash": "025fd1d4ac41c798263df382f062e2a5"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/AnalyticsPage.jsx": {
+    "mtime": 1779688688.8175247,
+    "ast_hash": "9c3f882fdee93a42d3a5279e262948d3",
+    "semantic_hash": "9c3f882fdee93a42d3a5279e262948d3"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/CalendarPage.jsx": {
+    "mtime": 1780638567.75337,
+    "ast_hash": "6017de8c8c171f22d2ffed946fe34e04",
+    "semantic_hash": "6017de8c8c171f22d2ffed946fe34e04"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/NotesPage.jsx": {
+    "mtime": 1780133355.2555704,
+    "ast_hash": "0ba19b75b13a7f0bfc993edc58d39667",
+    "semantic_hash": "0ba19b75b13a7f0bfc993edc58d39667"
+  },
+  "/root/Calendarly-BySandries/client/src/lib/taskMath.js": {
+    "mtime": 1780699774.3791738,
+    "ast_hash": "a9f46f3523b388be877c998b5e0a208c",
+    "semantic_hash": "a9f46f3523b388be877c998b5e0a208c"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/rruleExpander.js": {
+    "mtime": 1779681077.1335247,
+    "ast_hash": "0af1455100b7954aa0ed1949ef4228b1",
+    "semantic_hash": "0af1455100b7954aa0ed1949ef4228b1"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/statusMap.js": {
+    "mtime": 1779784326.127006,
+    "ast_hash": "bbb98c3e39b50f7b32305e31dfe7db7b",
+    "semantic_hash": "bbb98c3e39b50f7b32305e31dfe7db7b"
+  },
+  "/root/Calendarly-BySandries/client/src/components/ProjectStatusBadge.jsx": {
+    "mtime": 1779683597.6895247,
+    "ast_hash": "f9306723703be32153ebe4116f50d3f1",
+    "semantic_hash": "f9306723703be32153ebe4116f50d3f1"
+  },
+  "/root/Calendarly-BySandries/client/src/components/ProjectPicker.jsx": {
+    "mtime": 1779681077.1255248,
+    "ast_hash": "e4b234d6f09fbca82fd8860532f3eafd",
+    "semantic_hash": "e4b234d6f09fbca82fd8860532f3eafd"
+  },
+  "/root/Calendarly-BySandries/client/src/components/SlideDrawer.jsx": {
+    "mtime": 1780284273.3866668,
+    "ast_hash": "bc66a76495450c75f677d3b10d3dd721",
+    "semantic_hash": "bc66a76495450c75f677d3b10d3dd721"
+  },
+  "/root/Calendarly-BySandries/client/src/components/GTDInbox.jsx": {
+    "mtime": 1780488127.245176,
+    "ast_hash": "2197a541b7ad27e99a7481a9f7e5b4bd",
+    "semantic_hash": "2197a541b7ad27e99a7481a9f7e5b4bd"
+  },
+  "/root/Calendarly-BySandries/client/src/components/AreaPicker.jsx": {
+    "mtime": 1780133355.2435706,
+    "ast_hash": "32fc3591b687f9cfcbd9a10bb2fc5bf5",
+    "semantic_hash": "32fc3591b687f9cfcbd9a10bb2fc5bf5"
+  },
+  "/root/Calendarly-BySandries/client/src/components/KanbanCard.jsx": {
+    "mtime": 1779681077.1255248,
+    "ast_hash": "5101f5fb9cb68f5c74396fda8da60d44",
+    "semantic_hash": "5101f5fb9cb68f5c74396fda8da60d44"
+  },
+  "/root/Calendarly-BySandries/client/src/components/Analytics.jsx": {
+    "mtime": 1780133355.2435706,
+    "ast_hash": "5b57534ffd76fdcac22a11e11ffdcc49",
+    "semantic_hash": "5b57534ffd76fdcac22a11e11ffdcc49"
+  },
+  "/root/Calendarly-BySandries/client/src/components/KanbanBoard.jsx": {
+    "mtime": 1779784326.111006,
+    "ast_hash": "1c294ceefb75f5605552742f4b5d1625",
+    "semantic_hash": "1c294ceefb75f5605552742f4b5d1625"
+  },
+  "/root/Calendarly-BySandries/client/src/components/Layout/Sidebar.jsx": {
+    "mtime": 1780908983.8309379,
+    "ast_hash": "4a4e06977844dbc91de7e8c54d12ed2b",
+    "semantic_hash": "4a4e06977844dbc91de7e8c54d12ed2b"
+  },
+  "/root/Calendarly-BySandries/client/src/components/Calendar/CalendarGrid.jsx": {
+    "mtime": 1780195723.6881976,
+    "ast_hash": "882e3b949b96efd553d61b5b7c5cbc7e",
+    "semantic_hash": "882e3b949b96efd553d61b5b7c5cbc7e"
+  },
+  "/root/Calendarly-BySandries/client/src/components/Calendar/resolveOverlaps.js": {
+    "mtime": 1779681077.1215246,
+    "ast_hash": "68e552d3b4d24f5c3f16a8e03503a692",
+    "semantic_hash": "68e552d3b4d24f5c3f16a8e03503a692"
+  },
+  "/root/Calendarly-BySandries/client/src/components/Calendar/CreationPopover.jsx": {
+    "mtime": 1780195723.6881976,
+    "ast_hash": "58b84af5f4fc5b03a77d07a1b2a382ad",
+    "semantic_hash": "58b84af5f4fc5b03a77d07a1b2a382ad"
+  },
+  "/root/Calendarly-BySandries/server/package.json": {
+    "mtime": 1780488127.2571762,
+    "ast_hash": "67781bb5f2d7034dd66c6c8abe58f556",
+    "semantic_hash": "67781bb5f2d7034dd66c6c8abe58f556"
+  },
+  "/root/Calendarly-BySandries/server/server.js": {
+    "mtime": 1780907057.7029378,
+    "ast_hash": "84d8e5ccb7167a53b042bf331ca4e12f",
+    "semantic_hash": "84d8e5ccb7167a53b042bf331ca4e12f"
+  },
+  "/root/Calendarly-BySandries/server/test-db.js": {
+    "mtime": 1779706189.0655246,
+    "ast_hash": "52f47e5f72bc6879656da19375415fb2",
+    "semantic_hash": "52f47e5f72bc6879656da19375415fb2"
+  },
+  "/root/Calendarly-BySandries/server/backup-db.js": {
+    "mtime": 1780640546.979174,
+    "ast_hash": "90b5b071e0ad14985b719cc51806b21f",
+    "semantic_hash": "90b5b071e0ad14985b719cc51806b21f"
+  },
+  "/root/Calendarly-BySandries/server/query.js": {
+    "mtime": 1779681077.1415248,
+    "ast_hash": "651a5fa6d62f6c27048dd62fa13d41c4",
+    "semantic_hash": "651a5fa6d62f6c27048dd62fa13d41c4"
+  },
+  "/root/Calendarly-BySandries/server/integrity-checker.js": {
+    "mtime": 1779681077.1375246,
+    "ast_hash": "7671648f4e13ad148ca6061f97962a66",
+    "semantic_hash": "7671648f4e13ad148ca6061f97962a66"
+  },
+  "/root/Calendarly-BySandries/server/db.js": {
+    "mtime": 1780907648.546938,
+    "ast_hash": "a24c04afb3e0f92fb7bf8a5c7edee43c",
+    "semantic_hash": "a24c04afb3e0f92fb7bf8a5c7edee43c"
+  },
+  "/root/Calendarly-BySandries/server/scripts/backfill-event-colors.js": {
+    "mtime": 1779681077.1455247,
+    "ast_hash": "a4532e0127959de041ce559c239d42aa",
+    "semantic_hash": "a4532e0127959de041ce559c239d42aa"
+  },
+  "/root/Calendarly-BySandries/server/scripts/census-backups.js": {
+    "mtime": 1779681077.1455247,
+    "ast_hash": "fcf53675f30921918c4c4d2b654f1ccb",
+    "semantic_hash": "fcf53675f30921918c4c4d2b654f1ccb"
+  },
+  "/root/Calendarly-BySandries/server/scripts/inspect-measure-events.js": {
+    "mtime": 1779681077.1455247,
+    "ast_hash": "e088d51cedaa74a0e58327b0389b5da1",
+    "semantic_hash": "e088d51cedaa74a0e58327b0389b5da1"
+  },
+  "/root/Calendarly-BySandries/server/routes/upload.js": {
+    "mtime": 1780280398.7026668,
+    "ast_hash": "5b27e0a89138d0aa1b38bf7d3b49b33c",
+    "semantic_hash": "5b27e0a89138d0aa1b38bf7d3b49b33c"
+  },
+  "/root/Calendarly-BySandries/server/routes/events.js": {
+    "mtime": 1780195723.6881976,
+    "ast_hash": "902a2decee2ee2368d105a98ff531d09",
+    "semantic_hash": "902a2decee2ee2368d105a98ff531d09"
+  },
+  "/root/Calendarly-BySandries/server/routes/dailyLogs.js": {
+    "mtime": 1780593402.2754028,
+    "ast_hash": "b83bc1de8c6b314d6475d03257f389a7",
+    "semantic_hash": "b83bc1de8c6b314d6475d03257f389a7"
+  },
+  "/root/Calendarly-BySandries/server/routes/notes.js": {
+    "mtime": 1779681077.1415248,
+    "ast_hash": "83941feeeb0f5ea797e8593a0ee26afc",
+    "semantic_hash": "83941feeeb0f5ea797e8593a0ee26afc"
+  },
+  "/root/Calendarly-BySandries/server/routes/areas.js": {
+    "mtime": 1779750947.8855247,
+    "ast_hash": "678b2ecdf55acb728c09c3c96022b89d",
+    "semantic_hash": "678b2ecdf55acb728c09c3c96022b89d"
+  },
+  "/root/Calendarly-BySandries/server/routes/extracts.js": {
+    "mtime": 1779834238.979006,
+    "ast_hash": "f27789800a85a00b6843899de7633552",
+    "semantic_hash": "f27789800a85a00b6843899de7633552"
+  },
+  "/root/Calendarly-BySandries/server/routes/tasks.js": {
+    "mtime": 1780699706.5791738,
+    "ast_hash": "652dc47012ca9ea1bf7bd9c8ce317377",
+    "semantic_hash": "652dc47012ca9ea1bf7bd9c8ce317377"
+  },
+  "/root/Calendarly-BySandries/server/routes/analytics.js": {
+    "mtime": 1779985695.3667736,
+    "ast_hash": "721f15039674f6c0eb9b0b97fe1f782a",
+    "semantic_hash": "721f15039674f6c0eb9b0b97fe1f782a"
+  },
+  "/root/Calendarly-BySandries/server/routes/projects.js": {
+    "mtime": 1779834238.979006,
+    "ast_hash": "36c5edc53acadd48920667856c226f56",
+    "semantic_hash": "36c5edc53acadd48920667856c226f56"
+  },
+  "/root/Calendarly-BySandries/server/routes/settings.js": {
+    "mtime": 1779784885.811006,
+    "ast_hash": "165e4d3624a36a62465b2dd2549ca92a",
+    "semantic_hash": "165e4d3624a36a62465b2dd2549ca92a"
+  },
+  "/root/Calendarly-BySandries/README.md": {
+    "mtime": 1780914174.730938,
+    "ast_hash": "fef261f81850f1c47affaf7ab5beb222",
+    "semantic_hash": "fef261f81850f1c47affaf7ab5beb222"
+  },
+  "/root/Calendarly-BySandries/docker-compose.yml": {
+    "mtime": 1780643394.1231737,
+    "ast_hash": "32c147551c46f000b34b60ed521c8c98",
+    "semantic_hash": "32c147551c46f000b34b60ed521c8c98"
+  },
+  "/root/Calendarly-BySandries/client/index.html": {
+    "mtime": 1779784333.979006,
+    "ast_hash": "ed3503c3cee6d63d73ab1aee1d55565b",
+    "semantic_hash": "ed3503c3cee6d63d73ab1aee1d55565b"
+  },
+  "/root/Calendarly-BySandries/client/src/assets/typescript.svg": {
+    "mtime": 1779681077.1215246,
+    "ast_hash": "07f132d2ec35a9f4c17c1b9f19a2aac7",
+    "semantic_hash": "07f132d2ec35a9f4c17c1b9f19a2aac7"
+  },
+  "/root/Calendarly-BySandries/client/src/assets/hero.png": {
+    "mtime": 1779681077.1215246,
+    "ast_hash": "aead493361b27e7510691c5d7072dfc1",
+    "semantic_hash": "aead493361b27e7510691c5d7072dfc1"
+  },
+  "/root/Calendarly-BySandries/client/src/assets/vite.svg": {
+    "mtime": 1779681077.1215246,
+    "ast_hash": "9960a24288958394ac50e57ff638b036",
+    "semantic_hash": "9960a24288958394ac50e57ff638b036"
+  },
+  "/root/Calendarly-BySandries/client/public/favicon.svg": {
+    "mtime": 1779681077.1175246,
+    "ast_hash": "7e840862161341271697daa99a40d76b",
+    "semantic_hash": "7e840862161341271697daa99a40d76b"
+  },
+  "/root/Calendarly-BySandries/client/public/icons.svg": {
+    "mtime": 1779681077.1175246,
+    "ast_hash": "3b4fcfcf393eca4d264dca4a4663bc37",
+    "semantic_hash": "3b4fcfcf393eca4d264dca4a4663bc37"
+  },
+  "/root/Calendarly-BySandries/scripts/sync-opencode.sh": {
+    "mtime": 1779698639.0575247,
+    "ast_hash": "a1198b92b96c3bbc6f1e6b5ae2cffbc2",
+    "semantic_hash": "a1198b92b96c3bbc6f1e6b5ae2cffbc2"
+  },
+  "/root/Calendarly-BySandries/client/src/hooks/usePomodoro.js": {
+    "mtime": 1780133355.2515705,
+    "ast_hash": "31e3dd486162b22bc4936cbceff5f569",
+    "semantic_hash": "31e3dd486162b22bc4936cbceff5f569"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/HabitsPage.jsx": {
+    "mtime": 1780133355.2555704,
+    "ast_hash": "005ae33c0d974f724bc159ac63733197",
+    "semantic_hash": "005ae33c0d974f724bc159ac63733197"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/AgentsPage.jsx": {
+    "mtime": 1780133355.2555704,
+    "ast_hash": "fe546aa7128230aa978305f71b8f08fd",
+    "semantic_hash": "fe546aa7128230aa978305f71b8f08fd"
+  },
+  "/root/Calendarly-BySandries/client/src/components/PomodoroTaskCard.jsx": {
+    "mtime": 1780133355.2475705,
+    "ast_hash": "3dd46a0257101c9c36251e0a09b241e8",
+    "semantic_hash": "3dd46a0257101c9c36251e0a09b241e8"
+  },
+  "/root/Calendarly-BySandries/client/src/components/DistractionNotesReflection.jsx": {
+    "mtime": 1780133355.2435706,
+    "ast_hash": "bcfd0195c5fa699306bffc603c7503c5",
+    "semantic_hash": "bcfd0195c5fa699306bffc603c7503c5"
+  },
+  "/root/Calendarly-BySandries/client/src/components/ProjectDrawer.jsx": {
+    "mtime": 1780133355.2475705,
+    "ast_hash": "9e1f70e7980630b1b8a2d8248fd02bbf",
+    "semantic_hash": "9e1f70e7980630b1b8a2d8248fd02bbf"
+  },
+  "/root/Calendarly-BySandries/client/src/components/HabitLogDrawer.jsx": {
+    "mtime": 1780133355.2475705,
+    "ast_hash": "5d1647f0b0382bd125422e57d0acb6c6",
+    "semantic_hash": "5d1647f0b0382bd125422e57d0acb6c6"
+  },
+  "/root/Calendarly-BySandries/client/src/components/HabitDayDrawer.jsx": {
+    "mtime": 1780133355.2475705,
+    "ast_hash": "c280e02948b11d3f49262431d61dcb20",
+    "semantic_hash": "c280e02948b11d3f49262431d61dcb20"
+  },
+  "/root/Calendarly-BySandries/client/src/components/HabitCard.jsx": {
+    "mtime": 1779784326.111006,
+    "ast_hash": "35c0184380be2c561eb6a3b3d75d105a",
+    "semantic_hash": "35c0184380be2c561eb6a3b3d75d105a"
+  },
+  "/root/Calendarly-BySandries/client/src/components/TaskSearchPopover.jsx": {
+    "mtime": 1780133355.2515705,
+    "ast_hash": "974e46d8eb55e8b72bdc2fa093b1eabd",
+    "semantic_hash": "974e46d8eb55e8b72bdc2fa093b1eabd"
+  },
+  "/root/Calendarly-BySandries/client/src/components/PomodoroTimer.jsx": {
+    "mtime": 1779685828.5255246,
+    "ast_hash": "db566268b3cdfdaf11b9daf6e4e7586f",
+    "semantic_hash": "db566268b3cdfdaf11b9daf6e4e7586f"
+  },
+  "/root/Calendarly-BySandries/client/src/components/TaskTimeTracker.jsx": {
+    "mtime": 1780133355.2515705,
+    "ast_hash": "81ee158bbf3aa30d7efb51866240df85",
+    "semantic_hash": "81ee158bbf3aa30d7efb51866240df85"
+  },
+  "/root/Calendarly-BySandries/client/src/components/HabitEditDrawer.jsx": {
+    "mtime": 1780133355.2475705,
+    "ast_hash": "3c3041be0501f28d35e4d084b34bd8fb",
+    "semantic_hash": "3c3041be0501f28d35e4d084b34bd8fb"
+  },
+  "/root/Calendarly-BySandries/client/src/components/PomodoroPanel.jsx": {
+    "mtime": 1780494050.5531762,
+    "ast_hash": "c8361735ff7dc2470ba347004b743e68",
+    "semantic_hash": "c8361735ff7dc2470ba347004b743e68"
+  },
+  "/root/Calendarly-BySandries/client/src/components/Layout/NavIcons.jsx": {
+    "mtime": 1780489191.6971762,
+    "ast_hash": "d076119e6c25955ba3dab8124554957b",
+    "semantic_hash": "d076119e6c25955ba3dab8124554957b"
+  },
+  "/root/Calendarly-BySandries/server/hooks/gemini-session-stop.js": {
+    "mtime": 1780280398.7026668,
+    "ast_hash": "4cb7c62b850fd5a8e9e8463ec3d42b83",
+    "semantic_hash": "4cb7c62b850fd5a8e9e8463ec3d42b83"
+  },
+  "/root/Calendarly-BySandries/server/hooks/claude-session-start.js": {
+    "mtime": 1779696979.1055248,
+    "ast_hash": "0a0b3ca455595973edcf41e2388ca6ab",
+    "semantic_hash": "0a0b3ca455595973edcf41e2388ca6ab"
+  },
+  "/root/Calendarly-BySandries/server/hooks/gemini-session-start.js": {
+    "mtime": 1780280398.7026668,
+    "ast_hash": "4c09167c6970c7ef8c147c44d022d3c5",
+    "semantic_hash": "4c09167c6970c7ef8c147c44d022d3c5"
+  },
+  "/root/Calendarly-BySandries/server/hooks/claude-session-stop.js": {
+    "mtime": 1779787194.363006,
+    "ast_hash": "b8ce5324309346fc48ab892d810fa3be",
+    "semantic_hash": "b8ce5324309346fc48ab892d810fa3be"
+  },
+  "/root/Calendarly-BySandries/server/scripts/parse-description-fields.js": {
+    "mtime": 1779784326.1350062,
+    "ast_hash": "e070a3f64d1d12c8888c41efd8e3bfe8",
+    "semantic_hash": "e070a3f64d1d12c8888c41efd8e3bfe8"
+  },
+  "/root/Calendarly-BySandries/server/scripts/import-claude-sessions.js": {
+    "mtime": 1779699113.2895248,
+    "ast_hash": "21e2b01b63283cb7348d4fe2768797ca",
+    "semantic_hash": "21e2b01b63283cb7348d4fe2768797ca"
+  },
+  "/root/Calendarly-BySandries/server/routes/pomodoro.js": {
+    "mtime": 1779688766.4295247,
+    "ast_hash": "924dec30ec27f70a812b86f7ec445256",
+    "semantic_hash": "924dec30ec27f70a812b86f7ec445256"
+  },
+  "/root/Calendarly-BySandries/server/routes/distractionNotes.js": {
+    "mtime": 1779688617.0055246,
+    "ast_hash": "b6281f2fde0723ecf9067e6d87e378e6",
+    "semantic_hash": "b6281f2fde0723ecf9067e6d87e378e6"
+  },
+  "/root/Calendarly-BySandries/server/routes/codeAgents.js": {
+    "mtime": 1779699113.2895248,
+    "ast_hash": "11db5fed39e656b3aceb1a89c526f209",
+    "semantic_hash": "11db5fed39e656b3aceb1a89c526f209"
+  },
+  "/root/Calendarly-BySandries/server/routes/habit-logs.js": {
+    "mtime": 1779784326.1310062,
+    "ast_hash": "5043b25f433c794942e32da5fdb11da3",
+    "semantic_hash": "5043b25f433c794942e32da5fdb11da3"
+  },
+  "/root/Calendarly-BySandries/server/routes/habits.js": {
+    "mtime": 1779784326.1310062,
+    "ast_hash": "d0dd8ede2450662cb40557ca4897211e",
+    "semantic_hash": "d0dd8ede2450662cb40557ca4897211e"
+  },
+  "/root/Calendarly-BySandries/server/routes/opencode.js": {
+    "mtime": 1779698649.8895247,
+    "ast_hash": "5b26c7219f398825b36af3dbb8ee237c",
+    "semantic_hash": "5b26c7219f398825b36af3dbb8ee237c"
+  },
+  "/root/Calendarly-BySandries/OPENCLAW_MASTER_PROMPT.md": {
+    "mtime": 1779681077.1175246,
+    "ast_hash": "d1abd59cb9e26fac4a6ef2edb840c3c1",
+    "semantic_hash": "d1abd59cb9e26fac4a6ef2edb840c3c1"
+  },
+  "/root/Calendarly-BySandries/OPENCLAW_MCP.md": {
+    "mtime": 1780280398.6946666,
+    "ast_hash": "09d71448ac803daf8efe6ce430db749c",
+    "semantic_hash": "09d71448ac803daf8efe6ce430db749c"
+  },
+  "/root/Calendarly-BySandries/calendarly": {
+    "mtime": 1780280398.6946666,
+    "ast_hash": "4c87dc872a47adb392139be14c4fde07",
+    "semantic_hash": "4c87dc872a47adb392139be14c4fde07"
+  },
+  "/root/Calendarly-BySandries/client/src/hooks/usePeople.js": {
+    "mtime": 1780284273.3906667,
+    "ast_hash": "ff472132104568aa92dce2ae7e66e068",
+    "semantic_hash": "ff472132104568aa92dce2ae7e66e068"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/TaskDetailPage.jsx": {
+    "mtime": 1780133355.2595704,
+    "ast_hash": "6be83bcb27aca57267578258060a92ef",
+    "semantic_hash": "6be83bcb27aca57267578258060a92ef"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/TeamPage.jsx": {
+    "mtime": 1779784326.127006,
+    "ast_hash": "2a657ef9235872b786f52406c3940217",
+    "semantic_hash": "2a657ef9235872b786f52406c3940217"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/PomodoroPage.jsx": {
+    "mtime": 1779784326.123006,
+    "ast_hash": "a605f4a470bed7d7d4682a0a54e4972d",
+    "semantic_hash": "a605f4a470bed7d7d4682a0a54e4972d"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/PersonDetailPage.jsx": {
+    "mtime": 1780909002.5229378,
+    "ast_hash": "6b7c9f7fffdd245e796cb67dd4f1b2c3",
+    "semantic_hash": "6b7c9f7fffdd245e796cb67dd4f1b2c3"
+  },
+  "/root/Calendarly-BySandries/client/src/components/TaskDrawer.jsx": {
+    "mtime": 1780707319.3711739,
+    "ast_hash": "871cbd14e677294cb310d91da47c4662",
+    "semantic_hash": "871cbd14e677294cb310d91da47c4662"
+  },
+  "/root/Calendarly-BySandries/client/src/components/PersonPicker.jsx": {
+    "mtime": 1779784326.1150062,
+    "ast_hash": "ef3a44ddcc12f53cb59d44f1f01c73d6",
+    "semantic_hash": "ef3a44ddcc12f53cb59d44f1f01c73d6"
+  },
+  "/root/Calendarly-BySandries/client/src/components/TaskCard.jsx": {
+    "mtime": 1779834238.975006,
+    "ast_hash": "be384028a3f381d100f38b115708ca8a",
+    "semantic_hash": "be384028a3f381d100f38b115708ca8a"
+  },
+  "/root/Calendarly-BySandries/server/routes/people.js": {
+    "mtime": 1779784326.1310062,
+    "ast_hash": "907c47844ae4536a052bfc62e5771dd3",
+    "semantic_hash": "907c47844ae4536a052bfc62e5771dd3"
+  },
+  "/root/Calendarly-BySandries/UI_DESIGN_SYSTEM.md": {
+    "mtime": 1779784326.107006,
+    "ast_hash": "a0eea6f265d4468748b2dbf4ec98ede7",
+    "semantic_hash": "a0eea6f265d4468748b2dbf4ec98ede7"
+  },
+  "/root/Calendarly-BySandries/client/src/hooks/useTherapyJournal.js": {
+    "mtime": 1780284273.3906667,
+    "ast_hash": "cd99182fab37747ee5ca59e26b02817c",
+    "semantic_hash": "cd99182fab37747ee5ca59e26b02817c"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/WorkspacePage.jsx": {
+    "mtime": 1780638567.75337,
+    "ast_hash": "325b5fe9ab4cd370242d069400f6e597",
+    "semantic_hash": "325b5fe9ab4cd370242d069400f6e597"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/GoalsHistoryPage.jsx": {
+    "mtime": 1780133355.2555704,
+    "ast_hash": "ce85f62e06d95507113229cbcd341a6d",
+    "semantic_hash": "ce85f62e06d95507113229cbcd341a6d"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/TherapyPatternPage.jsx": {
+    "mtime": 1780133355.2595704,
+    "ast_hash": "0108b93296ea537d374845776b5ade09",
+    "semantic_hash": "0108b93296ea537d374845776b5ade09"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/PersonalGoalDetailPage.jsx": {
+    "mtime": 1780133355.2555704,
+    "ast_hash": "cda39ea9e4390991f75042927d6a786a",
+    "semantic_hash": "cda39ea9e4390991f75042927d6a786a"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/TherapyEntryDetailPage.jsx": {
+    "mtime": 1780135050.3515704,
+    "ast_hash": "c1c96da07a762408e04460b37fd3e9b7",
+    "semantic_hash": "c1c96da07a762408e04460b37fd3e9b7"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/TherapyEntryNewPage.jsx": {
+    "mtime": 1780133355.2595704,
+    "ast_hash": "097c245d25939c6bfbeb7818c69b347f",
+    "semantic_hash": "097c245d25939c6bfbeb7818c69b347f"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/TimelinePage.jsx": {
+    "mtime": 1780280398.6986668,
+    "ast_hash": "6b1b1f33ab4a306bd86a9e8fc738c413",
+    "semantic_hash": "6b1b1f33ab4a306bd86a9e8fc738c413"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/PersonalCarePage.jsx": {
+    "mtime": 1780909483.1309378,
+    "ast_hash": "ea58dfac2039ab1440a3d53f1bf1a683",
+    "semantic_hash": "ea58dfac2039ab1440a3d53f1bf1a683"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/TherapyEntryForm.jsx": {
+    "mtime": 1780135024.9835706,
+    "ast_hash": "2fa7fd2bb5ee33f7dea707416ee161c8",
+    "semantic_hash": "2fa7fd2bb5ee33f7dea707416ee161c8"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/FocusPage.jsx": {
+    "mtime": 1780707209.147174,
+    "ast_hash": "67f1021e5c189048be53d8efa2d7ddc2",
+    "semantic_hash": "67f1021e5c189048be53d8efa2d7ddc2"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/TherapyJournalPage.jsx": {
+    "mtime": 1780488127.2531762,
+    "ast_hash": "14d999c3ef8eb964e530bd2a5e6f3f36",
+    "semantic_hash": "14d999c3ef8eb964e530bd2a5e6f3f36"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/mdEditor.js": {
+    "mtime": 1780642630.1151738,
+    "ast_hash": "d1cc9035ca6c8721c2af4f795d249808",
+    "semantic_hash": "d1cc9035ca6c8721c2af4f795d249808"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/timelineConstants.js": {
+    "mtime": 1780280398.6986668,
+    "ast_hash": "a0f48aa9322812573cda3a9a52c59d2c",
+    "semantic_hash": "a0f48aa9322812573cda3a9a52c59d2c"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/timeline.js": {
+    "mtime": 1780280398.6986668,
+    "ast_hash": "aa03cd8adc49734ce26338d5efa8a976",
+    "semantic_hash": "aa03cd8adc49734ce26338d5efa8a976"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/events.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "0e7f563a614ad6c3493bf2858664c243",
+    "semantic_hash": "0e7f563a614ad6c3493bf2858664c243"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/personalCare.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "fc873294bc1a1e9f23a1d49b5cf9fb32",
+    "semantic_hash": "fc873294bc1a1e9f23a1d49b5cf9fb32"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/dailyLogs.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "740d6a3cab56d0e102603f44f0955d28",
+    "semantic_hash": "740d6a3cab56d0e102603f44f0955d28"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/notes.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "30995fd53bea9fd88140df2190ef5010",
+    "semantic_hash": "30995fd53bea9fd88140df2190ef5010"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/core.js": {
+    "mtime": 1780280398.6986668,
+    "ast_hash": "849d417398d69c99594a06fc404d35f0",
+    "semantic_hash": "849d417398d69c99594a06fc404d35f0"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/areas.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "fe3af6c1735c8482e249e47a45e8bee5",
+    "semantic_hash": "fe3af6c1735c8482e249e47a45e8bee5"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/health.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "048174409698ec929db733f25ea1ccd1",
+    "semantic_hash": "048174409698ec929db733f25ea1ccd1"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/habitLogs.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "c1480d8ae30c25b17026e438aa984f56",
+    "semantic_hash": "c1480d8ae30c25b17026e438aa984f56"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/activityEnergyLog.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "697a7ec46aa91659e2f767553808d423",
+    "semantic_hash": "697a7ec46aa91659e2f767553808d423"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/pomodoro.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "57af1a88aa41a511d5353afaf2d86e3e",
+    "semantic_hash": "57af1a88aa41a511d5353afaf2d86e3e"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/extracts.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "f4f60c893dfb38331b7de1375dcb1cc0",
+    "semantic_hash": "f4f60c893dfb38331b7de1375dcb1cc0"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/tasks.js": {
+    "mtime": 1780488127.2531762,
+    "ast_hash": "7b0205c387ef8af05149e046ccf424cc",
+    "semantic_hash": "7b0205c387ef8af05149e046ccf424cc"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/index.js": {
+    "mtime": 1780907484.8189378,
+    "ast_hash": "01119da61f6a080982f968ff1e38a6c2",
+    "semantic_hash": "01119da61f6a080982f968ff1e38a6c2"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/distractionNotes.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "501e348be9c0ae5113c41886c7ec323c",
+    "semantic_hash": "501e348be9c0ae5113c41886c7ec323c"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/people.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "39dc32c9d74d80d2460aa79aed560b2e",
+    "semantic_hash": "39dc32c9d74d80d2460aa79aed560b2e"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/codeAgents.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "970a0f3afa461e401b723d097f7cd358",
+    "semantic_hash": "970a0f3afa461e401b723d097f7cd358"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/analytics.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "89b4582163a4de2ae70566ecfc129bdc",
+    "semantic_hash": "89b4582163a4de2ae70566ecfc129bdc"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/therapyJournal.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "be3d4006bfb4ed4fa80455e88435d4ca",
+    "semantic_hash": "be3d4006bfb4ed4fa80455e88435d4ca"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/projects.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "a90c3093d7f70d89d898e57111daea0b",
+    "semantic_hash": "a90c3093d7f70d89d898e57111daea0b"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/habits.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "0367febc34dd237218876f088b5d3f14",
+    "semantic_hash": "0367febc34dd237218876f088b5d3f14"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/personalGoals.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "116ccc413d67b84222e71431836d67d2",
+    "semantic_hash": "116ccc413d67b84222e71431836d67d2"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/opencode.js": {
+    "mtime": 1780133355.2635705,
+    "ast_hash": "e76c3c32a233052d369e34d0b0325cd1",
+    "semantic_hash": "e76c3c32a233052d369e34d0b0325cd1"
+  },
+  "/root/Calendarly-BySandries/client/src/components/AuthGate.jsx": {
+    "mtime": 1780280398.6946666,
+    "ast_hash": "452684d2e8bff5ffd6c1c124ab7e3768",
+    "semantic_hash": "452684d2e8bff5ffd6c1c124ab7e3768"
+  },
+  "/root/Calendarly-BySandries/client/src/components/CaptureModal.jsx": {
+    "mtime": 1780488127.2371762,
+    "ast_hash": "16fb21237a08663f7b794896b4502a2f",
+    "semantic_hash": "16fb21237a08663f7b794896b4502a2f"
+  },
+  "/root/Calendarly-BySandries/client/src/components/TimelineItemDrawer.jsx": {
+    "mtime": 1780280398.6986668,
+    "ast_hash": "f9896eea82a52ff49981d8900b0e2a0b",
+    "semantic_hash": "f9896eea82a52ff49981d8900b0e2a0b"
+  },
+  "/root/Calendarly-BySandries/client/src/components/DayPlannerPanel.jsx": {
+    "mtime": 1780912333.506938,
+    "ast_hash": "2d13479391155f7af5348ff0de3b90a2",
+    "semantic_hash": "2d13479391155f7af5348ff0de3b90a2"
+  },
+  "/root/Calendarly-BySandries/client/src/components/EnergyLogPanel.jsx": {
+    "mtime": 1780133355.2435706,
+    "ast_hash": "c7867e84049bf46d6556df1a5e934175",
+    "semantic_hash": "c7867e84049bf46d6556df1a5e934175"
+  },
+  "/root/Calendarly-BySandries/client/src/components/TaskFavoritesPanel.jsx": {
+    "mtime": 1780593402.267403,
+    "ast_hash": "acc3c9d09980b8fe8f86af6771964f98",
+    "semantic_hash": "acc3c9d09980b8fe8f86af6771964f98"
+  },
+  "/root/Calendarly-BySandries/client/src/components/ProjectCard.jsx": {
+    "mtime": 1779834242.459006,
+    "ast_hash": "bcdbe5c45d4cd63804853e3b2c2caca3",
+    "semantic_hash": "bcdbe5c45d4cd63804853e3b2c2caca3"
+  },
+  "/root/Calendarly-BySandries/.githooks/pre-commit": {
+    "mtime": 1780280398.6946666,
+    "ast_hash": "b2c8a2dc6fbc391f2cc4d61716427dfa",
+    "semantic_hash": "b2c8a2dc6fbc391f2cc4d61716427dfa"
+  },
+  "/root/Calendarly-BySandries/browser-config/autostart-wayland": {
+    "mtime": 1780642791.3391738,
+    "ast_hash": "41dd2adf324907eea75de3fbafc1aba4",
+    "semantic_hash": "41dd2adf324907eea75de3fbafc1aba4"
+  },
+  "/root/Calendarly-BySandries/server/middleware/auth.js": {
+    "mtime": 1780280398.7026668,
+    "ast_hash": "bf354099329f241e2480187e1842c43d",
+    "semantic_hash": "bf354099329f241e2480187e1842c43d"
+  },
+  "/root/Calendarly-BySandries/server/scripts/test-db-keys.js": {
+    "mtime": 1779985695.3707736,
+    "ast_hash": "51461045337be7059e3fc2c48549aeba",
+    "semantic_hash": "51461045337be7059e3fc2c48549aeba"
+  },
+  "/root/Calendarly-BySandries/server/migrations/003_therapy_linked_data.js": {
+    "mtime": 1780133355.2675705,
+    "ast_hash": "c009aed7c6af7668848b8b27d785cfb8",
+    "semantic_hash": "c009aed7c6af7668848b8b27d785cfb8"
+  },
+  "/root/Calendarly-BySandries/server/migrations/004_archive_quick_entries.js": {
+    "mtime": 1780133355.2675705,
+    "ast_hash": "6597169eb19e86d10591250b906b224b",
+    "semantic_hash": "6597169eb19e86d10591250b906b224b"
+  },
+  "/root/Calendarly-BySandries/server/migrations/007_quick_entry_datetime.js": {
+    "mtime": 1780133616.0755703,
+    "ast_hash": "18877e41823bab89627f989dc667993a",
+    "semantic_hash": "18877e41823bab89627f989dc667993a"
+  },
+  "/root/Calendarly-BySandries/server/migrations/002_therapy_journal.js": {
+    "mtime": 1780133355.2675705,
+    "ast_hash": "65985d7fb4c23996f90aa2366673267f",
+    "semantic_hash": "65985d7fb4c23996f90aa2366673267f"
+  },
+  "/root/Calendarly-BySandries/server/migrations/006_activity_energy_log.js": {
+    "mtime": 1780133355.2675705,
+    "ast_hash": "1df7c7a2f5dd0e14ad0678ae43a791aa",
+    "semantic_hash": "1df7c7a2f5dd0e14ad0678ae43a791aa"
+  },
+  "/root/Calendarly-BySandries/server/migrations/010_timeline_mood.js": {
+    "mtime": 1780280398.7026668,
+    "ast_hash": "8876cd02d9e0be85791dd75b71e90bef",
+    "semantic_hash": "8876cd02d9e0be85791dd75b71e90bef"
+  },
+  "/root/Calendarly-BySandries/server/migrations/008_dimension_assessments.js": {
+    "mtime": 1780134933.6995704,
+    "ast_hash": "e2295161cb9d7c679f8c204208c7d0c0",
+    "semantic_hash": "e2295161cb9d7c679f8c204208c7d0c0"
+  },
+  "/root/Calendarly-BySandries/server/migrations/001_add_extract_links.js": {
+    "mtime": 1779787194.363006,
+    "ast_hash": "fa731dae3e6b307c21e54638248b946d",
+    "semantic_hash": "fa731dae3e6b307c21e54638248b946d"
+  },
+  "/root/Calendarly-BySandries/server/migrations/009_timeline.js": {
+    "mtime": 1780195719.9281976,
+    "ast_hash": "6f5a5a063655274a9f78db71d7b8a9da",
+    "semantic_hash": "6f5a5a063655274a9f78db71d7b8a9da"
+  },
+  "/root/Calendarly-BySandries/server/migrations/005_personal_goals.js": {
+    "mtime": 1780133355.2675705,
+    "ast_hash": "7135517c301e460ec188d31b227b35fc",
+    "semantic_hash": "7135517c301e460ec188d31b227b35fc"
+  },
+  "/root/Calendarly-BySandries/server/routes/timeline.js": {
+    "mtime": 1780280398.7026668,
+    "ast_hash": "fd0ead072eeabe85bea9e63cb422fc38",
+    "semantic_hash": "fd0ead072eeabe85bea9e63cb422fc38"
+  },
+  "/root/Calendarly-BySandries/server/routes/personalCare.js": {
+    "mtime": 1780133355.2675705,
+    "ast_hash": "3dca95ff6387877e14410c97e3335373",
+    "semantic_hash": "3dca95ff6387877e14410c97e3335373"
+  },
+  "/root/Calendarly-BySandries/server/routes/activityEnergyLog.js": {
+    "mtime": 1780133355.2675705,
+    "ast_hash": "ca850977dbdf0a74f66bb16cb0d40c5e",
+    "semantic_hash": "ca850977dbdf0a74f66bb16cb0d40c5e"
+  },
+  "/root/Calendarly-BySandries/server/routes/export.js": {
+    "mtime": 1780488127.2571762,
+    "ast_hash": "f7560ca3d95e442eb62eb6b5ef1375c3",
+    "semantic_hash": "f7560ca3d95e442eb62eb6b5ef1375c3"
+  },
+  "/root/Calendarly-BySandries/server/routes/therapyJournal.js": {
+    "mtime": 1780134985.5595706,
+    "ast_hash": "f623730c523e1b9dc098c63bb76226d3",
+    "semantic_hash": "f623730c523e1b9dc098c63bb76226d3"
+  },
+  "/root/Calendarly-BySandries/server/routes/personalGoals.js": {
+    "mtime": 1780133355.2675705,
+    "ast_hash": "3f6c13e8f59816c39443803009ed5040",
+    "semantic_hash": "3f6c13e8f59816c39443803009ed5040"
+  },
+  "/root/Calendarly-BySandries/browser-policies/managed/policy.json": {
+    "mtime": 1780638567.74137,
+    "ast_hash": "83f1baaf0295cd3d1bfdacbab80f522b",
+    "semantic_hash": "83f1baaf0295cd3d1bfdacbab80f522b"
+  },
+  "/root/Calendarly-BySandries/SECURITY_FINDINGS.md": {
+    "mtime": 1780280398.6946666,
+    "ast_hash": "df774fc7adb2ce70590e18ed74f69b08",
+    "semantic_hash": "df774fc7adb2ce70590e18ed74f69b08"
+  },
+  "/root/Calendarly-BySandries/AUDIT_PLAN.md": {
+    "mtime": 1779805492.3030062,
+    "ast_hash": "bdc0d3d1827f1ad50be261fe80e356da",
+    "semantic_hash": "bdc0d3d1827f1ad50be261fe80e356da"
+  },
+  "/root/Calendarly-BySandries/PERSONAL_CARE_DASHBOARD_PLAN.md": {
+    "mtime": 1779787194.3590062,
+    "ast_hash": "43b9832fd30296289500e6f7275b7991",
+    "semantic_hash": "43b9832fd30296289500e6f7275b7991"
+  },
+  "/root/Calendarly-BySandries/CLAUDE.md": {
+    "mtime": 1780198471.3521976,
+    "ast_hash": "82efb97a359f5c7290bf2513d14686be",
+    "semantic_hash": "82efb97a359f5c7290bf2513d14686be"
+  },
+  "/root/Calendarly-BySandries/AUDIT_STAGE_1.md": {
+    "mtime": 1779805546.683006,
+    "ast_hash": "3fe0833da56f1994f6710f599b3cafd5",
+    "semantic_hash": "3fe0833da56f1994f6710f599b3cafd5"
+  },
+  "/root/Calendarly-BySandries/client/plans/improvement-plan-05292026.md": {
+    "mtime": 1780133355.2395704,
+    "ast_hash": "f6e6adf03874844d8ed4d5da9538e87a",
+    "semantic_hash": "f6e6adf03874844d8ed4d5da9538e87a"
+  },
+  "/root/Calendarly-BySandries/client/plans/abstract-usequery-hook.md": {
+    "mtime": 1780133355.2395704,
+    "ast_hash": "f417f384f4765273fe5c1dd3668713a0",
+    "semantic_hash": "f417f384f4765273fe5c1dd3668713a0"
+  },
+  "/root/Calendarly-BySandries/client/plans/split-api-js.md": {
+    "mtime": 1780133355.2395704,
+    "ast_hash": "02965281d31712251dc4f22a5fcfd9e7",
+    "semantic_hash": "02965281d31712251dc4f22a5fcfd9e7"
+  },
+  "/root/Calendarly-BySandries/client/plans/extract-sidebar-hooks.md": {
+    "mtime": 1780133355.2395704,
+    "ast_hash": "991cab34deb4387687a289904b7d2751",
+    "semantic_hash": "991cab34deb4387687a289904b7d2751"
+  },
+  "/root/Calendarly-BySandries/client/plans/extract-magic-constants.md": {
+    "mtime": 1780133355.2395704,
+    "ast_hash": "140cf81495ea32bac55bd5b58f7509e1",
+    "semantic_hash": "140cf81495ea32bac55bd5b58f7509e1"
+  },
+  "/root/Calendarly-BySandries/client/plans/extract-personalcare-components.md": {
+    "mtime": 1780133355.2395704,
+    "ast_hash": "c15d60de3fbee538b8956d0e0f54b489",
+    "semantic_hash": "c15d60de3fbee538b8956d0e0f54b489"
+  },
+  "/root/Calendarly-BySandries/client/plans/add-error-boundaries.md": {
+    "mtime": 1780133355.2395704,
+    "ast_hash": "4ba9de06dcb1cfd5615a41f9a850a82a",
+    "semantic_hash": "4ba9de06dcb1cfd5615a41f9a850a82a"
+  },
+  "/root/Calendarly-BySandries/client/plans/uncouple-personalcare-css.md": {
+    "mtime": 1780133355.2395704,
+    "ast_hash": "ccc728ad36fee51d96a5445ec2a3d476",
+    "semantic_hash": "ccc728ad36fee51d96a5445ec2a3d476"
+  },
+  "/root/Calendarly-BySandries/AUDIT.md": {
+    "mtime": 1780690109.4551737,
+    "ast_hash": "f8725c76a67b901ca92d47385617ad2e",
+    "semantic_hash": "f8725c76a67b901ca92d47385617ad2e"
+  },
+  "/root/Calendarly-BySandries/client/src/hooks/useRichTextEditor.js": {
+    "mtime": 1780912233.3149378,
+    "ast_hash": "290029b4a6b9b58aef874839a7373c22",
+    "semantic_hash": "290029b4a6b9b58aef874839a7373c22"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/ProfilingPeoplePage.jsx": {
+    "mtime": 1780909387.9989378,
+    "ast_hash": "65a9148f043aead44ac7040cf2e1519a",
+    "semantic_hash": "65a9148f043aead44ac7040cf2e1519a"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/PersonalCareDashboard.jsx": {
+    "mtime": 1780907543.3389378,
+    "ast_hash": "249405a0b3948be7caf41b56e3e85624",
+    "semantic_hash": "249405a0b3948be7caf41b56e3e85624"
+  },
+  "/root/Calendarly-BySandries/client/src/pages/ProfilingPersonDetailPage.jsx": {
+    "mtime": 1780913025.950938,
+    "ast_hash": "7f74488fcc6dc3d331d24edddea7ccdb",
+    "semantic_hash": "7f74488fcc6dc3d331d24edddea7ccdb"
+  },
+  "/root/Calendarly-BySandries/client/src/utils/api/profilingPeople.js": {
+    "mtime": 1780913756.550938,
+    "ast_hash": "f41616f2cb26bc23ed40a6ba55411dbc",
+    "semantic_hash": "f41616f2cb26bc23ed40a6ba55411dbc"
+  },
+  "/root/Calendarly-BySandries/client/src/components/EventPicker.jsx": {
+    "mtime": 1780910427.6349378,
+    "ast_hash": "b6665fac7bb78b17de8749840c948360",
+    "semantic_hash": "b6665fac7bb78b17de8749840c948360"
+  },
+  "/root/Calendarly-BySandries/client/src/components/ProfilingCategoryPicker.jsx": {
+    "mtime": 1780907310.5949378,
+    "ast_hash": "2747fd45d591c078f17219035ed26289",
+    "semantic_hash": "2747fd45d591c078f17219035ed26289"
+  },
+  "/root/Calendarly-BySandries/client/src/components/RichTextToolbar.jsx": {
+    "mtime": 1780912277.882938,
+    "ast_hash": "62c1c6c01fadf3b7f0131bc2c79d3971",
+    "semantic_hash": "62c1c6c01fadf3b7f0131bc2c79d3971"
+  },
+  "/root/Calendarly-BySandries/client/src/components/MarkdownEditor.jsx": {
+    "mtime": 1780912290.398938,
+    "ast_hash": "a50820ce8358b2c84bdecfa238552852",
+    "semantic_hash": "a50820ce8358b2c84bdecfa238552852"
+  },
+  "/root/Calendarly-BySandries/server/migrations/011_profiling_people.js": {
+    "mtime": 1780906944.2949378,
+    "ast_hash": "8d13de3c15c7f6adbfed10ab03da4be6",
+    "semantic_hash": "8d13de3c15c7f6adbfed10ab03da4be6"
+  },
+  "/root/Calendarly-BySandries/server/routes/profilingPeople.js": {
+    "mtime": 1780913755.8189378,
+    "ast_hash": "74fe6f920c350d2a8e1177fa279f6910",
+    "semantic_hash": "74fe6f920c350d2a8e1177fa279f6910"
+  },
+  "/root/Calendarly-BySandries/DEVOPS_SECURITY_AUDIT.md": {
+    "mtime": 1780913474.402938,
+    "ast_hash": "e20ba6c89a7a8eae4b4e659ea695455c",
+    "semantic_hash": "e20ba6c89a7a8eae4b4e659ea695455c"
+  }
+}

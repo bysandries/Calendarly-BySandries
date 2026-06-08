@@ -107,6 +107,7 @@ const activityEnergyLogRouter = require('./routes/activityEnergyLog');
 const timelineRouter = require('./routes/timeline');
 const exportRouter = require('./routes/export');
 const profilingPeopleRouter = require('./routes/profilingPeople');
+const omniRouter = require('./routes/omni');
 
 // Mount routes
 app.use('/api/events', eventsRouter);
@@ -133,6 +134,7 @@ app.use('/api/activity-energy-log', activityEnergyLogRouter);
 app.use('/api/timeline', timelineRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/profiling-people', profilingPeopleRouter);
+app.use('/api/omni-capture', omniRouter);
 
 // Note: the public liveness probe is registered above the auth gate.
 // The integrity check below is intentionally behind the auth gate because it

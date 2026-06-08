@@ -1,16 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
-import { createTask as apiCreateTask } from '../utils/api/tasks';
-import { createProject as apiCreateProject } from '../utils/api/projects';
-import { syncEventBlock } from '../utils/api/events';
-import { DateTime } from 'luxon';
-
-const TYPES = ['task', 'project', 'event'];
+import { analyzeOmniCapture, executeOmniCapture } from '../utils/api';
 
 export default function CaptureModal({ onClose }) {
-  const [title, setTitle] = useState('');
-  const [captureType, setCaptureType] = useState('task');
-  const [status, setStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
+  const [text, setText] = useState('');
+  const [status, setStatus] = useState(null); // null | 'analyzing' | 'disambiguating' | 'saving' | 'saved' | 'error'
+  const [resultsMsg, setResultsMsg] = useState('');
   const inputRef = useRef(null);
+
+  // Disambiguation state
+  const [ambiguities, setAmbiguities] = useState({});
+  const [exactMatches, setExactMatches] = useState({});
+  const [newPeople, setNewPeople] = useState({});
+  const [operations, setOperations] = useState([]);
+  
+  // resolutions: { [ambiguousName]: { type: 'existing', id: 'pId' } | { type: 'new', name: 'John Doe' } }
+  const [resolutions, setResolutions] = useState({});
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => inputRef.current?.focus());
@@ -19,51 +23,109 @@ export default function CaptureModal({ onClose }) {
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && status !== 'saving') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, status]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!text.trim()) return;
+    setStatus('analyzing');
+    try {
+      const res = await analyzeOmniCapture(text);
+      // We might get 200 OK with ready_to_execute: true
+      if (res.data.ready_to_execute) {
+        await finalizeExecution(res.data.operations, res.data.exactMatches, Object.keys(res.data.newPeople || {}));
+      }
+    } catch (err) {
+      if (err.response?.status === 409 && err.response?.data?.requires_disambiguation) {
+        const data = err.response.data;
+        setAmbiguities(data.ambiguities);
+        setExactMatches(data.exactMatches || {});
+        setNewPeople(data.newPeople || {});
+        setOperations(data.operations || []);
+        
+        // Initialize default resolutions (first option)
+        const initialRes = {};
+        for (const [name, matches] of Object.entries(data.ambiguities)) {
+          if (matches.length > 0) {
+            initialRes[name] = { type: 'existing', id: matches[0].id };
+          }
+        }
+        setResolutions(initialRes);
+        setStatus('disambiguating');
+      } else {
+        setStatus('error');
+        setTimeout(() => setStatus(null), 2000);
+      }
+    }
+  };
+
+  const finalizeExecution = async (ops, resolvedMap, newPeopleArray) => {
     setStatus('saving');
     try {
-      if (captureType === 'task') {
-        await apiCreateTask({ title, status: '01 - Inbox' });
-      } else if (captureType === 'project') {
-        await apiCreateProject({
-          title,
-          status: 'on-hold',
-          area: 'general',
-          pillar: 'Innovation',
-          phase: 'Plan',
-          methodology: 'PALM',
-          description: 'Captured via Quick Capture',
-        });
-      } else if (captureType === 'event') {
-        const now = DateTime.now();
-        const dateStr = now.toISODate();
-        const timeStr = now.toFormat('HH:00');
-        await syncEventBlock({
-          title,
-          date_string: dateStr,
-          time_slot: timeStr,
-          duration_mins: 60,
-          column_type: 'plan',
-          area: 'general',
-          color_hex: '#95A5A6',
-          notes: 'Captured via Quick Capture',
-          block_signature: `${dateStr}_${timeStr}_plan_${Date.now()}`,
-        });
+      const payload = {
+        text,
+        operations: ops,
+        resolvedPeopleMap: resolvedMap,
+        newPeopleToCreate: newPeopleArray
+      };
+      const res = await executeOmniCapture(payload);
+      if (res.data?.results) {
+        setResultsMsg(res.data.results.join(', '));
+      } else {
+        setResultsMsg('Capture processed');
       }
       setStatus('saved');
-      setTimeout(() => onClose(), 600);
-    } catch {
+      setTimeout(() => onClose(), 2500);
+    } catch (err) {
+      console.error(err);
       setStatus('error');
       setTimeout(() => setStatus(null), 2000);
     }
+  };
+
+  const handleDisambiguateSubmit = async (e) => {
+    e.preventDefault();
+    const finalResolvedMap = { ...exactMatches };
+    const finalNewPeople = Object.keys(newPeople);
+
+    for (const [name, res] of Object.entries(resolutions)) {
+      if (res.type === 'existing') {
+        finalResolvedMap[name] = res.id;
+      } else if (res.type === 'new') {
+        // e.g. they typed "John Smith" for ambiguous "John"
+        finalNewPeople.push(res.name);
+        // Map the original parsed name ("John") to the new string temporarily,
+        // wait, execute endpoint handles array of new names, and we need to map "John" to the ID.
+        // It's easier if we tell execute endpoint: newPeopleToCreate = ["John Smith"],
+        // but how do we link "John" to "John Smith"?
+        // The endpoint creates IDs for newPeopleToCreate, but personIdMap[newName] = pId.
+        // It will look for personIdMap["John"].
+        // So we need to map "John" to the new ID...
+        // Let's adjust `finalizeExecution` or we can just replace "John" in `people_mentioned`?
+        // Let's pass a `mappedNames` object instead if needed.
+        // Wait, execute endpoint looks up `personIdMap[pName]`. 
+        // If we add `res.name` to `newPeopleToCreate`, it will be `personIdMap[res.name] = pId`.
+        // Then it tries to look up `personIdMap["John"]`. That will be undefined unless we map it.
+        // Let's just modify the `operations` locally before sending, replacing "John" with "John Smith" in people_mentioned!
+        
+        opsModifier:
+        for (const op of operations) {
+          if (Array.isArray(op.data?.people_mentioned)) {
+            op.data.people_mentioned = op.data.people_mentioned.map(p => p === name ? res.name : p);
+          }
+        }
+      }
+    }
+
+    await finalizeExecution(operations, finalResolvedMap, finalNewPeople);
+  };
+
+  const updateResolution = (name, val) => {
+    setResolutions(prev => ({ ...prev, [name]: val }));
   };
 
   return (
@@ -74,7 +136,7 @@ export default function CaptureModal({ onClose }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '16px',
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget && status !== 'saving') onClose(); }}
     >
       <div
         style={{
@@ -86,10 +148,9 @@ export default function CaptureModal({ onClose }) {
           boxShadow: '0 32px 80px rgba(0,0,0,0.8)',
         }}
       >
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-dimmed)', textTransform: 'uppercase' }}>
-            Quick Capture
+            {status === 'disambiguating' ? 'Clarify People Mentioned' : 'Omni Capture (Brain Dump)'}
           </span>
           <button
             onClick={onClose}
@@ -100,48 +161,89 @@ export default function CaptureModal({ onClose }) {
           </button>
         </div>
 
-        {/* Type Pills */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-          {TYPES.map(t => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setCaptureType(t)}
-              style={{
-                padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 600,
-                cursor: 'pointer', textTransform: 'capitalize',
-                border: `1px solid ${captureType === t ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)'}`,
-                background: captureType === t ? 'rgba(52,152,219,0.15)' : 'transparent',
-                color: captureType === t ? 'var(--accent-primary)' : 'var(--text-secondary)',
-              }}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        {status === 'disambiguating' ? (
+          <form onSubmit={handleDisambiguateSubmit}>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+              We found multiple people matching the names you mentioned. Which one did you mean?
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
+              {Object.entries(ambiguities).map(([name, matches]) => (
+                <div key={name} style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>"{name}"</div>
+                  
+                  {matches.map(m => (
+                    <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', cursor: 'pointer' }}>
+                      <input 
+                        type="radio" 
+                        name={`disambig_${name}`}
+                        checked={resolutions[name]?.type === 'existing' && resolutions[name]?.id === m.id}
+                        onChange={() => updateResolution(name, { type: 'existing', id: m.id })}
+                      />
+                      <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{m.name}</span>
+                    </label>
+                  ))}
+                  
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input 
+                      type="radio" 
+                      name={`disambig_${name}`}
+                      checked={resolutions[name]?.type === 'new'}
+                      onChange={() => updateResolution(name, { type: 'new', name: '' })}
+                    />
+                    <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Create new person:</span>
+                  </label>
+                  
+                  {resolutions[name]?.type === 'new' && (
+                    <input 
+                      type="text" 
+                      className="form-input"
+                      autoFocus
+                      placeholder={`Full name for "${name}"`}
+                      value={resolutions[name].name || ''}
+                      onChange={(e) => updateResolution(name, { type: 'new', name: e.target.value })}
+                      style={{ marginTop: '8px', width: '100%', padding: '8px 12px', fontSize: '13px' }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
 
-        {/* Input */}
-        <form onSubmit={handleSubmit}>
-          <input
-            ref={inputRef}
-            className="form-input"
-            style={{ width: '100%', fontSize: '1.15rem', padding: '14px 18px', marginBottom: '16px' }}
-            placeholder={`Capture ${captureType}...`}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-dimmed)' }}>Esc to dismiss</span>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={status === 'saving' || !title.trim()}
-              style={{ minWidth: '100px' }}
-            >
-              {status === 'saving' ? 'Saving...' : status === 'saved' ? '✓ Saved' : status === 'error' ? 'Failed' : 'Collect'}
-            </button>
-          </div>
-        </form>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="submit" className="btn btn-primary" disabled={status === 'saving'}>
+                {status === 'saving' ? 'Saving...' : 'Confirm & Save'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <textarea
+              ref={inputRef}
+              className="form-input"
+              style={{ width: '100%', fontSize: '1.15rem', padding: '14px 18px', marginBottom: '16px', minHeight: '120px', resize: 'vertical' }}
+              placeholder="I'm feeling really anxious today. I did a 25 minute pomodoro on my math homework, but I got distracted by Twitter. Also remind me to buy milk tomorrow..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              disabled={status === 'analyzing' || status === 'saving' || status === 'saved'}
+            />
+            {status === 'saved' && (
+              <div style={{ padding: '12px', background: 'rgba(46,204,113,0.1)', color: '#2ecc71', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
+                ✓ <strong>Success:</strong> {resultsMsg}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-dimmed)' }}>Esc to dismiss</span>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={status === 'analyzing' || status === 'saving' || !text.trim()}
+                style={{ minWidth: '100px' }}
+              >
+                {status === 'analyzing' ? 'Analyzing...' : status === 'saving' ? 'Saving...' : status === 'saved' ? '✓ Saved' : status === 'error' ? 'Failed' : 'Collect'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
