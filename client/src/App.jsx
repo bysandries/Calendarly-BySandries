@@ -44,6 +44,27 @@ function MainLayout() {
     setMobileSidebarOpen(false);
   }, [location.pathname]);
 
+  // Apply saved theme on app mount
+  useEffect(() => {
+    const applyTheme = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.success && data.database?.theme) {
+          const theme = data.database.theme;
+          const root = document.documentElement;
+          root.classList.remove('midnight-abyss', 'slate-minimal', 'classic-light');
+          if (['midnight-abyss', 'slate-minimal', 'classic-light'].includes(theme)) {
+            root.classList.add(theme);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load theme:', err);
+      }
+    };
+    applyTheme();
+  }, []);
+
   // Persist zen mode
   useEffect(() => {
     localStorage.setItem('zen-mode', String(zenMode));
