@@ -16,6 +16,7 @@
    - [Workspace](#workspace)
 4. [2e Accessibility & Neurodivergent Design](#2e-accessibility--neurodivergent-design)
 5. [Architecture](#architecture)
+   - [Knowledge Graph & Codebase Navigation](#knowledge-graph--codebase-navigation)
 6. [Quick Start](#quick-start)
    - [Option A: Docker Compose](#option-a-docker-compose-recommended)
    - [Option B: Native Local Development](#option-b-native-local-development)
@@ -419,15 +420,50 @@ calendarly/
   │   ├── backup-db.js            # Golden backup service
   │   └── integrity-checker.js
 ├── graphify-out/               # Knowledge graph (AI-readable project map)
+│   ├── graph.html              # Interactive codebase visualization (open in browser)
+│   ├── GRAPH_REPORT.md         # Community structure, god nodes, surprising connections
+│   └── graph.json              # Raw graph data for agent queries
 ├── browser-config/             # Chromium kiosk configuration
 │   ├── autostart-wayland       # Sets kiosk prefs + keep-maximized watcher on every restart
 │   └── labwc-template.xml      # labwc window manager config (no title bar)
 ├── browser-data/               # Chromium profile volume (gitignored)
 ├── docker-compose.yml
 ├── .env.template
-├── UI_DESIGN_SYSTEM.md
+├── OPENCLAW_MCP.md             # OpenClaw AI agent API specification
+├── SECURITY_FINDINGS.md        # Security audit results & remediation
+├── UI_DESIGN_SYSTEM.md         # Design tokens, components, Figma guide
+├── PERSONAL_CARE_DASHBOARD_PLAN.md  # Personal care feature roadmap
+├── CLAUDE.md                   # Claude agent workspace instructions
 └── README.md
 ```
+
+### Knowledge Graph & Codebase Navigation
+
+Calendarly maintains an auto-generated **knowledge graph** in `graphify-out/` that maps the entire codebase as a navigable network of concepts, files, and relationships. This is used by AI agents (OpenClaw, Claude, OpenCode) to understand project structure without reading every file.
+
+**Graph Statistics (last update: 2026-06-08)**
+- **2,139 nodes** · **3,109 edges** · **154 communities**
+- **97% EXTRACTED** relationships (directly from code) · **3% INFERRED** (cross-document connections)
+- **God Nodes** (most central abstractions): `getDbConnection()` (29 edges), `API Reference` (27), `OpenClaw MCP` (27), `api` core transport (26), `Calendarly README` (25)
+
+**Key Hyperedges (multi-node relationships)**
+- **Security & Authentication Stack** — auth gate, shared token, constant-time compare, rate limiting, helmet headers
+- **Design System Token Hierarchy** — glassmorphism, CSS custom properties, neon accents, area/status colors
+- **Personal Care Feature Ecosystem** — therapy tracking, extract linking, profiling people, memory journal
+
+**Surprising Connections Discovered**
+- `OpenClaw AI Agent` rationale directly drives the `OpenCode Sync Route` implementation
+- `iPhone Responsive Design` spec from `UI_DESIGN_SYSTEM.md` rationale links to `EventPicker Component`
+- `PALM Methodology` conceptually connects to `Four Pillars` across README and MCP docs
+
+**Outputs**
+| File | Purpose |
+|------|---------|
+| `graphify-out/graph.html` | Interactive force-directed graph (open in browser, no server needed) |
+| `graphify-out/GRAPH_REPORT.md` | Full audit: communities, god nodes, cross-community bridges, suggested questions |
+| `graphify-out/graph.json` | Raw GraphRAG data for programmatic agent queries |
+
+---
 
 ### Database Schema (40 Tables)
 
