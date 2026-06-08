@@ -100,6 +100,116 @@
   --measure-lane-bg: rgba(0, 0, 0, 0.2);
 }
 
+/* ── Theme: Slate Minimal ── */
+.slate-minimal {
+  --bg-primary: #16181d;
+  --bg-surface: #1e2028;
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-card-hover: rgba(255, 255, 255, 0.07);
+  --bg-input: rgba(255, 255, 255, 0.05);
+  --bg-input-focus: rgba(255, 255, 255, 0.09);
+
+  --glass-bg: rgba(255, 255, 255, 0.04);
+  --glass-bg-strong: rgba(255, 255, 255, 0.07);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-hover: rgba(255, 255, 255, 0.14);
+  --glass-border-active: rgba(255, 255, 255, 0.20);
+
+  --text-primary: #e2e4e9;
+  --text-secondary: #9ca0ab;
+  --text-muted: #6b7080;
+  --text-dimmed: #484d5a;
+
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+
+  --accent-primary: #94a3b8;
+  --accent-primary-rgb: 148, 163, 184;
+
+  --neon-blue: 0 0 16px rgba(148, 163, 184, 0.2);
+  --neon-green: 0 0 16px rgba(46, 204, 113, 0.2);
+  --neon-orange: 0 0 16px rgba(230, 126, 34, 0.2);
+  --neon-purple: 0 0 16px rgba(155, 89, 182, 0.2);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 16px 64px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Theme: Classic Light ── */
+.classic-light {
+  --bg-primary: #f8f9fb;
+  --bg-surface: #ffffff;
+  --bg-card: rgba(0, 0, 0, 0.02);
+  --bg-card-hover: rgba(0, 0, 0, 0.04);
+  --bg-input: rgba(0, 0, 0, 0.03);
+  --bg-input-focus: rgba(0, 0, 0, 0.06);
+
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-strong: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-border-hover: rgba(0, 0, 0, 0.14);
+  --glass-border-active: rgba(0, 0, 0, 0.22);
+
+  --text-primary: #1a1d27;
+  --text-secondary: #4a5068;
+  --text-muted: #7c829a;
+  --text-dimmed: #a8adc0;
+
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.10);
+  --border-strong: rgba(0, 0, 0, 0.18);
+
+  --accent-primary: #6366f1;
+  --accent-primary-rgb: 99, 102, 241;
+  --accent-success: #22c55e;
+  --accent-warning: #f59e0b;
+  --accent-danger: #ef4444;
+
+  --neon-blue: 0 0 16px rgba(99, 102, 241, 0.15);
+  --neon-green: 0 0 16px rgba(34, 197, 94, 0.15);
+  --neon-orange: 0 0 16px rgba(245, 158, 11, 0.15);
+  --neon-purple: 0 0 16px rgba(168, 85, 247, 0.15);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.12);
+}
+
+.classic-light .sidebar {
+  background: #ffffff;
+  border-right-color: rgba(0, 0, 0, 0.08);
+}
+
+.classic-light .sidebar .nav-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.classic-light .sidebar .nav-item.active {
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--accent-primary);
+}
+
+.classic-light .glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.classic-light .btn-primary {
+  background: var(--accent-primary);
+  color: #ffffff;
+}
+
+.classic-light .form-input,
+.classic-light .form-select {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--text-primary);
+}
+
 /* ── Reset & Base ── */
 *, *::before, *::after {
   margin: 0;

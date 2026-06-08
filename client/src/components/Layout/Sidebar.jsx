@@ -73,7 +73,7 @@ const NAV_ITEMS = [
   { to: '/omni-history', icon: IconDatabase, label: 'Omni History',        group: 'Capture' },
   { to: '/habits',       icon: IconHabits,   label: 'Habits',              group: 'Life' },
   { to: '/personal-care',icon: IconHeart,    label: 'Personal Care',       group: 'Life' },
-
+  { to: '/calendar',     icon: IconCalendar, label: 'Calendar Tracking',   group: 'Life' },
   { to: '/timeline',     icon: IconMap,      label: 'Life Map',            group: 'Life' },
   { to: '/analytics',    icon: IconAnalytics,label: 'Reflection Dashboard',group: 'System' },
   { to: '/agents',       icon: IconAgents,   label: 'Code Agents',         group: 'System' },
