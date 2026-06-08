@@ -1,15 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { createTask as apiCreateTask } from '../utils/api/tasks';
-import { createProject as apiCreateProject } from '../utils/api/projects';
-import { syncEventBlock } from '../utils/api/events';
-import { DateTime } from 'luxon';
-
-const TYPES = ['task', 'project', 'event'];
+import { submitOmniCapture } from '../utils/api';
 
 export default function CaptureModal({ onClose }) {
-  const [title, setTitle] = useState('');
-  const [captureType, setCaptureType] = useState('task');
+  const [text, setText] = useState('');
   const [status, setStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
+  const [resultsMsg, setResultsMsg] = useState('');
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -27,39 +22,17 @@ export default function CaptureModal({ onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!text.trim()) return;
     setStatus('saving');
     try {
-      if (captureType === 'task') {
-        await apiCreateTask({ title, status: '01 - Inbox' });
-      } else if (captureType === 'project') {
-        await apiCreateProject({
-          title,
-          status: 'on-hold',
-          area: 'general',
-          pillar: 'Innovation',
-          phase: 'Plan',
-          methodology: 'PALM',
-          description: 'Captured via Quick Capture',
-        });
-      } else if (captureType === 'event') {
-        const now = DateTime.now();
-        const dateStr = now.toISODate();
-        const timeStr = now.toFormat('HH:00');
-        await syncEventBlock({
-          title,
-          date_string: dateStr,
-          time_slot: timeStr,
-          duration_mins: 60,
-          column_type: 'plan',
-          area: 'general',
-          color_hex: '#95A5A6',
-          notes: 'Captured via Quick Capture',
-          block_signature: `${dateStr}_${timeStr}_plan_${Date.now()}`,
-        });
+      const res = await submitOmniCapture(text);
+      if (res.data?.results) {
+        setResultsMsg(res.data.results.join(', '));
+      } else {
+        setResultsMsg('Capture processed');
       }
       setStatus('saved');
-      setTimeout(() => onClose(), 600);
+      setTimeout(() => onClose(), 2500);
     } catch {
       setStatus('error');
       setTimeout(() => setStatus(null), 2000);
@@ -89,7 +62,7 @@ export default function CaptureModal({ onClose }) {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-dimmed)', textTransform: 'uppercase' }}>
-            Quick Capture
+            Omni Capture (Brain Dump)
           </span>
           <button
             onClick={onClose}
@@ -100,45 +73,30 @@ export default function CaptureModal({ onClose }) {
           </button>
         </div>
 
-        {/* Type Pills */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-          {TYPES.map(t => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setCaptureType(t)}
-              style={{
-                padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 600,
-                cursor: 'pointer', textTransform: 'capitalize',
-                border: `1px solid ${captureType === t ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)'}`,
-                background: captureType === t ? 'rgba(52,152,219,0.15)' : 'transparent',
-                color: captureType === t ? 'var(--accent-primary)' : 'var(--text-secondary)',
-              }}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
         {/* Input */}
         <form onSubmit={handleSubmit}>
-          <input
+          <textarea
             ref={inputRef}
             className="form-input"
-            style={{ width: '100%', fontSize: '1.15rem', padding: '14px 18px', marginBottom: '16px' }}
-            placeholder={`Capture ${captureType}...`}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            style={{ width: '100%', fontSize: '1.15rem', padding: '14px 18px', marginBottom: '16px', minHeight: '120px', resize: 'vertical' }}
+            placeholder="I'm feeling really anxious today. I did a 25 minute pomodoro on my math homework, but I got distracted by Twitter. Also remind me to buy milk tomorrow..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
           />
+          {status === 'saved' && (
+            <div style={{ padding: '12px', background: 'rgba(46,204,113,0.1)', color: '#2ecc71', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
+              ✓ <strong>Success:</strong> {resultsMsg}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', alignItems: 'center' }}>
             <span style={{ fontSize: '11px', color: 'var(--text-dimmed)' }}>Esc to dismiss</span>
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={status === 'saving' || !title.trim()}
+              disabled={status === 'saving' || !text.trim()}
               style={{ minWidth: '100px' }}
             >
-              {status === 'saving' ? 'Saving...' : status === 'saved' ? '✓ Saved' : status === 'error' ? 'Failed' : 'Collect'}
+              {status === 'saving' ? 'Analyzing...' : status === 'saved' ? '✓ Saved' : status === 'error' ? 'Failed' : 'Collect'}
             </button>
           </div>
         </form>
