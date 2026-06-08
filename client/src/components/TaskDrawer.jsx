@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GTD_STATUSES, getStatusInfo, PRIORITY_COLORS, PRIORITY_LABELS } from '../utils/statusMap';
 import { calcDaysLeft, formatDaysLeft, calcUrgencyNotion } from '../lib/taskMath';
 import PersonPicker from './PersonPicker';
@@ -39,19 +39,40 @@ const SECTION_TITLE = {
   marginBottom: '2px',
 };
 
-export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, onClose, mode = 'drawer' }) {
+export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, onClose, mode = 'drawer', autoSave = false }) {
   const isOpen = tasks.length > 0;
   const isBulk = tasks.length > 1;
   const singleTask = !isBulk ? tasks[0] : null;
 
   const [formData, setFormData] = useState({});
   const [busy, setBusy] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(300);
+  const originalDataRef = useRef({});
+  const pendingSaveRef = useRef(null);
+  const hasInitializedRef = useRef(false);
+  const resizeState = useRef(null);
+
+  // Inline panel resize handlers
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!resizeState.current) return;
+      const delta = resizeState.current.startX - e.clientX;
+      setPanelWidth(Math.min(800, Math.max(220, resizeState.current.startWidth + delta)));
+    };
+    const onUp = () => { resizeState.current = null; document.body.style.cursor = ''; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, []);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      hasInitializedRef.current = false;
+      return;
+    }
 
     if (!isBulk) {
-      setFormData({
+      const data = {
         title: singleTask.title || '',
         status: singleTask.status || '01 - Inbox',
         project_id: singleTask.project_id || '',
@@ -63,7 +84,12 @@ export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, o
         person_id: singleTask.person_id || '',
         stage_week: singleTask.stage_week || '',
         categoria: singleTask.categoria || '',
-      });
+      };
+      setFormData(data);
+      if (autoSave) {
+        originalDataRef.current = { ...data };
+      }
+      hasInitializedRef.current = true;
     } else {
       setFormData({
         status: '',
@@ -76,12 +102,44 @@ export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, o
         stage_week: '',
         categoria: '',
       });
+      hasInitializedRef.current = true;
     }
-  }, [tasks, isOpen, isBulk, singleTask]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [singleTask?.id, isOpen, isBulk]);
+
+  // ── Auto-save: debounced save on every form change ──
+  useEffect(() => {
+    if (!autoSave || !isOpen || isBulk || !hasInitializedRef.current) return;
+
+    if (pendingSaveRef.current) clearTimeout(pendingSaveRef.current);
+    pendingSaveRef.current = setTimeout(() => {
+      onSave(singleTask.id, { ...formData });
+      pendingSaveRef.current = null;
+    }, 400);
+
+    return () => {
+      if (pendingSaveRef.current) clearTimeout(pendingSaveRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData, autoSave, isOpen, isBulk, singleTask?.id]);
 
   const set = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
 
+  const flushPendingSave = () => {
+    if (pendingSaveRef.current) {
+      clearTimeout(pendingSaveRef.current);
+      pendingSaveRef.current = null;
+    }
+  };
+
   const handleSave = async () => {
+    flushPendingSave();
+
+    if (autoSave) {
+      onClose();
+      return;
+    }
+
     setBusy(true);
     try {
       const updates = { ...formData };
@@ -107,6 +165,7 @@ export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, o
   };
 
   const handleDelete = async () => {
+    flushPendingSave();
     setBusy(true);
     try {
       for (const t of tasks) await onDelete(t.id);
@@ -114,6 +173,20 @@ export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, o
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleCancel = async () => {
+    flushPendingSave();
+
+    if (autoSave && !isBulk) {
+      setBusy(true);
+      try {
+        await onSave(singleTask.id, originalDataRef.current);
+      } finally {
+        setBusy(false);
+      }
+    }
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -128,7 +201,7 @@ export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, o
   const isDuePast = formData.date_due && daysLeft !== null && daysLeft < 0;
 
   const content = (
-    <div className="drawer-content glass-panel" style={isInline ? { width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', height: '100%', borderRight: '1px solid var(--border-subtle)', overflow: 'hidden', transform: 'none', boxShadow: 'none' } : undefined}>
+    <div className="drawer-content glass-panel" style={isInline ? { width: panelWidth, flexShrink: 0, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', transform: 'none', boxShadow: 'none' } : undefined}>
 
         {/* ── Header ── */}
         <div className="drawer-header" style={{ gap: '10px', padding: '18px 20px' }}>
@@ -439,18 +512,35 @@ export default function TaskDrawer({ tasks, projects, areas, onSave, onDelete, o
           >
             Delete
           </button>
-          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>
+          <button type="button" className="btn btn-secondary" onClick={handleCancel} disabled={busy}>
             Cancel
           </button>
           <button type="button" className="btn btn-primary" onClick={handleSave} disabled={busy}>
-            {busy ? 'Saving…' : 'Save'}
+            {busy ? (autoSave ? 'Reverting…' : 'Saving…') : (autoSave ? 'Done' : 'Save')}
           </button>
         </div>
       </div>
   );
 
   if (isInline) {
-    return <div style={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border-subtle)', overflow: 'hidden' }}>{content}</div>;
+    return (
+      <div style={{ width: panelWidth, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border-subtle)', overflow: 'hidden', position: 'relative' }}>
+        <div
+          onMouseDown={e => {
+            e.preventDefault();
+            resizeState.current = { startX: e.clientX, startWidth: panelWidth };
+            document.body.style.cursor = 'col-resize';
+          }}
+          style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0, width: '5px',
+            cursor: 'col-resize', zIndex: 20, background: 'transparent',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(52,152,219,0.25)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+        />
+        {content}
+      </div>
+    );
   }
 
   return (
