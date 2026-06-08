@@ -1,6 +1,19 @@
 const path = require('path');
-const sqlite3 = require('@journeyapps/sqlcipher').verbose();
 const { open } = require('sqlite');
+
+// Try to load encrypted sqlcipher; fall back to plain sqlite3 if the native
+// binding is incompatible with the system's OpenSSL (e.g., OpenSSL 3 vs 1.1).
+let sqlite3;
+try {
+  sqlite3 = require('@journeyapps/sqlcipher').verbose();
+} catch (err) {
+  if (err.message?.includes('libcrypto') || err.code === 'ERR_DLOPEN_FAILED') {
+    console.warn('[db] @journeyapps/sqlcipher failed to load (OpenSSL mismatch). Falling back to plain sqlite3.');
+    sqlite3 = require('sqlite3').verbose();
+  } else {
+    throw err;
+  }
+}
 const migration002 = require('./migrations/002_therapy_journal');
 const migration003 = require('./migrations/003_therapy_linked_data');
 const migration004 = require('./migrations/004_archive_quick_entries');
@@ -10,6 +23,7 @@ const migration007 = require('./migrations/007_quick_entry_datetime');
 const migration008 = require('./migrations/008_dimension_assessments');
 const migration009 = require('./migrations/009_timeline');
 const migration010 = require('./migrations/010_timeline_mood');
+const migration011 = require('./migrations/011_profiling_people');
 
 const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, 'calendarly.db');
 
@@ -556,6 +570,7 @@ async function initDatabase(forceReset = false) {
   await migration008.migrate(database);
   await migration009.migrate(database);
   await migration010.migrate(database);
+  await migration011.migrate(database);
   await addColumnIfMissing(database, 'personal_goals', 'activation_history', "TEXT DEFAULT '[]'");
 
   // Indexes for hot read paths — these are what the pages fetch on load.

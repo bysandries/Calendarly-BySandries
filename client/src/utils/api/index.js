@@ -17,3 +17,4 @@ export * from './personalCare';
 export * from './therapyJournal';
 export * from './opencode';
 export * from './health';
+export * from './profilingPeople';

@@ -111,6 +111,9 @@ chromium-data/
 .tmp-uploads/
 server/opencode-cache/*
 
+# ─── Local attachments (people profiling files) ────────────
+server/attachments/
+
 # OpenCode runtime history
 .opencode/
 

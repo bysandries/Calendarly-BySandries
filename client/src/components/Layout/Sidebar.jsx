@@ -306,6 +306,7 @@ export default function Sidebar({ isMobileOpen, onClose, zenMode, onToggleZen, o
               <NavLink
                 key={item.to}
                 to={item.to}
+                end={item.to === '/personal-care' ? false : true}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 title={item.label}
               >

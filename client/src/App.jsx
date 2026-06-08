@@ -17,6 +17,7 @@ import SecretUploadPage from './pages/SecretUploadPage';
 import AgentsPage from './pages/AgentsPage';
 import HabitsPage from './pages/HabitsPage';
 import PersonalCarePage from './pages/PersonalCarePage';
+import ProfilingPersonDetailPage from './pages/ProfilingPersonDetailPage';
 import TherapyJournalPage from './pages/TherapyJournalPage';
 import TherapyEntryDetailPage from './pages/TherapyEntryDetailPage';
 import TherapyEntryNewPage from './pages/TherapyEntryNewPage';
@@ -176,7 +177,10 @@ function MainLayout() {
           <Route path="/agents" element={<AgentsPage />} />
           <Route path="/habits" element={<HabitsPage />} />
           <Route path="/personal-care" element={<PersonalCarePage />} />
-          <Route path="/personal-care/journal" element={<TherapyJournalPage />} />
+          <Route path="/personal-care/dashboard" element={<PersonalCarePage />} />
+          <Route path="/personal-care/people" element={<PersonalCarePage />} />
+          <Route path="/personal-care/people/:id" element={<ProfilingPersonDetailPage />} />
+          <Route path="/personal-care/journal" element={<PersonalCarePage />} />
           <Route path="/personal-care/journal/new" element={<TherapyEntryNewPage />} />
           <Route path="/personal-care/journal/pattern/:patternId" element={<TherapyPatternPage />} />
           <Route path="/personal-care/journal/:id" element={<TherapyEntryDetailPage />} />

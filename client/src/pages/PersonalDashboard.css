@@ -6,17 +6,33 @@
 .pd-page-title {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #FF6B9D 0%, #FF8FAE 40%, #FFB8D0 70%, #FFD1E1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+  position: relative;
 }
 
 .pd-accent-dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #FF6B9D;
-  box-shadow: 0 0 12px #FF6B9D66;
+  background: linear-gradient(135deg, #FF6B9D, #FF8FAE);
+  box-shadow: 0 0 16px #FF6B9D88, 0 0 32px #FF6B9D44;
   flex-shrink: 0;
+  position: relative;
+  animation: pulse-dot 3s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 16px #FF6B9D88, 0 0 32px #FF6B9D44; transform: scale(1); }
+  50% { box-shadow: 0 0 24px #FF6B9DAA, 0 0 48px #FF6B9D66; transform: scale(1.1); }
 }
 
 /* KPI card accent stripe */
